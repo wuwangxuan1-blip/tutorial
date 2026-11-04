@@ -1,0 +1,9 @@
+APK:
+-rw-r--r-- 1 wwx 197121 10M Nov  4 23:58 android/app/build/outputs/apk/debug/app-debug.apk
+BADGING:
+package: name='com.tutorialcoach.app' versionCode='1' versionName='0.1.0' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'
+minSdkVersion:'26'
+targetSdkVersion:'35'
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='com.tutorialcoach.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+application-label:'实践陪练'

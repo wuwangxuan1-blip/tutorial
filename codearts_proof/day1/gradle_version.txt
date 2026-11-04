@@ -1,0 +1,15 @@
+Picked up JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8
+
+------------------------------------------------------------
+Gradle 8.9
+------------------------------------------------------------
+
+Build time:    2024-07-11 14:37:41 UTC
+Revision:      d536ef36a19186ccc596d8817123e5445f30fef8
+
+Kotlin:        1.9.23
+Groovy:        3.0.21
+Ant:           Apache Ant(TM) version 1.10.13 compiled on January 4 2023
+Launcher JVM:  21.0.7 (JetBrains s.r.o. 21.0.7+6-b1038.58)
+Daemon JVM:    'D:\Java\ideaIU-2025.2.win\jbr' (from org.gradle.java.home)
+OS:            Windows 11 10.0 amd64

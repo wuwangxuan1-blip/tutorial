@@ -1,0 +1,100 @@
+{
+  "http_status": 201,
+  "status": "clarifying",
+  "domain": "cooking",
+  "question_count": 5,
+  "question_fields": [
+    "skill_level",
+    "time_budget_min",
+    "people",
+    "servings",
+    "stove_type"
+  ],
+  "question_kinds": [
+    "single_choice",
+    "number",
+    "number",
+    "number",
+    "single_choice"
+  ],
+  "body": {
+    "id": "sess_01M6KM00B48S5JQGE5VJFW6S3Q",
+    "domain": "cooking",
+    "goal": "2 人份番茄鸡蛋面，30 分钟内完成",
+    "status": "clarifying",
+    "conditions": {},
+    "questions": [
+      {
+        "id": "q_skill_level",
+        "field": "skill_level",
+        "prompt": "你目前的熟练程度是？",
+        "kind": "single_choice",
+        "required": true,
+        "options": [
+          "beginner",
+          "intermediate",
+          "advanced"
+        ],
+        "unit": null,
+        "help": "用于调整说明详细程度。"
+      },
+      {
+        "id": "q_time_budget",
+        "field": "time_budget_min",
+        "prompt": "你希望在多长时间内完成？",
+        "kind": "number",
+        "required": true,
+        "options": [],
+        "unit": "分钟",
+        "help": "包括准备和收尾；请填 10–480。"
+      },
+      {
+        "id": "q_people",
+        "field": "people",
+        "prompt": "这次一共有几个人参与？",
+        "kind": "number",
+        "required": true,
+        "options": [],
+        "unit": "人",
+        "help": "用于估算份量和协作。"
+      },
+      {
+        "id": "q_servings",
+        "field": "servings",
+        "prompt": "需要做几人份？",
+        "kind": "number",
+        "required": true,
+        "options": [],
+        "unit": "份",
+        "help": "请填 1–20。"
+      },
+      {
+        "id": "q_stove_type",
+        "field": "stove_type",
+        "prompt": "你使用什么灶具？",
+        "kind": "single_choice",
+        "required": true,
+        "options": [
+          "gas",
+          "induction",
+          "electric",
+          "none"
+        ],
+        "unit": null,
+        "help": "用于估算火力和时间。"
+      }
+    ],
+    "reference_ids": [],
+    "current_plan_version": null,
+    "progress": {
+      "current_step_id": null,
+      "step_statuses": {},
+      "evidence_levels": {},
+      "timer": null,
+      "updated_at": "2026-11-04T15:49:12Z"
+    },
+    "outcome": null,
+    "created_at": "2026-11-04T15:49:12Z",
+    "updated_at": "2026-11-04T15:49:12Z"
+  }
+}

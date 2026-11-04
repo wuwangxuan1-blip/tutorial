@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -e
+
+if [ -n "$JAVA_HOME" ]; then
+  JAVA_BIN="$JAVA_HOME/bin/java"
+else
+  JAVA_BIN="java"
+fi
+
+GRADLE_HOME_DIR=""
+for candidate in "$HOME/.gradle/wrapper/dists/gradle-8.9-bin"/*/gradle-8.9; do
+  if [ -d "$candidate" ]; then
+    GRADLE_HOME_DIR="$candidate"
+    break
+  fi
+done
+
+if [ -z "$GRADLE_HOME_DIR" ]; then
+  echo "Gradle 8.9 distribution not found in local wrapper cache."
+  exit 1
+fi
+
+if command -v cygpath >/dev/null 2>&1; then
+  GRADLE_HOME_WIN="$(cygpath -m "$GRADLE_HOME_DIR")"
+else
+  GRADLE_HOME_WIN="$GRADLE_HOME_DIR"
+fi
+
+ARGS_FILE="gradle_run.args"
+{
+
+  echo "-cp"
+  echo "$GRADLE_HOME_WIN/lib/*;$GRADLE_HOME_WIN/lib/plugins/*"
+  echo "org.gradle.launcher.Main"
+  for argument in "$@"; do
+    echo "$argument"
+  done
+} > "$ARGS_FILE"
+
+set +e
+"$JAVA_BIN" "@$ARGS_FILE"
+STATUS=$?
+set -e
+rm -f "$ARGS_FILE"
+exit "$STATUS"

@@ -1,0 +1,66 @@
+{
+  "started_at": "2026-11-04T15:29:41Z",
+  "finished_at": "2026-11-04T15:29:47Z",
+  "base_url": "https://api.deepseek.com",
+  "text_model": "deepseek-flash",
+  "vision_model": "deepseek-flash",
+  "key_present": true,
+  "models": {
+    "status": "ok",
+    "http_status": 200,
+    "latency_ms": 835,
+    "model_ids": [
+      "deepseek-flash",
+      "deepseek-v4-pro"
+    ],
+    "error": null
+  },
+  "text": {
+    "status": "ok",
+    "http_status": 200,
+    "latency_ms": 1333,
+    "model": "deepseek-flash",
+    "finish_reason": "stop",
+    "output_excerpt": "收到",
+    "usage": {
+      "prompt_tokens": 35,
+      "completion_tokens": 16,
+      "total_tokens": 51,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 14
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 35
+    },
+    "error": null
+  },
+  "json": {
+    "status": "ok",
+    "http_status": 200,
+    "latency_ms": 1883,
+    "model": "deepseek-flash",
+    "parsed": {
+      "status": "ok",
+      "value": 42
+    },
+    "output_excerpt": "{\"status\":\"ok\",\"value\":42}",
+    "error": null
+  },
+  "image": {
+    "status": "ok",
+    "http_status": 200,
+    "latency_ms": 1895,
+    "model": "deepseek-flash",
+    "finish_reason": "stop",
+    "output_excerpt": "橙色",
+    "error": null,
+    "note": "使用本地生成的 64x64 橙色 PNG；未上传任何个人图片。"
+  },
+  "tool_call": {
+    "status": "skipped",
+    "reason": "P0 不依赖工具调用"
+  }
+}

@@ -1,0 +1,4 @@
+<testsuite name="com.tutorialcoach.app.data.DtoTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-04T15:58:33" hostname="LAPTOP-P2VQCC8P" time="0.096">
+<testsuite name="com.tutorialcoach.app.domain.ErrorMapperTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-04T15:58:33" hostname="LAPTOP-P2VQCC8P" time="0.006">
+<testsuite name="com.tutorialcoach.app.domain.PlanValidatorTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-04T15:58:33" hostname="LAPTOP-P2VQCC8P" time="0.005">
+Build executed by Codex reviewer at 2026-11-04T15:58Z; agent sandbox could not execute assembleDebug.

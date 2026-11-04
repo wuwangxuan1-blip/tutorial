@@ -1,0 +1,15 @@
+{
+  "http_status": 200,
+  "content_type": "application/json",
+  "contains_api_key_pattern": false,
+  "body": {
+    "status": "ok",
+    "api_version": "v1",
+    "time": "2026-11-04T15:49:12Z",
+    "checks": {
+      "store": true,
+      "ffmpeg": true,
+      "model_configured": true
+    }
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "started_at": "2026-11-04T15:49:11Z",
+  "finished_at": "2026-11-04T15:49:47Z",
+  "real_model_call": true,
+  "text_model": "deepseek-flash",
+  "health": {
+    "status": "ok",
+    "api_version": "v1",
+    "time": "2026-11-04T15:49:12Z",
+    "checks": {
+      "store": true,
+      "ffmpeg": true,
+      "model_configured": true
+    }
+  },
+  "capabilities_model": {
+    "text_model": "deepseek-flash",
+    "vision_model": "deepseek-flash",
+    "configured": true,
+    "vision_supported": true,
+    "probe_at": "2026-11-04T15:29:47Z",
+    "audio_analysis": false
+  },
+  "session": {
+    "id": "sess_01M6KM00B48S5JQGE5VJFW6S3Q",
+    "status_after_create": "clarifying",
+    "question_rounds": [
+      {
+        "round": 1,
+        "count": 5,
+        "fields": [
+          "skill_level",
+          "time_budget_min",
+          "people",
+          "servings",
+          "stove_type"
+        ]
+      }
+    ],
+    "final_status": "ready",
+    "conditions": {
+      "skill_level": "beginner",
+      "time_budget_min": 30,
+      "people": 2,
+      "servings": 2,
+      "stove_type": "gas"
+    }
+  },
+  "job_created": {
+    "http_status": 202,
+    "id": "job_01M6KM00F2M59EAASQJMWW3016",
+    "status": "queued"
+  },
+  "job_final": {
+    "status": "succeeded",
+    "progress": 100,
+    "stage": "succeeded",
+    "error": null
+  },
+  "plan": {
+    "http_status": 200,
+    "id": "plan_01M6KM11ER5N2MZPQC15VJJJFF",
+    "version": 1,
+    "title": "2人份番茄鸡蛋面：30分钟内可执行的初学者计划",
+    "summary": "面向初学者的2人份番茄鸡蛋面：先煮面并预留面汤，再炒番茄鸡蛋，最后合并装碗。步骤按燃气灶操作设计，全程约25–30分钟，注意生熟分开、洗手和防烫。",
+    "total_estimated_min": 28,
+    "step_count": 4,
+    "assumptions": [
+      "未提供具体用量，按2人份家常比例估算：面条约200克、番茄约400克、鸡蛋2个。",
+      "未提供调味清单，仅按食用油、盐设计；生抽、葱标为可选，不假设任何过敏信息。",
+      "未提供锅具类型，按燃气灶上可用锅具分步煮面和炒制；若只有一口锅，可先煮面再炒酱。"
+    ],
+    "safety_notes": [
+      "生熟分开：生鸡蛋容器、刀具和盛面碗尽量分开。",
+      "处理生食材后洗手，尤其是接触生鸡蛋后。",
+      "热油和开水防烫，下面条、倒蛋液时避免溅出。",
+      "使用燃气灶时人不离灶，结束后确认关火。",
+      "图片无法判断食物内部温度或食用安全；请用温度计或按食品安全规范确认。"
+    ],
+    "steps": [
+      {
+        "id": "step_1",
+        "order": 1,
+        "title": "清洗切配并分装",
+        "duration_s": 480,
+        "completion_criteria": [
+          "番茄切成约2–3厘米块并装盘",
+          "蛋液搅匀后无明显透明大块蛋清",
+          "生鸡蛋碗与盛面碗分开放置"
+        ]
+      },
+      {
+        "id": "step_2",
+        "order": 2,
+        "title": "煮面并预留面汤",
+        "duration_s": 360,
+        "completion_criteria": [
+          "水面明显大滚后再下面条",
+          "面条分散不粘锅底",
+          "达到包装标注时间且面条可弯折，已留半碗面汤"
+        ]
+      },
+      {
+        "id": "step_3",
+        "order": 3,
+        "title": "炒番茄鸡蛋",
+        "duration_s": 420,
+        "completion_criteria": [
+          "蛋液大部分凝固成块，无大量流动液体",
+          "番茄边缘变软，锅底出现红色汁液",
+          "蛋块与番茄翻拌均匀"
+        ]
+      },
+      {
+        "id": "step_4",
+        "order": 4,
+        "title": "合并装碗并检查关火",
+        "duration_s": 120,
+        "completion_criteria": [
+          "面条均匀裹上红色汤汁",
+          "碗中无大块未拌开的番茄或蛋块",
+          "燃气灶旋钮处于关闭状态"
+        ]
+      }
+    ]
+  }
+}
