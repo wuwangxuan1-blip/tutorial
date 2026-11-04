@@ -37,7 +37,7 @@
 | 5. 目标→澄清→真实模型计划→步骤卡 | 服务端 **PASS**（4 步真实计划）；Android 设备 **BLOCKED** | `vertical_flow.json`、`vertical_flow.log` |
 | 6. 文本/图片/JSON 探针真实结果 | **PASS**（三项均 ok） | `model_probe.json` |
 | 7. 证据目录与状态更新 | **PASS** | `codearts_proof/day1/`、本文件 |
-| 8. Git 本地提交/远程推送 | **PASS** | P0 功能提交 `bcd3cc9`、状态文档提交 `4798f2f` 均已推送到 origin/main；未强推；见 `git_status.txt` |
+| 8. Git 本地提交/远程推送 | **PASS** | P0 功能 `bcd3cc9`、状态文档 `4798f2f`、第三轮修复 `f405461` 均已推送到 origin/main；未强推；见 `git_status.txt` |
 
 ## 3. Codex P0 审查修复
 

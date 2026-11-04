@@ -16,6 +16,6 @@
 | `server/.venv/Scripts/python.exe scripts/vertical_flow.py` | PASS：真实模型计划 4 步；见 `vertical_flow.json`、`vertical_flow.log` |
 | `curl/ASGI GET /v1/health` | 200，`status=ok`，无 Key；见 `health.json` |
 | `POST /v1/sessions`（烹饪，无初始条件） | 201，`clarifying`，5 个问题；见 `session_create.json` |
-| `git push origin main` | PASS：`ab6996a..bcd3cc9 main -> main`；随后文档提交 `bcd3cc9..4798f2f main -> main`；远程 main 已核验 |
+| `git push origin main` | PASS：`ab6996a..bcd3cc9`、`bcd3cc9..4798f2f`、`4798f2f..f405461`；未强推 |
 
 说明：本沙箱禁止本地回环连接，因此 Web 测试与真实垂直流程使用 `httpx.ASGITransport` 在进程内驱动同一 FastAPI 应用（middleware/路由/序列化/异常处理全部生效），不使用假响应。真实 DeepSeek 调用通过外网完成，结果见探针与垂直流程证据。
