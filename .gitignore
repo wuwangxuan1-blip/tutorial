@@ -1,0 +1,41 @@
+# Local secrets and machine configuration
+.env
+.env.*
+!.env.example
+!*.env.example
+local.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+credentials*.json
+
+# Agent private state
+.arts/
+.codeartsdoer/
+.claude/
+
+# Build and runtime artifacts
+.gradle/
+**/build/
+*.apk
+*.aab
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.idea/
+server/data/
+server/uploads/
+server/logs/
+*.log
+
+# Evidence is reviewed before selectively adding sanitized files
+codearts_proof/
+
+# OS files
+Thumbs.db
+.DS_Store
