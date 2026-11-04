@@ -1,0 +1,8 @@
+branch: main
+upstream: origin/main
+commit: bcd3cc9847f6fecb7018ab7138e4c2ba9bd29659
+commit_subject: feat: implement D1 P0 vertical slice with real model probes
+remote_main: bcd3cc9847f6fecb7018ab7138e4c2ba9bd29659
+push: PASS (ab6996a..bcd3cc9 main -> main)
+force_push: false
+working_tree: clean at time of first commit

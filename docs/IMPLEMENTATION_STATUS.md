@@ -37,7 +37,7 @@
 | 5. 目标→澄清→真实模型计划→步骤卡 | 服务端 **PASS**（4 步真实计划）；Android 设备 **BLOCKED** | `vertical_flow.json`、`vertical_flow.log` |
 | 6. 文本/图片/JSON 探针真实结果 | **PASS**（三项均 ok） | `model_probe.json` |
 | 7. 证据目录与状态更新 | **PASS** | `codearts_proof/day1/`、本文件 |
-| 8. Git 本地提交/远程推送 | 待提交/推送 | `git_status.txt` |
+| 8. Git 本地提交/远程推送 | **PASS** | `bcd3cc9` 已提交并推送；远程 main 指向同一提交；见 `git_status.txt` |
 
 ## 3. Codex P0 审查修复
 
@@ -56,7 +56,7 @@
 
 - **Android build/APK**：Codex 复审环境已成功构建并核验 APK（2026-11-04T15:58Z），但该构建早于 P2 恢复逻辑修复；当前源码需在普通终端重建。码道本会话沙箱无法执行 `assembleDebug`。
 - **设备安装/启动/截图**：无真机、无 AVD、无可用系统镜像；需要用户连接真机或批准安装镜像。
-- **GitHub 推送**：`git ls-remote` 被沙箱网络拦截；提交可本地完成，推送结果以实际命令为准，不伪造。
+- **GitHub 推送**：已完成，`bcd3cc9` 推送到 `origin/main`，未强推。
 - **Android 编译验证**：Codex 审查发现的缺 return 已修，但本会话不能复编译；`testDebugUnitTest` 也未执行。
 
 ## 5. 下一步

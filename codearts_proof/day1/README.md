@@ -16,6 +16,7 @@
 | `android_apk_info.txt` | APK 大小与 aapt2 包名/版本/SDK 核验 |
 | `android_test_results.txt` | Codex 构建时 11 项 JVM 测试通过 |
 | `device_status.txt` | adb 设备为空、无 AVD |
-| `build_status.md` | APK 构建 BLOCKED 说明 |
+| `git_status.txt` | 本地提交、远程 main 核验与推送结果 |
+| `build_status.md` | APK 构建/安装状态说明 |
 
 未包含：API Key、`.env`、个人媒体、真实用户数据、截图（无设备，BLOCKED）。

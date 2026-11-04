@@ -95,8 +95,10 @@
 | 仓库 | 已有 `.git`；分支 `main` 跟踪 `origin/main` |
 | remote | `https://github.com/wuwangxuan1-blip/tutorial.git` |
 | 基线 | `ab6996a docs: add Android practice coach specifications and development plan` |
-| 只读远程测试 | 本会话 `git ls-remote --heads origin` 被沙箱拦截：`getaddrinfo() thread failed to start` |
-| 推送 | 待最后尝试；失败则记录真实错误，不伪造 |
+| P0 提交 | `bcd3cc9 feat: implement D1 P0 vertical slice with real model probes` |
+| 只读远程测试 | 早期 `git ls-remote` 被沙箱拦截；推送后执行 `git ls-remote --heads origin main` 返回 `bcd3cc9... refs/heads/main` |
+| 推送 | **PASS**：`git push origin main` 成功（`ab6996a..bcd3cc9 main -> main`），未强推 |
+| 本地/远程一致性 | `git status -sb` 显示 `## main...origin/main`；远程 main 指向 `bcd3cc9` |
 
 ## 9. 构建与安装状态
 
