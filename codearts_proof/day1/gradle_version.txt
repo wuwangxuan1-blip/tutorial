@@ -11,5 +11,6 @@ Kotlin:        1.9.23
 Groovy:        3.0.21
 Ant:           Apache Ant(TM) version 1.10.13 compiled on January 4 2023
 Launcher JVM:  21.0.7 (JetBrains s.r.o. 21.0.7+6-b1038.58)
-Daemon JVM:    'D:\Java\ideaIU-2025.2.win\jbr' (from org.gradle.java.home)
+Daemon JVM:    D:\Java\ideaIU-2025.2.win\jbr (no JDK specified, using current Java home)
 OS:            Windows 11 10.0 amd64
+

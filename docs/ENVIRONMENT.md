@@ -16,13 +16,14 @@
 |---|---|---|
 | 默认 Java | `java -version` | `java version "25.0.2"`；Gradle 8.9 不能用 JDK 25 运行 |
 | JBR 21 | `D:/Java/ideaIU-2025.2.win/jbr/bin/java.exe -version` | `openjdk version "21.0.7"`（JBR-21.0.7+6-1038.58-jcef） |
-| Gradle 版本 | `bash ./gradlew --version`（会话 JAVA_HOME=JBR21） | **PASS**：Gradle 8.9；Launcher JVM 21.0.7；见 `codearts_proof/day1/gradle_version.txt` |
+| Gradle 版本 | `bash ./gradlew --version`（标准 Wrapper，会话 JAVA_HOME=JBR21） | **PASS**：Gradle 8.9；Launcher JVM 21.0.7；见 `codearts_proof/day1/gradle_version.txt` |
+| Wrapper | `android/gradle/wrapper/gradle-wrapper.properties` | 官方 `https://services.gradle.org/distributions/gradle-8.9-bin.zip`；SHA-256 `d725d707...cecab`；标准 jar/脚本已生成 |
 | Gradle 缓存 | `ls ~/.gradle/wrapper/dists` | `gradle-8.9-bin`、`gradle-8.10.2-bin`、`gradle-9.2.1-bin` |
 | AGP 缓存 | `ls ~/.gradle/caches/.../com.android.tools.build/gradle` | `8.5.0`、`8.7.3`、`9.0.0`（无 8.8.2） |
 | Kotlin 插件缓存 | 同上 `org.jetbrains.kotlin/kotlin-gradle-plugin` | `2.0.0`、`2.0.20`、`2.0.21`、`2.2.10` |
 | Compose BOM 缓存 | 同上 `androidx.compose/compose-bom` | `2024.05.00`、`2024.12.01` |
 
-结论：会话级 `JAVA_HOME` 必须指向 JBR 21；项目 `gradle.properties` 同时设置 `org.gradle.java.home`。未修改系统变量。
+结论：会话级 `JAVA_HOME` 必须指向 JDK 21（本机 JBR 21.0.7）；`android/gradle.properties` 已移除个人 JDK 绝对路径，不再设置 `org.gradle.java.home`。未修改系统变量。
 
 ## 3. Android SDK / 设备
 
@@ -106,10 +107,10 @@
 | 项 | 状态 |
 |---|---|
 | `gradlew --version` | PASS（Gradle 8.9 + JVM 21.0.7） |
-| `:app:assembleDebug` | Codex 复审环境 2026-11-04T15:58Z：`BUILD SUCCESSFUL in 27s`；码道本会话沙箱无法执行该任务（命令被拦截、无日志）。最终源码在 P2 修复后尚未重建 |
-| APK | 已生成 `android/app/build/outputs/apk/debug/app-debug.apk`（约 10 MB，`aapt2` 核验包名/版本/SDK）；但构建早于 P2 修复，需重建 |
-| 设备安装/启动/截图 | BLOCKED（无设备/AVD/镜像） |
-| Android JVM 测试 | Codex 构建时 11 项 PASS；新增 `PlanViewModelTest` 后尚未复跑 |
+| `:app:assembleDebug` | **PASS**：标准 Wrapper + JBR 21，`:app:assembleDebug --rerun-tasks` `BUILD SUCCESSFUL in 28s`（35 任务全部执行）；见 `android_build_round3.log` |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`（约 10 MB，2026-11-05 01:01）；`aapt2` 核验包名/版本/SDK 通过 |
+| 设备安装/启动/截图 | **BLOCKED**（无设备/AVD/镜像） |
+| Android JVM 测试 | **PASS**：12 项，0 失败；`BUILD SUCCESSFUL in 15s`；含新增 `PlanViewModelTest`；见 `android_test_round3.log` |
 | FastAPI `/v1/health` | PASS：200、`status=ok`、无 Key |
 | 模型探针 | PASS：文本/JSON/图片 |
 | 真实计划垂直流程 | PASS（服务端）；Android UI 未设备验证 |

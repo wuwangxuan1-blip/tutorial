@@ -1,5 +1,5 @@
 APK:
--rw-r--r-- 1 wwx 197121 10M Nov  4 23:58 android/app/build/outputs/apk/debug/app-debug.apk
+-rw-r--r-- 1 wwx 197121 10M Nov  5 01:01 android/app/build/outputs/apk/debug/app-debug.apk
 BADGING:
 package: name='com.tutorialcoach.app' versionCode='1' versionName='0.1.0' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'
 minSdkVersion:'26'

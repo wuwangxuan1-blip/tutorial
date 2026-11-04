@@ -1,13 +1,13 @@
 # 实现状态
 
-> 最后更新：2026-11-04（P0/D1，含 Codex 审查修复）
+> 最后更新：2026-11-05（P0/D1，含 Codex 第三轮审查修复）
 > 状态取值：未开始 / 进行中 / PASS / BLOCKED。PASS 只表示有本文件“证据”列指向的真实命令输出、日志或截图；未执行的项目不得写 PASS。
 
 ## 1. 需求到阶段映射
 
 | 需求（CC_TASK / 产品规格） | 规格位置 | 阶段 | 状态 | 证据 |
 |---|---|---|---|---|
-| Android 可安装 APK，非 WebView/PWA | PRODUCT 2.1、AC-01；TECH 1/6 | D1 | 进行中：Codex 复审环境已构建 APK（旧源码）；码道沙箱无法执行构建，P2 修复后需重建；设备安装 BLOCKED | `codearts_proof/day1/build_status.md`、`android_apk_info.txt` |
+| Android 可安装 APK，非 WebView/PWA | PRODUCT 2.1、AC-01；TECH 1/6 | D1 | APK 构建 **PASS**（当前源码，10 MB）；真机安装/启动 **BLOCKED**（无设备） | `codearts_proof/day1/build_status.md`、`android_apk_info.txt` |
 | 四领域全部保留 | PRODUCT 5、AC-06 | D2–D6 | 未开始（D1 仅烹饪最小链路；领域枚举保留四值） | — |
 | 目标为主入口，可附参考教程 | PRODUCT P-01/P-02、AC-15/16 | D1/D2/D6 | 进行中（目标入口实现；参考导入未开始） | — |
 | 按领域追问条件，最多两轮 | PRODUCT P-03、AC-06 | D1/D2 | PASS（烹饪规则问题库 + 两轮上限；单测覆盖） | `server_pytest.log` |
@@ -30,7 +30,7 @@
 | P0 验收项 | 状态 | 证据/说明 |
 |---|---|---|
 | 1. `gradlew --version` = Gradle 8.9 + JVM 21.0.7 | **PASS** | `gradle_version.txt` |
-| 2. `assembleDebug` 成功且 APK 存在 | PASS（Codex 15:58Z，旧源码）；最终源码待复建 | `BUILD SUCCESSFUL in 27s`，APK 约 10 MB，`aapt2` 核验通过；随后 P2 修复未再构建 |
+| 2. `assembleDebug` 成功且 APK 存在 | **PASS** | 标准 Wrapper + JBR 21，强制重建 `BUILD SUCCESSFUL in 28s`，APK 约 10 MB，`aapt2` 核验通过 |
 | 2b. 安装/启动 | **BLOCKED** | `adb devices` 为空；无 AVD；镜像仅残留 |
 | 3. `/v1/health` 200、无 Key 泄露、诊断页显示状态 | 服务端 **PASS**；Android 设备 UI **BLOCKED** | `health.json`、`server_app_final.log` |
 | 4. 创建会话按领域返回 3–5 问题或 `ready` | **PASS** | `session_create.json`（5 个问题）、`server_pytest.log` |
@@ -41,27 +41,28 @@
 
 ## 3. Codex P0 审查修复
 
-审查报告：`docs/CODEX_P0_CODE_REVIEW.md`（Codex 产出，未修改其结论）。
+审查报告：`docs/CODEX_P0_CODE_REVIEW.md`、`docs/CODEX_P0_CODE_REVIEW_ROUND2.md`、`docs/CODEX_P0_CODE_REVIEW_ROUND3.md`（Codex 产出，未修改其结论）。
 
 | 项 | 状态 | 修复与验证 |
 |---|---|---|
-| 1. `ApiClient.execute` 缺 return，安卓编译失败 | 已修复，待复编译 | 改为 `return response.use { ... }`；本会话无法复跑 `assembleDebug`，需复审/用户终端验证 |
-| 2. plan-jobs 忽略 `Idempotency-Key` | 已修复 | 服务端按 method+path+key 校验 body hash、replay 首次 202、冲突/处理中；新增 2 项单测；Android 复用同一逻辑请求的 key |
-| 3. 过敏/器具数组字段被文本问题回答成字符串导致 422 | 已修复 | 服务端对数组字段做显式分隔归一化（`无`→`[]`）；新增 2 项单测 |
-| 4. 模型格式修复未 await | 现码已为 `await`（审查快照较早） | 新增 3 项修复路径单测：首次非法→修复成功、两次非法、修复超时 |
+| 1. `ApiClient.execute` 缺 return，安卓编译失败 | 已修复并验证 | 改为 `return response.use { ... }`；第三轮 `testDebugUnitTest` 与 `assembleDebug` 均通过 |
+| 2. plan-jobs 忽略 `Idempotency-Key` | 已修复并验证 | 服务端按 method+path+key 校验 body hash、replay 首次 202、冲突/处理中；新增 2 项单测；Android 复用同一逻辑请求的 key |
+| 3. 过敏/器具数组字段被文本问题回答成字符串导致 422 | 已修复并验证 | 服务端对数组字段做显式分隔归一化（`无`→`[]`）；新增 2 项单测 |
+| 4. 模型格式修复未 await | 现码已为 `await`（审查快照较早） | 新增 3 项修复路径单测：首次非法→修复成功、两次非法、修复超时；21 项服务端测试通过 |
 | 5. 新建第二次练习可能显示上一份计划 | 已修复（静态） | `PlanScreen` 按 session id 作为 ViewModel key；`PlanViewModel` 监听 session 变化并取消旧轮询；`loadPlan` 仅在 session 匹配时更新；设备 UI 未验证 |
-| 第二轮：Job 成功但 GET 计划失败后无法恢复 | 已修复，待复测 | 保留“待取计划”状态；`retry()` 只重试 `GET /plan`，不重建 Job；取到计划后同步 session 版本；新增 `PlanViewModelTest`（假网关模拟首次 GET 失败、第二次成功），尚未在新构建中执行 |
+| 第二轮：Job 成功但 GET 计划失败后无法恢复 | 已修复并验证 | 保留“待取计划”状态；`retry()` 只重试 `GET /plan`，不重建 Job；取到计划后同步 session 版本；`PlanViewModelTest` 实际执行通过 |
+| 第三轮：PlanViewModelTest 可空类型编译失败 | 已修复并验证 | `_session` 显式声明为 `MutableStateFlow<DomainSession?>`；完整安卓单测 12 项通过 |
+| 第三轮：gradlew 依赖个人缓存/JDK 绝对路径 | 已修复并验证 | 生成标准 Wrapper（Gradle 8.9、官方 URL、SHA-256）；移除 `org.gradle.java.home`；README 说明 JDK/SDK/本地配置/首次构建 |
 
 ## 4. 已知阻塞与待用户批准
 
-- **Android build/APK**：Codex 复审环境已成功构建并核验 APK（2026-11-04T15:58Z），但该构建早于 P2 恢复逻辑修复；当前源码需在普通终端重建。码道本会话沙箱无法执行 `assembleDebug`。
-- **设备安装/启动/截图**：无真机、无 AVD、无可用系统镜像；需要用户连接真机或批准安装镜像。
-- **GitHub 推送**：已完成，`bcd3cc9` 推送到 `origin/main`，未强推。
-- **Android 编译验证**：Codex 审查发现的缺 return 已修，但本会话不能复编译；`testDebugUnitTest` 也未执行。
+- **设备安装/启动/截图**：无真机、无 AVD、无可用系统镜像；需要用户连接真机或批准安装镜像；P0 未全部完成。
+- **GitHub 推送**：已推送 `bcd3cc9`、`4798f2f`；第三轮修复提交待推送，结果以实际命令为准。
+- **真机 UI 验收**：诊断页、步骤卡、切换会话、断网恢复均未设备验证。
 
 ## 5. 下一步
 
-1. 用户/Codex 在普通终端执行 `android\gradlew.bat --no-daemon :app:testDebugUnitTest :app:assembleDebug`，确认新增的 `PlanViewModelTest` 与 APK。
-2. 若通过，安装到真机走通“目标→澄清→真实计划→步骤卡”；无设备则保持 BLOCKED。
-3. 推送本地提交（网络可用时）。
-4. 复审 P0 后，再决定是否进入 P1/D2；不自动进入。
+1. 连接已授权真机或批准安装系统镜像，安装 APK，走通“目标→澄清→真实计划→步骤卡”。
+2. 验证诊断页、旋转/切后台、断网恢复与切换会话。
+3. 推送本轮修复提交；网络失败时记录真实原因。
+4. Codex 复审 P0 后，再决定是否进入 P1/D2；不自动进入。

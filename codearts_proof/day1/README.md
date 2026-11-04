@@ -14,7 +14,9 @@
 | `server_app_final.log` | 最终垂直流程服务端脱敏日志 |
 | `gradle_version.txt` | Gradle 8.9 + JVM 21.0.7 |
 | `android_apk_info.txt` | APK 大小与 aapt2 包名/版本/SDK 核验 |
-| `android_test_results.txt` | Codex 构建时 11 项 JVM 测试通过 |
+| `android_test_results.txt` | 安卓 12 项 JVM 测试（含 PlanViewModelTest） |
+| `android_test_round3.log` | 第三轮标准 Wrapper 单测完整输出 |
+| `android_build_round3.log` | 第三轮强制重建 APK 完整输出 |
 | `device_status.txt` | adb 设备为空、无 AVD |
 | `git_status.txt` | 本地提交、远程 main 核验与推送结果 |
 | `build_status.md` | APK 构建/安装状态说明 |

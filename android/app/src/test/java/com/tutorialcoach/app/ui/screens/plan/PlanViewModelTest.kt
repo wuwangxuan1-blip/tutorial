@@ -75,7 +75,7 @@ class PlanViewModelTest {
     )
 
     private inner class FakeGateway : PlanGateway {
-        private val _session = MutableStateFlow(makeSession())
+        private val _session = MutableStateFlow<DomainSession?>(makeSession())
         override val session: StateFlow<DomainSession?> = _session
 
         private val _plan = MutableStateFlow<DomainPlan?>(null)
