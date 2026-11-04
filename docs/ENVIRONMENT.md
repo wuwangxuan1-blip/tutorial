@@ -96,6 +96,7 @@
 | remote | `https://github.com/wuwangxuan1-blip/tutorial.git` |
 | 基线 | `ab6996a docs: add Android practice coach specifications and development plan` |
 | P0 提交 | `bcd3cc9 feat: implement D1 P0 vertical slice with real model probes` |
+| 状态文档提交 | `4798f2f docs: record D1 git push and verification status` |
 | 只读远程测试 | 早期 `git ls-remote` 被沙箱拦截；推送后执行 `git ls-remote --heads origin main` 返回 `bcd3cc9... refs/heads/main` |
 | 推送 | **PASS**：`git push origin main` 成功（`ab6996a..bcd3cc9 main -> main`），未强推 |
 | 本地/远程一致性 | `git status -sb` 显示 `## main...origin/main`；远程 main 指向 `bcd3cc9` |
