@@ -10,6 +10,7 @@ import com.tutorialcoach.app.di.AppContainer
 import com.tutorialcoach.app.ui.screens.clarify.ClarifyScreen
 import com.tutorialcoach.app.ui.screens.conditions.ConditionsScreen
 import com.tutorialcoach.app.ui.screens.home.HomeScreen
+import com.tutorialcoach.app.ui.screens.media.MediaScreen
 import com.tutorialcoach.app.ui.screens.plan.PlanScreen
 import com.tutorialcoach.app.ui.screens.revision.RevisionScreen
 import com.tutorialcoach.app.ui.screens.settings.DiagnosticsScreen
@@ -21,6 +22,7 @@ private const val SCREEN_PLAN = "plan"
 private const val SCREEN_STEP = "step"
 private const val SCREEN_CONDITIONS = "conditions"
 private const val SCREEN_REVISION = "revision"
+private const val SCREEN_MEDIA = "media"
 private const val SCREEN_DIAGNOSTICS = "diagnostics"
 
 @Composable
@@ -58,6 +60,7 @@ fun AppRoot(container: AppContainer) {
             onBack = { screen = SCREEN_PLAN },
             onOpenConditions = { screen = SCREEN_CONDITIONS },
             onOpenRevision = { screen = SCREEN_REVISION },
+            onOpenMedia = { screen = SCREEN_MEDIA },
         )
         SCREEN_CONDITIONS -> ConditionsScreen(
             container = container,
@@ -67,6 +70,10 @@ fun AppRoot(container: AppContainer) {
         SCREEN_REVISION -> RevisionScreen(
             container = container,
             onBack = { screen = SCREEN_PLAN },
+        )
+        SCREEN_MEDIA -> MediaScreen(
+            container = container,
+            onBack = { screen = SCREEN_STEP },
         )
         SCREEN_DIAGNOSTICS -> DiagnosticsScreen(
             container = container,

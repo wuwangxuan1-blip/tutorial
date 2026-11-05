@@ -1,11 +1,13 @@
 package com.tutorialcoach.app.data
 
 import com.tutorialcoach.app.domain.DomainAnswer
+import com.tutorialcoach.app.domain.DomainFeedback
 import com.tutorialcoach.app.domain.DomainImpact
 import com.tutorialcoach.app.domain.DomainPlan
 import com.tutorialcoach.app.domain.DomainProgress
 import com.tutorialcoach.app.domain.DomainRevision
 import com.tutorialcoach.app.domain.DomainSession
+import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +18,7 @@ import kotlinx.serialization.json.JsonObject
 class SessionRepository(
     private val api: ApiClient,
     private val localStore: LocalStore,
-) : PlanGateway, SessionActions {
+) : PlanGateway, SessionActions, FeedbackGateway {
     private val _session = MutableStateFlow<DomainSession?>(null)
     override val session: StateFlow<DomainSession?> = _session.asStateFlow()
 
@@ -76,6 +78,27 @@ class SessionRepository(
     ): JobDto = api.createPlanJob(sessionId, basePlanVersion, idempotencyKey)
 
     override suspend fun getJob(jobId: String): JobDto = api.getJob(jobId)
+
+    override suspend fun uploadMedia(
+        file: File,
+        mime: String,
+        kind: String,
+        onProgress: (Float) -> Unit,
+    ): MediaDto = api.uploadMedia(file, mime, kind, onProgress)
+
+    override suspend fun createFeedbackJob(
+        sessionId: String,
+        request: FeedbackJobRequestDto,
+        idempotencyKey: String,
+    ): JobDto = api.createFeedbackJob(sessionId, request, idempotencyKey)
+
+    override suspend fun getFeedback(feedbackId: String): DomainFeedback =
+        api.getFeedback(feedbackId).toDomain()
+
+    override suspend fun listFeedback(
+        sessionId: String,
+        stepId: String?,
+    ): List<DomainFeedback> = api.listFeedback(sessionId, stepId).map { it.toDomain() }
 
     override suspend fun loadPlan(sessionId: String): DomainPlan {
         val mapped = api.getPlan(sessionId).toDomain()

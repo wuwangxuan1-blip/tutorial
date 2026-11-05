@@ -1,5 +1,10 @@
 package com.tutorialcoach.app.data
 
+import com.tutorialcoach.app.domain.DomainFeedback
+import com.tutorialcoach.app.domain.DomainMedia
+import com.tutorialcoach.app.domain.DomainMotionMetrics
+import com.tutorialcoach.app.domain.DomainObservation
+import com.tutorialcoach.app.domain.DomainObservationEvidence
 import com.tutorialcoach.app.domain.DomainPlan
 import com.tutorialcoach.app.domain.DomainPreparation
 import com.tutorialcoach.app.domain.DomainProgress
@@ -118,3 +123,59 @@ fun RevisionChangeDto.toDomain(): DomainRevisionChange = DomainRevisionChange(
 private fun JsonObject.toFlatMap(): Map<String, String> = entries.associate { (key, value) ->
     key to value.toString().trim('"')
 }
+
+fun MediaDto.toDomain(): DomainMedia = DomainMedia(
+    id = id,
+    kind = kind,
+    mime = mime,
+    sizeBytes = sizeBytes,
+    width = width,
+    height = height,
+    durationS = durationS,
+    sha256 = sha256,
+    warnings = warnings,
+)
+
+fun ObservationEvidenceDto.toDomain(): DomainObservationEvidence = DomainObservationEvidence(
+    mediaId = mediaId,
+    kind = kind,
+    frameIndex = frameIndex,
+    timestampS = timestampS,
+)
+
+fun ObservationDto.toDomain(): DomainObservation = DomainObservation(
+    text = text,
+    evidence = evidence.toDomain(),
+    certainty = certainty,
+)
+
+fun MotionMetricsDto.toDomain(): DomainMotionMetrics = DomainMotionMetrics(
+    method = method,
+    sampleFps = sampleFps,
+    frameCount = frameCount,
+    meanTranslationPx = meanTranslationPx,
+    p95TranslationPx = p95TranslationPx,
+    meanRotationDeg = meanRotationDeg,
+    directionChanges = directionChanges,
+    limitations = limitations,
+)
+
+fun FeedbackDto.toDomain(): DomainFeedback = DomainFeedback(
+    id = id,
+    sessionId = sessionId,
+    stepId = stepId,
+    planVersion = planVersion,
+    mediaIds = mediaIds,
+    summary = analysis.summary,
+    observations = analysis.observations.map { it.toDomain() },
+    assessment = analysis.assessment,
+    uncertainties = analysis.uncertainties,
+    limitations = analysis.limitations,
+    motionMetrics = analysis.motionMetrics?.toDomain(),
+    sampledFrameTimestampsS = analysis.sampledFrameTimestampsS,
+    audioAnalyzed = analysis.audioAnalyzed,
+    audioNote = analysis.audioNote,
+    suggestedActions = suggestedActions,
+    followUpQuestions = followUpQuestions,
+    createdAt = createdAt,
+)

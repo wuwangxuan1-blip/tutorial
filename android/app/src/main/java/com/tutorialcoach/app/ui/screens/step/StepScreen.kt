@@ -39,6 +39,7 @@ fun StepScreen(
     onBack: () -> Unit,
     onOpenConditions: () -> Unit,
     onOpenRevision: () -> Unit,
+    onOpenMedia: () -> Unit,
 ) {
     val session by container.repository.session.collectAsStateWithLifecycle()
     val viewModel: StepViewModel = viewModel(
@@ -204,6 +205,14 @@ fun StepScreen(
                 ) {
                     Text("修订提案")
                 }
+            }
+            OutlinedButton(
+                onClick = onOpenMedia,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+            ) {
+                Text("上传照片 / 短片反馈")
             }
 
             if (session?.status == "paused") {

@@ -1,0 +1,229 @@
+{
+  "session_id": "sess_01M6NXX22MQQD2K2CEBKZT1QDQ",
+  "plan_id": "plan_01M6NXXEFJ5RNZ3W0CC83EYPCQ",
+  "plan_version": 1,
+  "plan_title": "手机竖屏手持环绕拍一杯咖啡 8 秒",
+  "step_id": "step_2",
+  "results": {
+    "image": {
+      "job_status": "succeeded",
+      "job_stage": "done",
+      "job_error": null,
+      "media_id": "media_01M6NXXEZMW7QSC39AHE7KKMY8",
+      "media_meta": {
+        "id": "media_01M6NXXEZMW7QSC39AHE7KKMY8",
+        "kind": "image",
+        "mime": "image/jpeg",
+        "size_bytes": 15403,
+        "width": 800,
+        "height": 600,
+        "duration_s": null,
+        "sha256": "7f2cd58489765a531cc24ae7db51776e7b246b8debd0088f0e97e74e9dc056be",
+        "status": "ready",
+        "warnings": [
+          "已转换为 JPEG 并去除 EXIF。"
+        ],
+        "created_at": "2026-11-05T13:21:03Z"
+      },
+      "feedback": {
+        "id": "fb_01M6NXXRP026J8D3J3ZDMM24GR",
+        "session_id": "sess_01M6NXX22MQQD2K2CEBKZT1QDQ",
+        "step_id": "step_2",
+        "plan_version": 1,
+        "media_ids": [
+          "media_01M6NXXEZMW7QSC39AHE7KKMY8"
+        ],
+        "analysis": {
+          "summary": "本次仅提交一张合成风格的俯视咖啡杯示意图，背景为米色，杯身白环、深棕液体和杯碟均为平涂色块，没有真实照片的光影纹理，也没有手机相机预览界面或对焦/曝光锁定提示。因此无法据此确认主要光源方向、锁定对焦后焦点是否稳定，或真实拍摄中白色杯身是否过曝；该步骤无法被现有证据验证。",
+          "observations": [
+            {
+              "text": "画面为扁平化/矢量风格的咖啡杯俯视示意图，米色背景，杯口呈白色圆环，内部为深棕色圆形，右上方有弧形杯柄，下方有棕色椭圆杯碟。",
+              "evidence": {
+                "media_id": "media_01M6NXXEZMW7QSC39AHE7KKMY8",
+                "kind": "image",
+                "frame_index": null,
+                "timestamp_s": null
+              },
+              "certainty": "high"
+            },
+            {
+              "text": "杯身白色圆环、深棕液体和杯碟均为均匀平涂色块，边缘清晰，未见可辨认的柔和高光渐变或方向性阴影，无法判断主光源来自哪一侧。",
+              "evidence": {
+                "media_id": "media_01M6NXXEZMW7QSC39AHE7KKMY8",
+                "kind": "image",
+                "frame_index": null,
+                "timestamp_s": null
+              },
+              "certainty": "high"
+            },
+            {
+              "text": "图中没有手机相机预览界面、对焦框、AE/AF 锁定提示或曝光滑块，无法验证是否已长按杯身锁定对焦与曝光。",
+              "evidence": {
+                "media_id": "media_01M6NXXEZMW7QSC39AHE7KKMY8",
+                "kind": "image",
+                "frame_index": null,
+                "timestamp_s": null
+              },
+              "certainty": "high"
+            },
+            {
+              "text": "白色杯环在图中呈均匀浅色，未见可辨的死白区域，但由于是合成平涂色块，不能据此判断真实拍摄中白色杯身或奶泡是否过曝。",
+              "evidence": {
+                "media_id": "media_01M6NXXEZMW7QSC39AHE7KKMY8",
+                "kind": "image",
+                "frame_index": null,
+                "timestamp_s": null
+              },
+              "certainty": "medium"
+            }
+          ],
+          "assessment": "not_verified",
+          "uncertainties": [
+            "无法确定实际拍摄环境中窗户或灯具相对杯子的方向。",
+            "没有任何界面或元数据能证明对焦与曝光已锁定。",
+            "合成示意图与真实手机拍摄画面的对应关系未知。"
+          ],
+          "limitations": [
+            "单帧图片只能做定性观察，无法评估连续晃动时的焦点稳定性。",
+            "未分析音频，且本图不含可分析的声音信息。",
+            "图片为合成素材，不是真实拍摄或手机预览截图，不能替代现场验证。",
+            "单帧/短片只能做定性观察，不提供精确稳定性评分。",
+            "2D 画面不代表真实焦距、景深或精确轨迹。"
+          ],
+          "motion_metrics": null,
+          "sampled_frame_timestamps_s": [],
+          "audio_analyzed": false,
+          "audio_note": "本期不分析音频，也不生成转写。"
+        },
+        "suggested_actions": [
+          "补交一张真实手机相机预览截图，需能看到对焦框或 AE/AF 锁定状态。",
+          "补交真实侧前方光或侧光下的杯子照片，保留白色杯身与阴影细节以便判断高光方向。",
+          "若需验证锁定稳定性，可补交轻微晃动手机时的连续视频抽帧或屏幕录制片段。"
+        ],
+        "follow_up_questions": [
+          "实际主要光源（窗户或灯）相对杯子位于哪个方向？",
+          "能否提供显示 AE/AF 锁定提示的手机预览截图或录屏？"
+        ],
+        "revision_id": null,
+        "created_at": "2026-11-05T13:21:13Z"
+      }
+    },
+    "video": {
+      "job_status": "succeeded",
+      "job_stage": "done",
+      "job_error": null,
+      "media_id": "media_01M6NXXS76SRE92043B15KPQ6K",
+      "media_meta": {
+        "id": "media_01M6NXXS76SRE92043B15KPQ6K",
+        "kind": "video",
+        "mime": "video/mp4",
+        "size_bytes": 51460,
+        "width": 640,
+        "height": 360,
+        "duration_s": 8.0,
+        "sha256": "154f9d2c8cd1fc6f9a1d67d2b5b1e6207fb7034fb1461eb9567329da6ec1f209",
+        "status": "ready",
+        "warnings": [
+          "本期不分析音频，也不生成转写。"
+        ],
+        "created_at": "2026-11-05T13:21:13Z"
+      },
+      "feedback": {
+        "id": "fb_01M6NXY5JDAD281G3E2SMN25VG",
+        "session_id": "sess_01M6NXX22MQQD2K2CEBKZT1QDQ",
+        "step_id": "step_2",
+        "plan_version": 1,
+        "media_ids": [
+          "media_01M6NXXS76SRE92043B15KPQ6K"
+        ],
+        "analysis": {
+          "summary": "本次视频抽帧均为合成测试卡，未出现咖啡杯、光源方向、杯身高光/阴影或对焦曝光锁定界面，因此无法核验“确认光线方向并固定曝光”的完成标准。运动指标虽显示整体位移很小，但素材不是真实拍摄，不能据此判断手机防抖或焦点稳定性。评估为未验证。",
+          "observations": [
+            {
+              "text": "第0秒画面是彩色测试卡：竖直彩条、中央圆形和横向渐变条，右侧计数器显示“0”；画面中没有咖啡杯、桌面或窗口光源。",
+              "evidence": {
+                "media_id": "media_01M6NXXS76SRE92043B15KPQ6K",
+                "kind": "video_frame",
+                "frame_index": 0,
+                "timestamp_s": 0.0
+              },
+              "certainty": "high"
+            },
+            {
+              "text": "第7秒仍为同一测试卡，计数器变为“7”；未见杯身白色区域、奶泡、阴影或手机对焦/曝光锁定界面。",
+              "evidence": {
+                "media_id": "media_01M6NXXS76SRE92043B15KPQ6K",
+                "kind": "video_frame",
+                "frame_index": 7,
+                "timestamp_s": 7.0
+              },
+              "certainty": "high"
+            },
+            {
+              "text": "第4秒画面可见测试卡与渐变条，计数器为“4”；无法从中观察杯子一侧高光和对侧阴影细节。",
+              "evidence": {
+                "media_id": "media_01M6NXXS76SRE92043B15KPQ6K",
+                "kind": "video_frame",
+                "frame_index": 4,
+                "timestamp_s": 4.0
+              },
+              "certainty": "high"
+            }
+          ],
+          "assessment": "not_verified",
+          "uncertainties": [
+            "提交的是合成测试素材，无法确认实际拍摄时的光源方向。",
+            "未见长按锁定对焦或曝光滑块操作，无法判断曝光是否已固定。",
+            "无法判断白色杯身/奶泡是否过曝或阴影是否保留细节。"
+          ],
+          "limitations": [
+            "单帧/短片只能做定性观察，无法替代现场连续拍摄验证。",
+            "未分析音频（音频未分析），且不评价声音。",
+            "抽帧为测试卡，未包含真实杯子，不能外推到真实拍摄效果。",
+            "单帧/短片只能做定性观察，不提供精确稳定性评分。",
+            "2D 画面不代表真实焦距、景深或精确轨迹。"
+          ],
+          "motion_metrics": {
+            "method": "vidstabdetect_ascii_10fps_320px+global_motions",
+            "sample_fps": 10,
+            "frame_count": 80,
+            "mean_translation_px": 0.043,
+            "p95_translation_px": 0.129,
+            "mean_rotation_deg": 0.003,
+            "direction_changes": 8,
+            "limitations": [
+              "基于 2D 图像平面估计，不还原真实 3D 轨迹。",
+              "无法可靠区分主体运动与相机运动。",
+              "快速运动、低纹理、遮挡会导致估计失败或偏差。",
+              "不是 0–100 的稳定性评分，不能用于精确比较。"
+            ]
+          },
+          "sampled_frame_timestamps_s": [
+            0.0,
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+            5.0,
+            6.0,
+            7.0
+          ],
+          "audio_analyzed": false,
+          "audio_note": "本期不分析音频，也不生成转写。"
+        },
+        "suggested_actions": [
+          "请重新提交真实咖啡杯的8秒环绕视频，并让主光从杯侧前方或侧面进入。",
+          "拍摄前在预览中长按杯身锁定对焦/曝光，并保留显示锁定状态与曝光滑块的画面。",
+          "提交时可附一张锁定后杯身白色区域与阴影同时可见的预览截图，便于核验。"
+        ],
+        "follow_up_questions": [
+          "能否补拍真实咖啡杯而非测试卡？",
+          "锁定对焦与曝光后，拍摄过程中是否保持曝光值不变？"
+        ],
+        "revision_id": null,
+        "created_at": "2026-11-05T13:21:26Z"
+      }
+    }
+  },
+  "note": "合成图片/短片仅用于技术验证，不是真实拍摄素材；真实素材验收仍为 BLOCKED。"
+}

@@ -9,6 +9,9 @@ from ..config import Settings
 from ..enums import JobStatus, JobType, SessionStatus
 from ..errors import ApiError, error_body
 from ..ids import new_id
+from ..models.feedback import FeedbackJobRequest
+from .feedback_service import FeedbackService
+from .media_service import MediaService
 from .plan_service import PlanService
 from .revision_service import RevisionService
 from .store import JsonStore
@@ -45,11 +48,15 @@ class JobService:
         store: JsonStore,
         plan_service: PlanService,
         revision_service: RevisionService,
+        feedback_service: FeedbackService,
+        media_service: MediaService,
     ) -> None:
         self.settings = settings
         self.store = store
         self.plan_service = plan_service
         self.revision_service = revision_service
+        self.feedback_service = feedback_service
+        self.media_service = media_service
         self._tasks: dict[str, asyncio.Task[None]] = {}
 
     def active_count(self) -> int:
@@ -125,11 +132,11 @@ class JobService:
                 session = await self.store.load_session(job["session_id"])
                 if not session:
                     raise ApiError(404, "NOT_FOUND", "会话不存在。")
-                if session["domain"] not in ("cooking", "software"):
+                if session["domain"] not in ("cooking", "software", "photography"):
                     raise ApiError(
                         422,
                         "DOMAIN_MISMATCH",
-                        "本阶段仅启用烹饪与软件领域的计划生成。",
+                        "本阶段仅启用烹饪、软件与摄影领域的计划生成。",
                     )
                 if session["status"] == SessionStatus.clarifying.value:
                     raise ApiError(422, "INVALID_REQUEST", "请先完成澄清问题。")
@@ -215,6 +222,125 @@ class JobService:
                 job_id,
                 request_id,
                 ApiError(500, "INTERNAL_ERROR", "生成计划时发生内部错误。", retryable=True),
+            )
+
+    async def create_feedback_job(
+        self,
+        session: dict[str, Any],
+        payload: FeedbackJobRequest,
+    ) -> dict[str, Any]:
+        if self.active_count() >= self.settings.queue_max:
+            raise ApiError(503, "JOB_QUEUE_FULL", "任务队列已满，请稍后重试。", retryable=True)
+        now = _now_dt()
+        job = {
+            "id": new_id("job"),
+            "type": JobType.feedback_analysis.value,
+            "status": JobStatus.queued.value,
+            "progress": 0,
+            "stage": "queued",
+            "session_id": session["id"],
+            "created_at": _iso(now),
+            "updated_at": _iso(now),
+            "expires_at": _iso(now + timedelta(hours=24)),
+            "result": None,
+            "error": None,
+            "_step_id": payload.step_id,
+            "_plan_version": payload.plan_version,
+            "_media_ids": list(payload.media_ids),
+            "_note": payload.note,
+        }
+        await self.store.save_job(job)
+        progress = dict(session.get("progress") or {})
+        evidence_levels = dict(progress.get("evidence_levels") or {})
+        if evidence_levels.get(payload.step_id) != "measured":
+            evidence_levels[payload.step_id] = "media_submitted"
+        progress["evidence_levels"] = evidence_levels
+        progress["updated_at"] = _iso(now)
+        session["progress"] = progress
+        session["updated_at"] = _iso(now)
+        await self.store.save_session(session)
+        task = asyncio.create_task(self._run_feedback_job(job["id"]))
+        self._tasks[job["id"]] = task
+        task.add_done_callback(lambda _: self._tasks.pop(job["id"], None))
+        return job
+
+    async def _run_feedback_job(self, job_id: str) -> None:
+        job = await self.store.load_job(job_id)
+        if not job:
+            return
+        request_id = new_id("request")
+        try:
+            await self._set_job(
+                job_id,
+                status=JobStatus.running.value,
+                progress=10,
+                stage="validating_media",
+            )
+            async with asyncio.timeout(self.settings.job_timeout_s):
+                session = await self.store.load_session(job["session_id"])
+                if not session:
+                    raise ApiError(404, "NOT_FOUND", "会话不存在。")
+                version = job.get("_plan_version")
+                if session.get("current_plan_version") != version:
+                    raise ApiError(
+                        409,
+                        "VERSION_CONFLICT",
+                        "计划版本已变化，请刷新后重试。",
+                        details={"current_plan_version": session.get("current_plan_version")},
+                    )
+                plan = await self.store.load_plan(session["id"], version)
+                if not plan:
+                    raise ApiError(404, "NOT_FOUND", "当前计划不存在。")
+                step = next(
+                    (item for item in plan["steps"] if item["id"] == job.get("_step_id")),
+                    None,
+                )
+                if not step:
+                    raise ApiError(422, "INVALID_REQUEST", "步骤不属于当前计划。")
+                payload = FeedbackJobRequest(
+                    step_id=job["_step_id"],
+                    plan_version=version,
+                    media_ids=job.get("_media_ids") or [],
+                    note=job.get("_note") or "",
+                )
+                media_items = await self.feedback_service.validate_request(session, plan, payload)
+                await self._set_job(job_id, progress=50, stage="analyzing_media")
+                feedback = await self.feedback_service.analyze(
+                    session,
+                    plan,
+                    step,
+                    media_items,
+                    payload.note,
+                )
+            await self._set_job(
+                job_id,
+                status=JobStatus.succeeded.value,
+                progress=100,
+                stage="done",
+                result={"feedback_id": feedback["id"]},
+                error=None,
+            )
+            logger.info(
+                "feedback_job_succeeded",
+                extra={"job_id": job_id, "session_id": session["id"], "status": "succeeded"},
+            )
+        except asyncio.TimeoutError:
+            await self._fail(
+                job_id,
+                request_id,
+                ApiError(504, "MODEL_TIMEOUT", "媒体反馈分析超时，请重试。", retryable=True),
+            )
+        except ApiError as exc:
+            await self._fail(job_id, request_id, exc)
+        except Exception:
+            logger.exception(
+                "feedback_job_unexpected_error",
+                extra={"job_id": job_id, "error_code": "INTERNAL_ERROR"},
+            )
+            await self._fail(
+                job_id,
+                request_id,
+                ApiError(500, "INTERNAL_ERROR", "分析媒体时发生内部错误。", retryable=True),
             )
 
     async def create_revision_job(

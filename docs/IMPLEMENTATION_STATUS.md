@@ -1,6 +1,6 @@
 # 实现状态
 
-> 最后更新：2026-11-05（P0/D1、P1/D2、P2/P3；P2/D3 实现与真机验证完成，D3 复审缺陷已修复（三轮），等待复审）
+> 最后更新：2026-11-05（D3 复审完成并推送；D4 媒体、反馈与摄影实现完成，等待 Codex 复审）
 > 状态取值：未开始 / 进行中 / PASS / BLOCKED。PASS 只表示有本文件“证据”列指向的真实命令输出、日志或截图；未执行的项目不得写 PASS。
 
 ## 1. 需求到阶段映射
@@ -211,3 +211,48 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 | 旧请求失败干扰较新计时操作 | 失败路径仅在 `epoch == timerEpoch` 时显示错误、恢复 ticker、清除 saving；过期请求的失败静默丢弃 | `staleTimerFailureDoesNotAffectNewerTimerOperation`：旧重置失败请求挂起 → 新重置成功 → 释放旧失败 → 无错误、新计时保持并继续下降；旧的 finished PATCH 与重置交错回归保留 |
 
 本轮实测：服务端 **76 passed / 0 failed**（未变）；安卓 **37 passed / 0 failed**（StepViewModelTest 11 项，新增 3 项）；`assembleDebug` BUILD SUCCESSFUL；APK 10,639,798 字节；`git diff --check` 通过。真机未重跑；失败恢复路径待复审后补设备验证。
+
+
+## 13. D4 媒体、图片/短片反馈与摄影（2026-11-05）
+
+基线：`f5371c2`（D3 已推送，远端一致）。
+
+### 服务端
+
+| 能力 | 状态 | 说明 |
+|---|---|---|
+| `POST /v1/media` | **PASS** | multipart；JPEG/PNG/WebP 每张 ≤10 MiB；服务端转 JPEG、去 EXIF、长边 1024；HEIC 由 App 转 JPEG，服务端明确 415；视频 MP4/MOV ≤30s、≤100 MiB，ffprobe + 首帧解码校验 |
+| `GET/DELETE /v1/media/{id}` | **PASS** | 元数据；被反馈引用时 409 `MEDIA_IN_USE` |
+| feedback-jobs / feedback / list | **PASS** | 1–4 图或 1 视频、不可混用；`plan_version`/`step_id` 校验；Job 结果 `feedback_id`；证据必须属于本次媒体 |
+| 图片反馈 | **PASS** | 每张图作为多图输入；观察引用 `media_id`；不推断内部温度/安全/口味；不自动完成步骤 |
+| 视频反馈 | **PASS** | 1 fps 最多 8 帧、真实时间戳；证据校验 `frame_index` 与 `timestamp_s`；`audio_analyzed=false`；运动指标 10 fps/320px/最多 300 帧，`vidstabdetect` + `global_motions`，失败 `null` + limitation |
+| 摄影领域 | **PASS** | 摄影提示词、已有摄影澄清问题；“手机环绕拍一杯咖啡 8 秒”真实计划 5 步；`visual_aid=null` 并明确提示；合法 `CameraMoveSpec` 保留，非法丢弃并提示 |
+| 反馈不自动完成 | **PASS** | 反馈只把证据级改为 `model_observed`（无观察时保持 `media_submitted`），`step_statuses` 不变 |
+
+本轮测试：服务端 **88 passed / 0 failed**（新增 `test_media` 4、`test_feedback` 5、`test_plan_photography` 3；原不支持领域测试改用 coffee）。
+
+### Android
+
+- Photo Picker 选择 1–4 张图片或 1 段短片（不申请存储权限）。
+- 图片经 ImageDecoder/BitmapFactory 处理并压缩为 JPEG（长边 ≤2048、质量 85，HEIC 在系统支持时经 ImageDecoder 解码）；视频用 `MediaMetadataRetriever` 预检 ≤30 秒、≤100 MiB，超限直接提示、不上传。
+- 隐私提示、证据缩略图、反馈页（评估、观察+媒体/帧时间戳、证据缩略图、不确定性、局限、运动指标、音频未分析、建议/追问）。
+- 上传进度、分段重试（已上传媒体不重复上传）、Job 失败/视觉不可用明确原因；失败不生成假反馈。
+- 反馈页当前不做自动完成、不做反馈驱动修订（修订仍走 D3 条件修订入口）。
+
+本轮测试：Android **41 tests / 0 failed**（新增 `MediaLimitsTest` 2、`MediaViewModelTest` 2）；`assembleDebug` BUILD SUCCESSFUL；APK 10,783,309 字节。
+
+### 视觉探针与真实素材
+
+- 真实视觉探针：`codearts_proof/day4/vision_probe.json`；文本/JSON/视觉均 `ok`，64×64 橙色 PNG 返回“橙色”。
+- 真实视觉 + 合成素材技术验证：`codearts_proof/day4/technical_synthetic_feedback.json`。
+  - 合成咖啡杯示意图：反馈 `not_verified`，观察引用图片 media_id，明确说明是合成素材、不能替代现场验证。
+  - 8 秒合成 testsrc 短片：8 个时间戳 0–7s，`audio_analyzed=false`，`motion_metrics` 非空（方法 `vidstabdetect_ascii_10fps_320px+global_motions`），模型明确识别为测试卡。
+- **真实图片/真实短片反馈：BLOCKED**。仓库与 work 目录没有用户真实拍摄素材；没有用项目截图或合成素材冒充真实拍摄。详见 `codearts_proof/day4/real_material_blocked.md`。
+
+### 未验证 / 边界
+
+- 真实图片与真实短片各一次反馈：BLOCKED（缺素材）。
+- 设备端 Photo Picker/上传/反馈页未真机走查（仅 JVM 测试与构建）。
+- 视频运动指标对真实拍摄的准确性未验证；合成视频只证明方法可运行。
+- Canvas 运镜播放、咖啡配方属 D5；反馈驱动修订未在 D4 Android 页面接入。
+- 音频始终不分析；HEIC 在 API 26/27 设备上的转换能力未验证。

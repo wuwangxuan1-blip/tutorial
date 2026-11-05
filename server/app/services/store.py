@@ -13,7 +13,7 @@ from ..errors import ApiError
 class JsonStore:
     def __init__(self, data_dir: Path) -> None:
         self.data_dir = Path(data_dir)
-        for name in ("sessions", "plans", "jobs", "idempotency", "revisions", "logs"):
+        for name in ("sessions", "plans", "jobs", "idempotency", "revisions", "media", "feedback", "logs"):
             (self.data_dir / name).mkdir(parents=True, exist_ok=True)
         self._locks: dict[str, asyncio.Lock] = {}
 
@@ -77,6 +77,55 @@ class JsonStore:
             self.revision_rel(payload["session_id"], payload["id"]),
             payload,
         )
+
+    def media_json_rel(self, media_id: str) -> str:
+        return f"media/{media_id}.json"
+
+    def media_file_path(self, media_id: str, extension: str) -> Path:
+        return self.data_dir / "media" / f"{media_id}{extension}"
+
+    async def load_media(self, media_id: str) -> dict[str, Any] | None:
+        return await self.read_json(self.media_json_rel(media_id))
+
+    async def save_media(self, payload: dict[str, Any]) -> None:
+        await self.write_json(self.media_json_rel(payload["id"]), payload)
+
+    def feedback_rel(self, feedback_id: str) -> str:
+        return f"feedback/{feedback_id}.json"
+
+    async def load_feedback(self, feedback_id: str) -> dict[str, Any] | None:
+        return await self.read_json(self.feedback_rel(feedback_id))
+
+    async def save_feedback(self, payload: dict[str, Any]) -> None:
+        await self.write_json(self.feedback_rel(payload["id"]), payload)
+
+    async def list_feedback(self, session_id: str) -> list[dict[str, Any]]:
+        directory = self.data_dir / "feedback"
+        if not directory.exists():
+            return []
+        items: list[dict[str, Any]] = []
+        for path in directory.glob("*.json"):
+            try:
+                item = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ApiError(500, "INTERNAL_ERROR", "数据文件损坏，请联系维护者。") from exc
+            if item.get("session_id") == session_id:
+                items.append(item)
+        items.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+        return items
+
+    async def media_referenced(self, media_id: str) -> bool:
+        directory = self.data_dir / "feedback"
+        if not directory.exists():
+            return False
+        for path in directory.glob("*.json"):
+            try:
+                item = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if media_id in (item.get("media_ids") or []):
+                return True
+        return False
 
     async def list_revisions(self, session_id: str) -> list[dict[str, Any]]:
         directory = self.data_dir / self.revisions_dir_rel(session_id)

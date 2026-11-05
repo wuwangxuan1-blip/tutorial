@@ -365,11 +365,15 @@ async def create_plan_job(
             session = await store.load_session(session_id)
             if not session:
                 raise not_found("会话不存在。")
-            if session["domain"] not in (Domain.cooking.value, Domain.software.value):
+            if session["domain"] not in (
+                Domain.cooking.value,
+                Domain.software.value,
+                Domain.photography.value,
+            ):
                 raise ApiError(
                     422,
                     "DOMAIN_MISMATCH",
-                    "本阶段仅启用烹饪与软件领域的计划生成；其它领域将在后续阶段开放。",
+                    "本阶段仅启用烹饪、软件与摄影领域的计划生成；其它领域将在后续阶段开放。",
                 )
             if session["status"] == SessionStatus.clarifying.value:
                 raise invalid_request("请先完成澄清问题。", {"reason": "clarification_incomplete"})

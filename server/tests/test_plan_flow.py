@@ -125,16 +125,15 @@ async def test_plan_job_without_key_fails_with_model_not_configured(client):
     assert plan_response.status_code == 404
 
 
-async def test_plan_job_rejects_non_cooking_domain(client):
+async def test_plan_job_rejects_unsupported_domain(client):
     created = await client.post(
         "/v1/sessions",
         json={
-            "domain": "photography",
-            "goal": "用手机环绕拍一杯咖啡",
+            "domain": "coffee",
+            "goal": "手冲一杯咖啡",
             "conditions": {
                 "skill_level": "beginner",
-                "stabilization": "handheld",
-                "aspect_ratio": "9:16",
+                "brewer": "V60",
             },
         },
     )

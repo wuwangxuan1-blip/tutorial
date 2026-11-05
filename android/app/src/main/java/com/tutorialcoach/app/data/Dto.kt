@@ -115,6 +115,7 @@ data class JobResultDto(
     @SerialName("plan_id") val planId: String? = null,
     @SerialName("plan_version") val planVersion: Int? = null,
     @SerialName("revision_id") val revisionId: String? = null,
+    @SerialName("feedback_id") val feedbackId: String? = null,
 )
 
 @Serializable
@@ -281,4 +282,87 @@ data class RevisionDto(
 data class RevisionApplyResponseDto(
     @SerialName("plan") val plan: PlanDto,
     @SerialName("revision") val revision: RevisionDto,
+)
+
+@Serializable
+data class MediaDto(
+    @SerialName("id") val id: String,
+    @SerialName("kind") val kind: String,
+    @SerialName("mime") val mime: String,
+    @SerialName("size_bytes") val sizeBytes: Long,
+    @SerialName("width") val width: Int,
+    @SerialName("height") val height: Int,
+    @SerialName("duration_s") val durationS: Double? = null,
+    @SerialName("sha256") val sha256: String,
+    @SerialName("status") val status: String,
+    @SerialName("warnings") val warnings: List<String> = emptyList(),
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+@Serializable
+data class ObservationEvidenceDto(
+    @SerialName("media_id") val mediaId: String,
+    @SerialName("kind") val kind: String,
+    @SerialName("frame_index") val frameIndex: Int? = null,
+    @SerialName("timestamp_s") val timestampS: Double? = null,
+)
+
+@Serializable
+data class ObservationDto(
+    @SerialName("text") val text: String,
+    @SerialName("evidence") val evidence: ObservationEvidenceDto,
+    @SerialName("certainty") val certainty: String,
+)
+
+@Serializable
+data class MotionMetricsDto(
+    @SerialName("method") val method: String,
+    @SerialName("sample_fps") val sampleFps: Int,
+    @SerialName("frame_count") val frameCount: Int,
+    @SerialName("mean_translation_px") val meanTranslationPx: Double,
+    @SerialName("p95_translation_px") val p95TranslationPx: Double,
+    @SerialName("mean_rotation_deg") val meanRotationDeg: Double,
+    @SerialName("direction_changes") val directionChanges: Int,
+    @SerialName("limitations") val limitations: List<String> = emptyList(),
+)
+
+@Serializable
+data class FeedbackAnalysisDto(
+    @SerialName("summary") val summary: String,
+    @SerialName("observations") val observations: List<ObservationDto> = emptyList(),
+    @SerialName("assessment") val assessment: String,
+    @SerialName("uncertainties") val uncertainties: List<String> = emptyList(),
+    @SerialName("limitations") val limitations: List<String> = emptyList(),
+    @SerialName("motion_metrics") val motionMetrics: MotionMetricsDto? = null,
+    @SerialName("sampled_frame_timestamps_s") val sampledFrameTimestampsS: List<Double> = emptyList(),
+    @SerialName("audio_analyzed") val audioAnalyzed: Boolean = false,
+    @SerialName("audio_note") val audioNote: String = "",
+)
+
+@Serializable
+data class FeedbackDto(
+    @SerialName("id") val id: String,
+    @SerialName("session_id") val sessionId: String,
+    @SerialName("step_id") val stepId: String,
+    @SerialName("plan_version") val planVersion: Int,
+    @SerialName("media_ids") val mediaIds: List<String> = emptyList(),
+    @SerialName("analysis") val analysis: FeedbackAnalysisDto,
+    @SerialName("suggested_actions") val suggestedActions: List<String> = emptyList(),
+    @SerialName("follow_up_questions") val followUpQuestions: List<String> = emptyList(),
+    @SerialName("revision_id") val revisionId: String? = null,
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+@Serializable
+data class FeedbackListDto(
+    @SerialName("items") val items: List<FeedbackDto> = emptyList(),
+    @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+@Serializable
+data class FeedbackJobRequestDto(
+    @SerialName("step_id") val stepId: String,
+    @SerialName("plan_version") val planVersion: Int,
+    @SerialName("media_ids") val mediaIds: List<String>,
+    @SerialName("note") val note: String = "",
 )

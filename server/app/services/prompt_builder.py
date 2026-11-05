@@ -9,6 +9,8 @@ PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
 COOKING_KEY_CONDITIONS = ("skill_level", "time_budget_min", "people", "servings", "stove_type")
 SOFTWARE_KEY_CONDITIONS = ("skill_level", "os")
 SOFTWARE_OPTIONAL_CONDITIONS = ("os_version", "backup_available", "terminal_available")
+PHOTOGRAPHY_KEY_CONDITIONS = ("skill_level", "stabilization", "aspect_ratio")
+PHOTOGRAPHY_OPTIONAL_CONDITIONS = ("device_model", "lighting", "subject")
 
 
 def load_prompt(name: str) -> str:
@@ -45,6 +47,58 @@ def build_software_user_prompt(goal: str, conditions: dict[str, Any], domain: st
         f"仍缺失的关键条件：{'、'.join(missing) if missing else '无'}\n"
         f"仍缺失的可选条件：{'、'.join(optional_missing) if optional_missing else '无'}\n"
         "请生成符合系统消息结构要求的完整 JSON。"
+    )
+
+
+def build_photography_user_prompt(goal: str, conditions: dict[str, Any], domain: str) -> str:
+    condition_text = json.dumps(conditions, ensure_ascii=False, sort_keys=True)
+    missing = [name for name in PHOTOGRAPHY_KEY_CONDITIONS if conditions.get(name) is None]
+    optional_missing = [
+        name for name in PHOTOGRAPHY_OPTIONAL_CONDITIONS if conditions.get(name) is None
+    ]
+    return (
+        f"领域：{domain}\n"
+        f"用户目标：{goal}\n"
+        f"已知条件（JSON）：{condition_text}\n"
+        f"仍缺失的关键条件：{'、'.join(missing) if missing else '无'}\n"
+        f"仍缺失的可选条件：{'、'.join(optional_missing) if optional_missing else '无'}\n"
+        "本阶段 visual_aid 必须为 null；请把运镜方向和起止要求写进 instruction。"
+        "请生成符合系统消息结构要求的完整 JSON。"
+    )
+
+
+def build_feedback_user_prompt(
+    goal: str,
+    domain: str,
+    step: dict[str, Any],
+    media_items: list[dict[str, Any]],
+    frames: list[tuple[int, float]],
+    motion_metrics: dict[str, Any] | None,
+    note: str,
+) -> str:
+    media_lines = [
+        f"- media_id={item['id']} kind={item['kind']} mime={item['mime']}"
+        for item in media_items
+    ]
+    frame_lines = [
+        f"- frame_index={index} timestamp_s={timestamp:.3f}"
+        for index, timestamp in frames
+    ]
+    return (
+        f"领域：{domain}\n"
+        f"用户目标：{goal}\n"
+        f"当前步骤：{step.get('title')}\n"
+        f"步骤说明：{step.get('instruction')}\n"
+        f"完成标准：{json.dumps(step.get('completion_criteria') or [], ensure_ascii=False)}\n"
+        "本次提交媒体：\n"
+        + "\n".join(media_lines)
+        + "\n视频抽帧（仅这些帧可引用）：\n"
+        + ("\n".join(frame_lines) if frame_lines else "图片反馈，无视频帧")
+        + "\n运动指标（仅视频，可能为 null）："
+        + (json.dumps(motion_metrics, ensure_ascii=False) if motion_metrics else "null")
+        + "\n音频未分析：true（禁止分析或转写声音）\n"
+        f"用户备注：{note or '无'}\n"
+        "请只输出 JSON：summary、observations、assessment、uncertainties、limitations、suggested_actions、follow_up_questions。"
     )
 
 

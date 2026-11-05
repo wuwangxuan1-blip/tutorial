@@ -9,13 +9,17 @@ from pydantic import ValidationError
 from ..config import Settings
 from ..errors import ApiError
 from ..ids import new_id
+from ..models.camera import validate_visual_aid
 from ..models.plan import PlanDraft, PlanOut
 from .model_client import ModelClient
 from .prompt_builder import (
     COOKING_KEY_CONDITIONS,
+    PHOTOGRAPHY_KEY_CONDITIONS,
+    PHOTOGRAPHY_OPTIONAL_CONDITIONS,
     SOFTWARE_KEY_CONDITIONS,
     SOFTWARE_OPTIONAL_CONDITIONS,
     build_cooking_user_prompt,
+    build_photography_user_prompt,
     build_repair_prompt,
     build_software_user_prompt,
     load_system_prompt,
@@ -54,10 +58,12 @@ class PlanService:
             return await self.generate_cooking_plan(session, version)
         if domain == "software":
             return await self.generate_software_plan(session, version)
+        if domain == "photography":
+            return await self.generate_photography_plan(session, version)
         raise ApiError(
             422,
             "DOMAIN_MISMATCH",
-            "本阶段仅启用烹饪与软件领域的计划生成；其它领域将在后续阶段开放。",
+            "本阶段仅启用烹饪、软件与摄影领域的计划生成；其它领域将在后续阶段开放。",
         )
 
     async def generate_cooking_plan(self, session: dict[str, Any], version: int) -> dict[str, Any]:
@@ -71,6 +77,13 @@ class PlanService:
         conditions = dict(session.get("conditions") or {})
         user_prompt = build_software_user_prompt(session["goal"], conditions, session["domain"])
         system_prompt = load_system_prompt("software")
+        draft = await self._generate_draft(system_prompt, user_prompt)
+        return self._build_plan(session, draft, version, conditions)
+
+    async def generate_photography_plan(self, session: dict[str, Any], version: int) -> dict[str, Any]:
+        conditions = dict(session.get("conditions") or {})
+        user_prompt = build_photography_user_prompt(session["goal"], conditions, session["domain"])
+        system_prompt = load_system_prompt("photography")
         draft = await self._generate_draft(system_prompt, user_prompt)
         return self._build_plan(session, draft, version, conditions)
 
@@ -125,7 +138,18 @@ class PlanService:
             for index, item in enumerate(draft.preparation, start=1)
         ]
         steps = []
+        photography_visual_missing = False
         for index, item in enumerate(draft.steps, start=1):
+            visual_aid = item.visual_aid
+            if session["domain"] == "photography":
+                if visual_aid is None:
+                    photography_visual_missing = True
+                else:
+                    try:
+                        visual_aid = validate_visual_aid(visual_aid)
+                    except ValueError:
+                        visual_aid = None
+                        photography_visual_missing = True
             steps.append(
                 {
                     "id": f"step_{index}",
@@ -139,7 +163,7 @@ class PlanService:
                     "safety": item.safety,
                     "common_mistakes": item.common_mistakes,
                     "timer": item.timer.model_dump(mode="json") if item.timer else None,
-                    "visual_aid": item.visual_aid,
+                    "visual_aid": visual_aid,
                     "evidence_hint": item.evidence_hint,
                     "media_prompt": item.media_prompt,
                 }
@@ -151,6 +175,12 @@ class PlanService:
                 safety_notes.append("生熟食材分开；处理生鸡蛋后洗手。")
             if not any("内部温度" in note for note in safety_notes):
                 safety_notes.append("图片无法判断食物内部温度或食用安全；请用温度计或按食品安全规范确认。")
+        elif session["domain"] == "photography":
+            safety_notes.append("2D 路径与文字说明不代表真实焦距、景深或精确轨迹。")
+            safety_notes.append("不提供 0–100 的稳定性评分；反馈只做定性观察。")
+            safety_notes.append("本期不分析音频，也不生成转写。")
+            if photography_visual_missing:
+                safety_notes.append("本阶段运镜路径图/动画暂缺（visual_aid=null）；请按文字说明拍摄，D5 再提供动画。")
         else:
             if not any("备份" in note for note in safety_notes):
                 safety_notes.append("涉及文件操作前先复制一份备份，避免误删或覆盖。")
@@ -182,6 +212,31 @@ class PlanService:
         for note in draft.assumptions:
             if note not in model_assumptions:
                 model_assumptions.append(note)
+
+        if domain == "photography":
+            generated_notes: list[str] = []
+            for name in PHOTOGRAPHY_KEY_CONDITIONS:
+                if conditions.get(name) is None:
+                    note = f"未提供 {name}，按常见情况假设。"
+                    if note not in model_assumptions:
+                        generated_notes.append(note)
+            optional_notes = {
+                "device_model": "未提供 device_model（手机或相机型号），按常见手机广角镜头假设。",
+                "lighting": "未提供 lighting（现场光线），按室内自然光与室内灯混合假设。",
+                "subject": "未提供 subject（主体尺寸），按一杯咖啡作为画面主体假设。",
+            }
+            for name in PHOTOGRAPHY_OPTIONAL_CONDITIONS:
+                if conditions.get(name) is None:
+                    note = optional_notes[name]
+                    if note not in model_assumptions and note not in generated_notes:
+                        generated_notes.append(note)
+            assumptions = list(model_assumptions[:10])
+            for note in generated_notes:
+                if len(assumptions) >= 10:
+                    break
+                if note not in assumptions:
+                    assumptions.append(note)
+            return assumptions
 
         if domain == "software":
             generated_notes: list[str] = []

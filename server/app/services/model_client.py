@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import re
@@ -42,16 +43,28 @@ class ModelClient:
         user_prompt: str,
         model: str | None = None,
         timeout_s: float | None = None,
+        vision_images: list[tuple[bytes, str]] | None = None,
     ) -> dict[str, Any]:
         if not self.settings.api_key or not (model or self.settings.text_model):
             raise ApiError(503, "MODEL_NOT_CONFIGURED", "服务端未配置模型 Key，请检查 server/.env。")
         selected_model = model or self.settings.text_model
         timeout = timeout_s if timeout_s is not None else self.settings.model_timeout_s
+        user_content: Any = user_prompt
+        if vision_images:
+            user_content = [{"type": "text", "text": user_prompt}]
+            for image_bytes, image_mime in vision_images:
+                encoded = base64.b64encode(image_bytes).decode("ascii")
+                user_content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{image_mime};base64,{encoded}"},
+                    }
+                )
         payload = {
             "model": selected_model,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": user_content},
             ],
             "response_format": {"type": "json_object"},
             "temperature": 0.2,
@@ -121,6 +134,22 @@ class ModelClient:
                     422,
                     "MODEL_REFUSED",
                     "模型拒绝处理该请求，请修改内容后重试。",
+                    details={"upstream_status": response.status_code},
+                )
+            if response.status_code in (400, 403, 422) and vision_images:
+                logger.warning(
+                    "model_call_failed",
+                    extra={
+                        "model": selected_model,
+                        "duration_ms": elapsed_ms,
+                        "status": response.status_code,
+                        "error_code": "VISION_UNSUPPORTED",
+                    },
+                )
+                raise ApiError(
+                    503,
+                    "VISION_UNSUPPORTED",
+                    "当前模型端点不支持图片输入，请更换视觉模型或关闭图片反馈。",
                     details={"upstream_status": response.status_code},
                 )
             logger.warning(

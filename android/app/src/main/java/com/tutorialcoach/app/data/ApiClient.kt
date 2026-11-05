@@ -1,5 +1,6 @@
 package com.tutorialcoach.app.data
 
+import java.io.File
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -16,10 +17,12 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okio.BufferedSink
 
 class ApiException(
     val code: String,
@@ -53,6 +56,10 @@ class ApiClient(
         .build()
     private val askClient = client.newBuilder()
         .readTimeout(75, TimeUnit.SECONDS)
+        .build()
+    private val uploadClient = client.newBuilder()
+        .readTimeout(180, TimeUnit.SECONDS)
+        .writeTimeout(180, TimeUnit.SECONDS)
         .build()
 
     suspend fun health(): HealthDto = getJson("/v1/health", HealthDto.serializer())
@@ -283,6 +290,58 @@ class ApiClient(
         )
     }
 
+    suspend fun uploadMedia(
+        file: File,
+        mime: String,
+        kind: String,
+        onProgress: (Float) -> Unit,
+    ): MediaDto = withContext(Dispatchers.IO) {
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("kind", kind)
+            .addFormDataPart(
+                "file",
+                file.name,
+                ProgressRequestBody(file, mime.toMediaType(), onProgress),
+            )
+            .build()
+        val request = Request.Builder()
+            .url("$baseUrl/v1/media")
+            .header("Accept", "application/json")
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .post(body)
+            .build()
+        execute(request, uploadClient, MediaDto.serializer())
+    }
+
+    suspend fun createFeedbackJob(
+        sessionId: String,
+        request: FeedbackJobRequestDto,
+        idempotencyKey: String,
+    ): JobDto {
+        val body = json.encodeToString(FeedbackJobRequestDto.serializer(), request)
+        return postJson(
+            path = "/v1/sessions/$sessionId/feedback-jobs",
+            body = body,
+            serializer = JobDto.serializer(),
+            idempotencyKey = idempotencyKey,
+        )
+    }
+
+    suspend fun getFeedback(feedbackId: String): FeedbackDto = getJson(
+        path = "/v1/feedback/$feedbackId",
+        serializer = FeedbackDto.serializer(),
+    )
+
+    suspend fun listFeedback(sessionId: String, stepId: String? = null): List<FeedbackDto> {
+        val suffix = stepId?.let { "?step_id=$it" } ?: ""
+        val response = getJson(
+            path = "/v1/sessions/$sessionId/feedback$suffix",
+            serializer = FeedbackListDto.serializer(),
+        )
+        return response.items
+    }
+
     private suspend fun <T> getJson(
         path: String,
         serializer: DeserializationStrategy<T>,
@@ -362,6 +421,31 @@ class ApiClient(
                     message = "服务端响应无法解析，请稍后重试。",
                     retryable = true,
                 )
+            }
+        }
+    }
+}
+
+private class ProgressRequestBody(
+    private val file: File,
+    private val mediaType: okhttp3.MediaType,
+    private val onProgress: (Float) -> Unit,
+) : okhttp3.RequestBody() {
+    override fun contentType() = mediaType
+
+    override fun contentLength(): Long = file.length()
+
+    override fun writeTo(sink: BufferedSink) {
+        val total = file.length().coerceAtLeast(1L)
+        var written = 0L
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        file.inputStream().use { input ->
+            while (true) {
+                val read = input.read(buffer)
+                if (read == -1) break
+                sink.write(buffer, 0, read)
+                written += read
+                onProgress((written.toFloat() / total).coerceIn(0f, 1f))
             }
         }
     }

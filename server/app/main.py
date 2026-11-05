@@ -10,14 +10,16 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .api import ask, health, jobs, progress, revisions, sessions
+from .api import ask, feedback, health, jobs, media, progress, revisions, sessions
 from .config import Settings, load_settings
 from .errors import ApiError, error_body
 from .ids import new_id
 from .logging_config import setup_logging
 from .models.job import JobOut
 from .services.ask_service import AskService
+from .services.feedback_service import FeedbackService
 from .services.job_service import JobService
+from .services.media_service import MediaService
 from .services.model_client import ModelClient
 from .services.plan_service import PlanService
 from .services.progress_service import ProgressService
@@ -36,7 +38,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     progress_service = ProgressService(store)
     ask_service = AskService(app_settings, model_client, store)
     revision_service = RevisionService(app_settings, model_client, store)
-    job_service = JobService(app_settings, store, plan_service, revision_service)
+    media_service = MediaService(store)
+    feedback_service = FeedbackService(app_settings, model_client, store, media_service)
+    job_service = JobService(
+        app_settings,
+        store,
+        plan_service,
+        revision_service,
+        feedback_service,
+        media_service,
+    )
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -53,6 +64,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.progress_service = progress_service
     app.state.ask_service = ask_service
     app.state.revision_service = revision_service
+    app.state.media_service = media_service
+    app.state.feedback_service = feedback_service
     app.state.job_service = job_service
 
     @app.middleware("http")
@@ -141,6 +154,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(progress.router, prefix="/v1")
     app.include_router(ask.router, prefix="/v1")
     app.include_router(revisions.router, prefix="/v1")
+    app.include_router(media.router, prefix="/v1")
+    app.include_router(feedback.router, prefix="/v1")
     app.include_router(jobs.router, prefix="/v1")
     return app
 

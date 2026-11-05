@@ -107,3 +107,59 @@ data class DomainPlan(
     val totalEstimatedMin: Int,
     val safetyNotes: List<String>,
 )
+
+data class DomainMedia(
+    val id: String,
+    val kind: String,
+    val mime: String,
+    val sizeBytes: Long,
+    val width: Int,
+    val height: Int,
+    val durationS: Double?,
+    val sha256: String,
+    val warnings: List<String> = emptyList(),
+)
+
+data class DomainObservationEvidence(
+    val mediaId: String,
+    val kind: String,
+    val frameIndex: Int?,
+    val timestampS: Double?,
+)
+
+data class DomainObservation(
+    val text: String,
+    val evidence: DomainObservationEvidence,
+    val certainty: String,
+)
+
+data class DomainMotionMetrics(
+    val method: String,
+    val sampleFps: Int,
+    val frameCount: Int,
+    val meanTranslationPx: Double,
+    val p95TranslationPx: Double,
+    val meanRotationDeg: Double,
+    val directionChanges: Int,
+    val limitations: List<String>,
+)
+
+data class DomainFeedback(
+    val id: String,
+    val sessionId: String,
+    val stepId: String,
+    val planVersion: Int,
+    val mediaIds: List<String>,
+    val summary: String,
+    val observations: List<DomainObservation>,
+    val assessment: String,
+    val uncertainties: List<String>,
+    val limitations: List<String>,
+    val motionMetrics: DomainMotionMetrics?,
+    val sampledFrameTimestampsS: List<Double>,
+    val audioAnalyzed: Boolean,
+    val audioNote: String,
+    val suggestedActions: List<String>,
+    val followUpQuestions: List<String>,
+    val createdAt: String,
+)

@@ -154,3 +154,18 @@
 | 非法 JSON | 真实 ModelClient + httpx.MockTransport 两次非法：Job `MODEL_BAD_OUTPUT`、retryable=true、调用数=2；无真实模型调用 |
 | 过敏提示 | 未提供时通用提示；`allergies=[]` 不提示；蘑菇汤假计划测试通过；真实番茄鸡蛋面流程重跑 5 步/8 假设/30.837 s/5196 tokens |
 | 未覆盖 | 真机未重跑限流 UI/过敏提示；设备 D2 记录仍为上一版提示，已在 `day2/device_verification.md` 标注 |
+
+
+## 13. D4 环境与媒体能力（2026-11-05）
+
+| 项 | 实测 |
+|---|---|
+| Python 媒体依赖 | 已安装并锁定 `pillow==13.0.0`、`python-multipart==0.0.33` |
+| FFmpeg | `ffmpeg`/`ffprobe` 可用；`vidstabdetect` ASCII + `vidstabtransform(debug=1)` 的 `global_motions.trf` 可解析；合成 8 秒视频 frame_count=80 |
+| 真实视觉探针 | 文本/JSON/视觉均 ok；64×64 橙色 PNG 返回“橙色”；`day4/vision_probe.json` |
+| 真实视觉 + 合成素材反馈 | 图片与 8 秒视频两次 feedback Job 均 succeeded；视频时间戳 0–7s、motion_metrics 非空、audio_analyzed=false；均评估 not_verified 并明确指出合成素材 |
+| 服务端测试 | **88 passed**（新增 media 4 / feedback 5 / photography 3） |
+| Android 测试 | **41 passed**（新增 MediaLimits 2 / MediaViewModel 2） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,783,309 字节 |
+| 真实图片/短片反馈 | **BLOCKED**：缺用户真实拍摄素材；未用截图或合成素材冒充真实拍摄 |
+| 未覆盖 | 设备端 Photo Picker/上传/反馈页未走查；真实素材反馈、HEIC 在 API 26/27 的转换未验证 |
