@@ -415,3 +415,114 @@ async def test_derived_ratio_and_failed_adjustments_do_not_write(client, monkeyp
     )
     assert invalid.status_code == 422
     assert (await client.get(f"/v1/sessions/{session['id']}/recipes")).json()[0]["version"] == 1
+
+
+async def test_semantic_step_rewrite_keeps_rinse_water_and_same_value_variables(client, monkeypatch):
+    plan_data = copy.deepcopy(COFFEE_PLAN)
+    plan_data["steps"][0]["instruction"] = (
+        "咖啡粉 15 g，温杯用水 115 g，水温 92 °C，总时长 150 秒；注水至 225 g。"
+    )
+    plan_data["steps"][1]["instruction"] = "闷蒸后注水至 225 g，总时长 150 秒。"
+    session, _ = await setup_coffee(client, monkeypatch, plan=plan_data)
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    assert recipe["variables"]["dose_g"] == 15
+    assert recipe["variables"]["water_g"] == 225
+    assert "温杯用水 115 g" in recipe["steps"][0]["instruction"]
+
+    adjusted = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "dose_g",
+            "to_value": 16,
+            "reason": "只改咖啡粉量。",
+        },
+    )
+    assert adjusted.status_code == 201, adjusted.text
+    v2 = adjusted.json()["recipe"]
+    assert v2["variables"]["dose_g"] == 16
+    assert v2["variables"]["water_g"] == 225
+    assert v2["variables"]["ratio"] == 14.06
+    assert "咖啡粉 16 g" in v2["steps"][0]["instruction"]
+    assert "温杯用水 115 g" in v2["steps"][0]["instruction"]
+    coffee = next(item for item in v2["ingredients"] if item["name"] == "咖啡豆")
+    water = next(item for item in v2["ingredients"] if item["name"] == "水")
+    assert coffee["amount"] == 16
+    assert water["amount"] == 225
+
+    old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert old["variables"]["dose_g"] == 15
+    assert "咖啡粉 15 g" in old["steps"][0]["instruction"]
+    assert "温杯用水 115 g" in old["steps"][0]["instruction"]
+
+    service = client.app.state.recipe_service
+    same_value_steps = [
+        {
+            "id": "rst_1",
+            "order": 1,
+            "instruction": "咖啡粉 15 g，水 15 g，水温 15 °C，总时长 15 秒。",
+            "duration_s": 1,
+            "target": "咖啡粉 15 g",
+        }
+    ]
+    same_value = service._rewrite_steps(
+        same_value_steps,
+        {"dose_g": 15, "water_g": 15, "water_temp_c": 15, "brew_time_s": 15, "ratio": 1.0},
+        {"dose_g": 16, "water_g": 15, "water_temp_c": 15, "brew_time_s": 15, "ratio": 1.0},
+    )
+    text = same_value[0]["instruction"]
+    assert "咖啡粉 16 g" in text
+    assert "水 15 g" in text
+    assert "水温 15 °C" in text
+    assert "总时长 15 秒" in text
+    assert "咖啡粉 16 g" in same_value[0]["target"]
+
+
+async def test_chinese_brew_time_variants(client):
+    service = client.app.state.recipe_service
+    assert service._parse_brew_time("总时长约 3 分钟") == 180
+    assert service._parse_brew_time("2 分 30 秒") == 150
+    assert service._parse_brew_time("150 秒") == 150
+
+
+async def test_adjustment_validates_values_before_ratio_derivation(client, monkeypatch):
+    session, _ = await setup_coffee(client, monkeypatch)
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+
+    dose_zero = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "dose_g",
+            "to_value": 0,
+            "reason": "非法粉量。",
+        },
+    )
+    assert dose_zero.status_code == 422
+    assert dose_zero.json()["error"]["details"]["reason"] == "invalid_adjustment_value"
+
+    non_numeric = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_temp_c",
+            "to_value": "abc",
+            "reason": "非数字水温。",
+        },
+    )
+    assert non_numeric.status_code == 422
+    assert non_numeric.json()["error"]["details"]["reason"] == "invalid_adjustment_value"
+
+    recipes = (await client.get(f"/v1/sessions/{session['id']}/recipes")).json()
+    assert [item["version"] for item in recipes] == [1]
+    assert (await client.get(f"/v1/recipes/{recipe['id']}")).json()["variables"]["dose_g"] == 15

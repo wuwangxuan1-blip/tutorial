@@ -308,3 +308,12 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 本轮实测：服务端 **111 passed / 0 failed**；Android **55 tests / 0 failures**（`CameraEasingTest` 2、`RecipeViewModelTest` 4）；`:app:assembleDebug` BUILD SUCCESSFUL；APK **10,896,532 字节**；真实模型 V60 按计划解析并完成 92→90。
 
 状态分列：第三方实拍链路通过；用户自拍环绕 BLOCKED；真机配方 92→90/对比 BLOCKED；真机断网重试 BLOCKED；真机 easing/拖动未复测。本轮提交 `189c1e6`，已推送并核验远端 `main`。
+### 16.3 D5 配方复审再修（2026-11-06）
+
+基线：`b47ba94`。只修三项：
+
+1. **步骤更新按变量语义**：`_rewrite_steps()` 不再全局数字替换，改为按“咖啡粉/咖啡豆/粉量”“注水/水量/总注水”“水温/温度”“总时长/总时间/时长”“粉水比/比例”标签匹配；温杯/润洗用水不随粉量或 brew water 变化。回归覆盖咖啡粉 15→16 g 时温杯用水 115 g 不变、不同变量恰好同值不串改、新版参数/用料/步骤一致且 v1 原值可回查。
+2. **中文冲煮时长**：支持 `总时长约 3 分钟`→180 秒、`2 分 30 秒`→150 秒、`150 秒`→150 秒。
+3. **先校验后派生**：主动变量先做类型/范围校验，再计算粉水比；`dose_g=0` 与非数字输入返回 422 `INVALID_REQUEST`（`invalid_adjustment_value`），不写新版本。正常水量派生、单变量限制与版本冲突回归保留。
+
+本轮实测：服务端 **114 passed / 0 failed**（配方测试 8 项）；Android **55 tests / 0 failures**；`:app:assembleDebug` BUILD SUCCESSFUL；APK **10,822,322 字节**；真实模型 V60 按计划解析重跑，92→90 一致。状态仍分列：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。

@@ -129,16 +129,23 @@ class RecipeService:
 
     def _parse_brew_time(self, text: str) -> int | None:
         patterns = (
-            r"(?:总时长|总时间|约)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:秒|s)",
-            r"(?:总时长|总时间|约)\s*([0-9]+)\s*分\s*([0-9]+)?\s*秒?",
+            r"(?:总时长|总时间|时长|用时)\s*约?\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?",
+            r"(?:总时长|总时间|时长|用时)\s*约?\s*([0-9]+)\s*秒",
+            r"约\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?",
+            r"约\s*([0-9]+)\s*秒",
             r"([0-9]+)\s*分\s*([0-9]+)\s*秒",
+            r"([0-9]+)\s*分(?:钟)?",
+            r"([0-9]+)\s*秒",
         )
         for pattern in patterns:
             match = re.search(pattern, text)
             if not match:
                 continue
-            if match.lastindex and match.lastindex >= 2 and match.group(2) is not None:
-                return int(match.group(1)) * 60 + int(match.group(2))
+            if "分" in match.group(0):
+                seconds = int(match.group(1)) * 60
+                if match.lastindex and match.lastindex >= 2 and match.group(2) is not None:
+                    seconds += int(match.group(2))
+                return seconds
             return int(float(match.group(1)))
         return None
 
@@ -149,9 +156,14 @@ class RecipeService:
             text,
         )
         water = re.search(
-            r"(?<!温)水\s*[:：]?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:g|克)",
+            r"(?:总注水|总水量|注水|水量)\s*[:：]?\s*(?:至|到)?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:g|克)",
             text,
         )
+        if not water:
+            water = re.search(
+                r"(?<![用温洗预])水\s*[:：]?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:g|克)",
+                text,
+            )
         temp = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:°C|℃|度)", text)
         brew_time_s = self._parse_brew_time(text)
         grind = re.search(r"中细|中粗|细砂糖|粗砂糖|细|粗", text)
@@ -265,42 +277,110 @@ class RecipeService:
         old_variables: dict[str, Any],
         new_variables: dict[str, Any],
     ) -> list[dict[str, Any]]:
-        replacements: list[tuple[str, str]] = []
+        operations: list[tuple[re.Pattern[str], str, str]] = []
 
-        def add(old_value: Any, new_value: Any, suffixes: tuple[str, ...]) -> None:
+        def old_pattern(name: str) -> str | None:
+            old_value = old_variables.get(name)
+            new_value = new_variables.get(name)
+            if old_value is None or new_value is None:
+                return None
             old_text = _format_number(old_value)
             new_text = _format_number(new_value)
             if old_text == new_text:
-                return
-            for suffix in suffixes:
-                replacements.append((f"{old_text}{suffix}", f"{new_text}{suffix}"))
+                return None
+            return f"{re.escape(old_text)}(?:\\.0+)?"
 
-        for name, suffixes in (
-            ("dose_g", (" g", "g", " 克", "克")),
-            ("water_g", (" g", "g", " 克", "克")),
-            ("water_temp_c", (" °C", "°C", " ℃", "℃", " 度", "度")),
-            ("brew_time_s", (" 秒", "秒", "s")),
-        ):
-            if old_variables.get(name) is not None and new_variables.get(name) is not None:
-                add(old_variables[name], new_variables[name], suffixes)
-        if old_variables.get("ratio") is not None and new_variables.get("ratio") is not None:
-            old_ratio = _format_number(old_variables["ratio"])
-            new_ratio = _format_number(new_variables["ratio"])
-            if old_ratio != new_ratio:
-                replacements.extend(
-                    [
-                        (f"1:{old_ratio}", f"1:{new_ratio}"),
-                        (f"1：{old_ratio}", f"1：{new_ratio}"),
-                    ]
+        separator = r"(?P<sep>\s*[:：]?\s*(?:至|到)?\s*约?\s*)"
+        dose_old = old_pattern("dose_g")
+        if dose_old:
+            operations.append(
+                (
+                    re.compile(
+                        rf"(?P<label>咖啡粉|咖啡豆|粉量|粉重){separator}{dose_old}(?P<unit>\s*(?:g|克))"
+                    ),
+                    _format_number(new_variables["dose_g"]),
+                    "value",
+                )
+            )
+        water_old = old_pattern("water_g")
+        if water_old:
+            water_new = _format_number(new_variables["water_g"])
+            operations.extend(
+                [
+                    (
+                        re.compile(
+                            rf"(?P<label>总注水|总水量|注水|水量){separator}{water_old}(?P<unit>\s*(?:g|克))"
+                        ),
+                        water_new,
+                        "value",
+                    ),
+                    (
+                        re.compile(
+                            rf"(?P<label>(?<![用温洗预])水){separator}{water_old}(?P<unit>\s*(?:g|克))"
+                        ),
+                        water_new,
+                        "value",
+                    ),
+                ]
+            )
+        temp_old = old_pattern("water_temp_c")
+        if temp_old:
+            operations.append(
+                (
+                    re.compile(
+                        rf"(?P<label>水温|温度){separator}{temp_old}(?P<unit>\s*(?:°C|℃|度))"
+                    ),
+                    _format_number(new_variables["water_temp_c"]),
+                    "value",
+                )
+            )
+        time_old = old_pattern("brew_time_s")
+        if time_old:
+            operations.append(
+                (
+                    re.compile(
+                        rf"(?P<label>总时长|总时间|时长|用时){separator}{time_old}(?P<unit>\s*(?:秒|s))"
+                    ),
+                    _format_number(new_variables["brew_time_s"]),
+                    "value",
+                )
+            )
+        ratio_old = old_pattern("ratio")
+        if ratio_old:
+            operations.append(
+                (
+                    re.compile(
+                        rf"(?P<label>粉水比|比例)(?P<sep>\s*[:：]?\s*)(?P<prefix>1[:：]){ratio_old}"
+                    ),
+                    _format_number(new_variables["ratio"]),
+                    "ratio",
+                )
+            )
+
+        def replace(text: str, pattern: re.Pattern[str], new_text: str, kind: str) -> str:
+            def repl(match: re.Match[str]) -> str:
+                if kind == "ratio":
+                    return (
+                        match.group("label")
+                        + match.group("sep")
+                        + match.group("prefix")
+                        + new_text
+                    )
+                return (
+                    match.group("label")
+                    + match.group("sep")
+                    + new_text
+                    + match.group("unit")
                 )
 
-        replacements.sort(key=lambda item: len(item[0]), reverse=True)
+            return pattern.sub(repl, text)
+
         updated = copy.deepcopy(steps)
         for step in updated:
             for field in ("instruction", "target"):
                 text = str(step.get(field) or "")
-                for old, new in replacements:
-                    text = text.replace(old, new)
+                for pattern, new_text, kind in operations:
+                    text = replace(text, pattern, new_text, kind)
                 step[field] = text
         return updated
 
@@ -410,6 +490,17 @@ class RecipeService:
                 {"field": "variable", "reason": "no_parameter_change"},
             )
         variable = active_diff[0]
+
+        try:
+            RecipeVariables.model_validate({variable: changes[variable]})
+        except ValidationError as exc:
+            raise invalid_request(
+                "调整值类型或范围不合法。",
+                {
+                    "field": variable,
+                    "reason": "invalid_adjustment_value",
+                },
+            ) from exc
 
         candidate = dict(base_variables)
         candidate.update(changes)

@@ -14,7 +14,8 @@
 | `third_party/photo_input.jpg` | 实际送给模型的压缩照片（CC0 素材派生） |
 | `third_party/frames/` | 短片派生的证据帧（CC BY-SA 4.0，署名见 `third_party/README.md`） |
 | `review_fix_round4.md` | D5 三项复审修复：按计划参数/demo、派生粉水比与步骤同步、Canvas easing |
-| `server_pytest_summary.txt` | 后端 111 passed 测试摘要 |
+| `review_fix_round5.md` | D5 复审再修：语义化步骤更新、中文时长解析、先校验后派生 |
+| `server_pytest_summary.txt` | 后端 114 passed 测试摘要 |
 | `android_test_results.txt` | Android 55 tests / 0 failures 分套件结果（含 easing 与 seek 回归） |
 | `android_apk_info.txt` | APK 路径、大小与构建结果 |
 | `device_verification.md` | 真机运镜、咖啡品尝/调整与断网重试记录、BLOCKED 项 |

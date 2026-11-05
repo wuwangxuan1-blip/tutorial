@@ -1,11 +1,11 @@
 {
   "photography": {
-    "session_id": "sess_01M6P8EYJ9BZW1PFY0XXKE5XYR",
+    "session_id": "sess_01M6P99M860A3S7EQ33PQW9CAJ",
     "plan_version": 1,
     "camera_spec_count": 1,
     "camera_specs": [
       {
-        "id": "cam_1",
+        "id": "cam_coffee_orbit_1",
         "shot_type": "orbit_cw",
         "motion_type": "camera_move",
         "duration_s": 8
@@ -14,9 +14,9 @@
     "plan_file": "plan_photography_real.json"
   },
   "coffee": {
-    "session_id": "sess_01M6P8FJM56EP36X6YPA0RYEVM",
+    "session_id": "sess_01M6P9A2KA6Z8JP5WJ3XKKZZ3D",
     "plan_version": 1,
-    "recipe_id": "recipe_01M6P8GCJ8ZQQ2CDX99B30NKSS",
+    "recipe_id": "recipe_01M6P9AQR484KH664S67AD3C1H",
     "recipe_version": 1,
     "variables": {
       "dose_g": 15.0,
@@ -26,8 +26,8 @@
       "brew_time_s": 150
     },
     "tasting": {
-      "id": "taste_01M6P8GCJJ0G3BX2GAE0FFHQB2",
-      "recipe_id": "recipe_01M6P8GCJ8ZQQ2CDX99B30NKSS",
+      "id": "taste_01M6P9AQRERHC3VGKKKJWFMHSC",
+      "recipe_id": "recipe_01M6P9AQR484KH664S67AD3C1H",
       "recipe_version": 1,
       "sourness": 3,
       "sweetness": 2,
@@ -37,11 +37,11 @@
       "aftertaste": 3,
       "overall": 3,
       "notes": "真实用户输入：入口偏酸，余韵短。",
-      "created_at": "2026-11-05T16:26:09Z"
+      "created_at": "2026-11-05T16:40:32Z"
     },
     "adjustment": {
-      "id": "adj_01M6P8GCJXZG044C3ZYC2PE10P",
-      "recipe_id": "recipe_01M6P8GCJ8ZQQ2CDX99B30NKSS",
+      "id": "adj_01M6P9AQRRSHQJ5YVK6H65CGJ7",
+      "recipe_id": "recipe_01M6P9AQR484KH664S67AD3C1H",
       "base_version": 1,
       "new_version": 2,
       "variable": "water_temp_c",
@@ -49,18 +49,18 @@
       "to_value": 90.0,
       "reason": "真实用户输入：先只降低水温。",
       "expected_effect": "仅调整 water_temp_c，其他变量保持不变。",
-      "tasting_id": "taste_01M6P8GCJJ0G3BX2GAE0FFHQB2",
-      "created_at": "2026-11-05T16:26:09Z"
+      "tasting_id": "taste_01M6P9AQRERHC3VGKKKJWFMHSC",
+      "created_at": "2026-11-05T16:40:32Z"
     },
-    "new_recipe_id": "recipe_01M6P8GCJWC4WFV4KGCP89NPYH",
+    "new_recipe_id": "recipe_01M6P9AQRRH7D8D71R7PW24XFP",
     "new_recipe_version": 2,
     "compare": {
       "base": {
-        "recipe_id": "recipe_01M6P8GCJ8ZQQ2CDX99B30NKSS",
+        "recipe_id": "recipe_01M6P9AQR484KH664S67AD3C1H",
         "version": 1
       },
       "target": {
-        "recipe_id": "recipe_01M6P8GCJWC4WFV4KGCP89NPYH",
+        "recipe_id": "recipe_01M6P9AQRRH7D8D71R7PW24XFP",
         "version": 2
       },
       "variable_diffs": [
