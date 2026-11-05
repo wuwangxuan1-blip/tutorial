@@ -160,7 +160,7 @@ class PlanViewModelTest {
     @Test
     fun successfulJobWithFailedPlanFetchRetriesOnlyTheFetch() = runTest(dispatcher) {
         val gateway = FakeGateway()
-        val viewModel = PlanViewModel(gateway, RateLimitGate(this))
+        val viewModel = PlanViewModel(gateway, RateLimitGate(this, { testScheduler.currentTime }))
         advanceUntilIdle()
 
         viewModel.generate()
@@ -181,7 +181,7 @@ class PlanViewModelTest {
     @Test
     fun rateLimitBlocksGenerationAndRetryUntilWaitExpires() = runTest(dispatcher) {
         val gateway = FakeGateway(rateLimitRetryAfter = 7)
-        val viewModel = PlanViewModel(gateway, RateLimitGate(this))
+        val viewModel = PlanViewModel(gateway, RateLimitGate(this, { testScheduler.currentTime }))
         advanceUntilIdle()
 
         viewModel.generate()
@@ -213,7 +213,7 @@ class PlanViewModelTest {
     @Test
     fun sessionChangeKeepsCooldownAndUsesNewSessionAfterWait() = runTest(dispatcher) {
         val firstGateway = FakeGateway(rateLimitRetryAfter = 7)
-        val gate = RateLimitGate(this)
+        val gate = RateLimitGate(this, { testScheduler.currentTime })
         val firstViewModel = PlanViewModel(firstGateway, gate)
         advanceUntilIdle()
 

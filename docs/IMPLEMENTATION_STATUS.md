@@ -111,7 +111,7 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 测试与构建（本轮实测）：
 
 - 服务端 **48 passed**，0 失败：`test_contract_examples` 8、`test_health` 3、`test_idempotency` 5、`test_model_client_errors` 8、`test_plan_assumptions` 3、`test_plan_flow` 6、`test_plan_repair` 6、`test_sessions` 9。
-- 安卓 `testDebugUnitTest --rerun-tasks` **21 passed**，0 失败：`ContractExamplesTest` 6、`DtoTest` 3、`ErrorMapperTest` 5、`PlanValidatorTest` 4、`PlanViewModelTest` 3。
+- 安卓 `testDebugUnitTest --rerun-tasks` **21 passed**（本项修复后重跑为 **23 passed**，见本节末），0 失败：`ContractExamplesTest` 6、`DtoTest` 3、`ErrorMapperTest` 5、`PlanValidatorTest` 4、`PlanViewModelTest` 3。
 - `assembleDebug` BUILD SUCCESSFUL；APK `android/app/build/outputs/apk/debug/app-debug.apk`，10,445,372 字节（约 10.4 MB）。
 - `git diff --check` 通过；`git ls-files -s android/gradlew` 为 `100755`。
 
@@ -121,5 +121,6 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 - 7 秒限流：页面显示倒计时；冷却内重复点击生成，Job 数不变（15→15）；冷却结束后手动生成，Job 15→16。
 - 切会话：20 秒注入下，新会话保留剩余冷却、保持“条件已就绪”、无旧错误覆盖；冷却内点击不新建 Job（17→17）；冷却结束后使用新会话生成成功（17→18）。
 - 10 条假设：计划页显示“模型假设 1–9”原序 + 第 10 条通用过敏提示，共 10 条，通用提示恰好一次。
+- 后续修复（2026-11-05）：限流冷却改为单调时钟截止时间（生产 `SystemClock.elapsedRealtime()`，测试注入时钟）；剩余秒数按“截止时间 − 当前时间”向上取整，`isBlocked()` 直接比较截止时间，刷新协程只负责显示，设备休眠/调度延迟不再延长实际冷却。新增 `RateLimitGateTest` 2 项；安卓本轮 **23 passed**（0 失败：原 21 项 + `RateLimitGateTest` 2 项），`assembleDebug` 成功，APK 10,445,372 字节。
 
 仍未验证（不得当作已通过）：真实 DeepSeek 恰好触发 429 并返回 `retry_after_s`、真实模型一次返回 10 条假设、旋转/切后台/进程被杀恢复、中文输入法直接输入目标、截图 AI 视觉检查。详细记录见 `codearts_proof/day2/review_fix_device.md`。
