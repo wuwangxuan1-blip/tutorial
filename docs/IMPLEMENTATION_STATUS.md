@@ -307,4 +307,4 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 
 本轮实测：服务端 **111 passed / 0 failed**；Android **55 tests / 0 failures**（`CameraEasingTest` 2、`RecipeViewModelTest` 4）；`:app:assembleDebug` BUILD SUCCESSFUL；APK **10,896,532 字节**；真实模型 V60 按计划解析并完成 92→90。
 
-状态分列：第三方实拍链路通过；用户自拍环绕 BLOCKED；真机配方 92→90/对比 BLOCKED；真机断网重试 BLOCKED；真机 easing/拖动未复测。
+状态分列：第三方实拍链路通过；用户自拍环绕 BLOCKED；真机配方 92→90/对比 BLOCKED；真机断网重试 BLOCKED；真机 easing/拖动未复测。本轮提交 `189c1e6`，已推送并核验远端 `main`。
