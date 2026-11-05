@@ -333,6 +333,44 @@ class ApiClient(
         serializer = FeedbackDto.serializer(),
     )
 
+    suspend fun getEvidenceFrame(
+        feedbackId: String,
+        mediaId: String,
+        frameIndex: Int,
+        timestampS: Double,
+    ): ByteArray? = withContext(Dispatchers.IO) {
+        val path = "/v1/feedback/$feedbackId/evidence-frames/" +
+            "$mediaId/$frameIndex?timestamp_s=$timestampS"
+        val request = Request.Builder()
+            .url("$baseUrl$path")
+            .header("Accept", "image/jpeg")
+            .get()
+            .build()
+        val response = try {
+            client.newCall(request).execute()
+        } catch (error: IOException) {
+            throw NetworkException("无法连接本地服务，请检查服务端与 adb reverse。", error)
+        }
+        response.use {
+            if (it.code == 404) return@use null
+            if (!it.isSuccessful) {
+                val text = it.body?.string().orEmpty()
+                val detail = runCatching {
+                    json.decodeFromString(ErrorEnvelopeDto.serializer(), text).error
+                }.getOrNull()
+                throw ApiException(
+                    code = detail?.code ?: "HTTP_${it.code}",
+                    message = detail?.message?.takeIf(String::isNotBlank)
+                        ?: "证据帧请求失败（HTTP ${it.code}）。",
+                    retryable = detail?.retryable ?: false,
+                    requestId = detail?.requestId,
+                    retryAfterS = detail?.retryAfterS,
+                )
+            }
+            it.body?.bytes()
+        }
+    }
+
     suspend fun listFeedback(sessionId: String, stepId: String? = null): List<FeedbackDto> {
         val suffix = stepId?.let { "?step_id=$it" } ?: ""
         val response = getJson(

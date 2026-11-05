@@ -266,3 +266,12 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 | P2 视频观察缩略图复用视频开头预览 | 新增 `MediaLoader.extractEvidenceFrame`（`MediaMetadataRetriever` 按 timestamp 取帧）；`MediaViewModel` 按 `mediaId|frameIndex|timestampS` 生成证据帧；反馈页视频帧缺失显示“证据帧不可用”，不回退开头缩略图 | `videoEvidenceFramesFollowEachObservationTimestamp`、`missingEvidenceFrameIsUnavailableWithoutVideoThumbnailFallback` |
 
 本轮实测：服务端 **90 passed / 0 failed**；安卓 **43 tests / 0 failures**（`MediaViewModelTest` 4 项）；`assembleDebug` BUILD SUCCESSFUL；APK 10,798,800 字节；`git diff --check` 通过；密钥扫描 262 文件、0 匹配、clean。真实拍摄图片/短片反馈仍为 **BLOCKED**（真机走查用的相册截图不是咖啡拍摄素材）。
+## 15. D4 剩余 P2：证据帧以模型实际输入为准（2026-11-05）
+
+基线：`40676b1`。只修“Android 本地按时间戳重新解码，不能保证与模型看到的帧一致”，不进入 D5。
+
+| 问题 | 修复 | 回归测试 |
+|---|---|---|
+| Android 用 `OPTION_CLOSEST` 重新解码视频，显示的帧可能不是模型实际看到的帧 | 服务端在反馈写入时保存实际送入模型的视频帧到 `feedback_frames/{feedback_id}/frame_{index}.jpg`；新增 `GET /v1/feedback/{feedback_id}/evidence-frames/{media_id}/{frame_index}?timestamp_s=...`，校验 observation 的 `media_id/frame_index/timestamp_s` 后返回该 JPEG，不重新解码；Android 下载该字节并本地缓存，404/失败显示“证据帧不可用”，不回退开头缩略图 | 服务端 `test_video_evidence_frames_are_exact_model_input_frames`（同一短片 frame 0/1，端点字节与模型输入字节逐字节一致）；Android `videoEvidenceFramesUseServerProvidedBytesForEachObservation`、`missingEvidenceFrameIsUnavailableWithoutVideoThumbnailFallback` |
+
+本轮实测：服务端 **91 passed / 0 failed**；安卓 **43 tests / 0 failures**；`assembleDebug` BUILD SUCCESSFUL；APK 10,816,510 字节；`git diff --check` 通过；密钥扫描 263 文件、0 匹配、clean。并发进度与计划版本冲突回归保留。上一轮 `videoEvidenceFramesFollowEachObservationTimestamp` 已由 `videoEvidenceFramesUseServerProvidedBytesForEachObservation` 取代（不再本地解码）。真实拍摄图片/短片反馈仍为 **BLOCKED**。

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Path as PathParam, Query, Request, Response
 
 from ..errors import ApiError, not_found
 from ..models.feedback import FeedbackJobRequest, FeedbackListResponse, FeedbackOut
@@ -55,6 +55,40 @@ async def list_feedback(
         raise not_found("会话不存在。")
     items = await request.app.state.feedback_service.list_for_session(session_id, step_id)
     return FeedbackListResponse(items=[FeedbackOut.model_validate(item) for item in items])
+
+
+@router.get("/feedback/{feedback_id}/evidence-frames/{media_id}/{frame_index}")
+async def get_feedback_evidence_frame(
+    request: Request,
+    feedback_id: str,
+    media_id: str,
+    frame_index: int = PathParam(ge=0),
+    timestamp_s: float = Query(ge=0),
+) -> Response:
+    store = request.app.state.store
+    feedback = await store.load_feedback(feedback_id)
+    if not feedback:
+        raise not_found("反馈不存在。")
+    if media_id not in (feedback.get("media_ids") or []):
+        raise not_found("证据帧不存在。")
+    matched = any(
+        observation.get("evidence", {}).get("media_id") == media_id
+        and observation.get("evidence", {}).get("kind") == "video_frame"
+        and observation.get("evidence", {}).get("frame_index") == frame_index
+        and observation.get("evidence", {}).get("timestamp_s") is not None
+        and abs(float(observation["evidence"]["timestamp_s"]) - timestamp_s) <= 0.02
+        for observation in feedback.get("analysis", {}).get("observations", [])
+    )
+    if not matched:
+        raise not_found("证据帧不存在。")
+    data = await store.load_feedback_frame(feedback_id, frame_index)
+    if not data:
+        raise not_found("证据帧不可用。")
+    return Response(
+        content=data,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
 
 
 @router.get("/feedback/{feedback_id}", response_model=FeedbackOut)

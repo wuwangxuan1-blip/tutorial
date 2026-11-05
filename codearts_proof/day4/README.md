@@ -7,11 +7,12 @@
 | `plan_photography_real.json` | 真实模型摄影计划（5 步，visual_aid=null） |
 | `session_photography.json` | 该摄影会话元数据 |
 | `technical_synthetic_feedback.json` | 真实视觉 + 合成图片/合成短片的技术反馈（非真实拍摄） |
-| `server_pytest_summary.txt` | 服务端 88 项测试结果摘要 |
-| `android_test_results.txt` | Android 41 项 JVM 测试分套件结果 |
+| `server_pytest_summary.txt` | 服务端 91 项测试结果摘要 |
+| `android_test_results.txt` | Android 43 项 JVM 测试分套件结果 |
 | `android_apk_info.txt` | APK 路径、大小、包名、SDK 版本 |
 | `media_and_motion.md` | 媒体限制、抽帧时间戳、运动指标方法与失败兜底 |
 | `review_fix_round2.md` | D4 复审两项修复：反馈写入加锁/重读/版本冲突；视频证据帧按 timestamp 提取且不回退开头缩略图 |
+| `review_fix_round3.md` | D4 剩余 P2：服务端保存模型输入帧并按 media_id/frame_index/timestamp_s 提供；Android 直接显示该帧，不再本地重新解码 |
 | `real_material_blocked.md` | 真实图片/短片反馈 BLOCKED 的原因与所需材料 |
 | `commands.md` | 实际命令与关键输出 |
 | `secret_scan.json` | 提交前密钥扫描 |

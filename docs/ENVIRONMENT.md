@@ -177,6 +177,19 @@
 | Android 测试 | **43 tests / 0 failures**（`MediaViewModelTest` 4 项；新增视频证据帧时间戳与缺失不回退 2 项） |
 | APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,798,800 字节（复审修复后重构建） |
 | `git diff --check` | 通过（exit 0） |
-| 密钥扫描 | 261 文件、0 匹配、`clean=true` |
+| 密钥扫描 | 262 文件、0 匹配、`clean=true` |
 | 真实素材 | 仍 **BLOCKED**：真机技术走查使用界面截图，不是咖啡拍摄；真实图片/短片反馈未验收 |
 | 未覆盖 | 真机视频证据帧 UI 未复测（JVM 覆盖提取映射与无回退）；Canvas/配方属 D5 |
+
+## 15. D4 剩余 P2 证据帧实测（2026-11-05）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **91 passed**（上一轮 90 + 证据帧与模型输入字节一致 1 项） |
+| Android 测试 | **43 tests / 0 failures**（视频证据帧改为下载服务端保存的模型输入帧） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,816,510 字节 |
+| 契约 | `docs/API_CONTRACT.md` 3.7/4.4 新增证据帧端点与客户端约束 |
+| `git diff --check` | 通过（exit 0） |
+| 密钥扫描 | 263 文件、0 匹配、`clean=true` |
+| 真实素材 | 仍 **BLOCKED**；合成短片只用于技术测试 |
+| 未覆盖 | 真机视频证据帧 UI 未复测；Canvas/配方属 D5 |

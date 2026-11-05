@@ -95,6 +95,13 @@ class SessionRepository(
     override suspend fun getFeedback(feedbackId: String): DomainFeedback =
         api.getFeedback(feedbackId).toDomain()
 
+    override suspend fun getEvidenceFrame(
+        feedbackId: String,
+        mediaId: String,
+        frameIndex: Int,
+        timestampS: Double,
+    ): ByteArray? = api.getEvidenceFrame(feedbackId, mediaId, frameIndex, timestampS)
+
     override suspend fun listFeedback(
         sessionId: String,
         stepId: String?,

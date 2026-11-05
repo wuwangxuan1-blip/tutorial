@@ -294,18 +294,31 @@ class MediaViewModel(
     }
 
     private suspend fun loadEvidenceFrames(feedback: DomainFeedback): Map<String, File> {
-        val video = _state.value.video ?: return emptyMap()
-        val videoMediaId = _state.value.uploaded["video"]?.id ?: return emptyMap()
+        val videoEvidence = feedback.observations
+            .map { it.evidence }
+            .filter { it.kind == "video_frame" }
+            .distinctBy {
+                evidenceFrameKey(it.mediaId, it.frameIndex, it.timestampS)
+            }
+        if (videoEvidence.isEmpty()) return emptyMap()
         return withContext(ioDispatcher) {
-            feedback.observations.mapNotNull { observation ->
-                val evidence = observation.evidence
-                if (evidence.kind != "video_frame" || evidence.mediaId != videoMediaId) {
-                    return@mapNotNull null
-                }
+            videoEvidence.mapNotNull { evidence ->
+                val frameIndex = evidence.frameIndex ?: return@mapNotNull null
                 val timestamp = evidence.timestampS ?: return@mapNotNull null
-                val key = evidenceFrameKey(evidence.mediaId, evidence.frameIndex, timestamp)
+                val key = evidenceFrameKey(evidence.mediaId, frameIndex, timestamp)
                     ?: return@mapNotNull null
-                val frame = loader.extractEvidenceFrame(video.file, timestamp)
+                val data = try {
+                    feedbackGateway.getEvidenceFrame(
+                        feedback.id,
+                        evidence.mediaId,
+                        frameIndex,
+                        timestamp,
+                    )
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    null
+                } ?: return@mapNotNull null
+                val frame = loader.saveEvidenceFrame(data)
                     ?: return@mapNotNull null
                 key to frame
             }.toMap()

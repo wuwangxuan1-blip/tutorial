@@ -13,7 +13,17 @@ from ..errors import ApiError
 class JsonStore:
     def __init__(self, data_dir: Path) -> None:
         self.data_dir = Path(data_dir)
-        for name in ("sessions", "plans", "jobs", "idempotency", "revisions", "media", "feedback", "logs"):
+        for name in (
+            "sessions",
+            "plans",
+            "jobs",
+            "idempotency",
+            "revisions",
+            "media",
+            "feedback",
+            "feedback_frames",
+            "logs",
+        ):
             (self.data_dir / name).mkdir(parents=True, exist_ok=True)
         self._locks: dict[str, asyncio.Lock] = {}
 
@@ -98,6 +108,40 @@ class JsonStore:
 
     async def save_feedback(self, payload: dict[str, Any]) -> None:
         await self.write_json(self.feedback_rel(payload["id"]), payload)
+
+    def feedback_frames_dir_rel(self, feedback_id: str) -> str:
+        return f"feedback_frames/{feedback_id}"
+
+    def feedback_frame_path(self, feedback_id: str, frame_index: int) -> Path:
+        return self._path(
+            f"{self.feedback_frames_dir_rel(feedback_id)}/frame_{int(frame_index)}.jpg"
+        )
+
+    async def save_feedback_frames(
+        self,
+        feedback_id: str,
+        frames: list[tuple[int, bytes]],
+    ) -> None:
+        directory = self._path(self.feedback_frames_dir_rel(feedback_id))
+        directory.mkdir(parents=True, exist_ok=True)
+        for frame_index, data in frames:
+            path = directory / f"frame_{int(frame_index)}.jpg"
+            tmp = path.with_name(path.name + ".tmp")
+            tmp.write_bytes(data)
+            os.replace(tmp, path)
+
+    async def load_feedback_frame(
+        self,
+        feedback_id: str,
+        frame_index: int,
+    ) -> bytes | None:
+        path = self.feedback_frame_path(feedback_id, frame_index)
+        if not path.exists():
+            return None
+        try:
+            return path.read_bytes()
+        except OSError as exc:
+            raise ApiError(500, "INTERNAL_ERROR", "证据帧读取失败。") from exc
 
     async def list_feedback(self, session_id: str) -> list[dict[str, Any]]:
         directory = self.data_dir / "feedback"

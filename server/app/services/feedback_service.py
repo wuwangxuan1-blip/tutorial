@@ -117,6 +117,7 @@ class FeedbackService:
         kind = media_items[0]["kind"]
         images: list[tuple[bytes, str]] = []
         frames: list[tuple[int, float]] = []
+        frame_images: list[tuple[int, bytes]] = []
         metrics: dict[str, Any] | None = None
         with tempfile.TemporaryDirectory(prefix="tutorial_feedback_") as temporary:
             temp_dir = Path(temporary)
@@ -141,7 +142,11 @@ class FeedbackService:
                         "视频抽帧失败，请转为 H.264 MP4 后重试。",
                     ) from exc
                 frames = [(frame.index, frame.timestamp_s) for frame in extracted]
-                images = [(frame.path.read_bytes(), "image/jpeg") for frame in extracted]
+                frame_images = [
+                    (frame.index, frame.path.read_bytes())
+                    for frame in extracted
+                ]
+                images = [(data, "image/jpeg") for _, data in frame_images]
                 try:
                     metrics = await motion_metrics(path, temp_dir)
                 except FFmpegError:
@@ -284,6 +289,7 @@ class FeedbackService:
             plan_version=plan["version"],
             step_id=step["id"],
             mark_observed=bool(analysis.observations),
+            evidence_frames=frame_images,
         )
         return feedback
 
@@ -294,6 +300,7 @@ class FeedbackService:
         plan_version: int,
         step_id: str,
         mark_observed: bool,
+        evidence_frames: list[tuple[int, bytes]] | None = None,
     ) -> None:
         session_id = feedback["session_id"]
         async with self.store.lock(self.store.session_rel(session_id)):
@@ -330,6 +337,8 @@ class FeedbackService:
                 progress["updated_at"] = _now()
                 fresh["progress"] = progress
                 fresh["updated_at"] = _now()
+            if evidence_frames:
+                await self.store.save_feedback_frames(feedback["id"], evidence_frames)
             await self.store.save_feedback(feedback)
             if mark_observed:
                 await self.store.save_session(fresh)

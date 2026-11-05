@@ -203,6 +203,8 @@ class MediaViewModelTest {
         var job: JobDto = successJob("fb_1")
         var uploadCalls = 0
         var feedbackResult: DomainFeedback = feedback()
+        var evidenceFrames: Map<String, ByteArray> = emptyMap()
+        val frameRequests = mutableListOf<Triple<String, Int, Double>>()
 
         override suspend fun uploadMedia(
             file: File,
@@ -224,13 +226,24 @@ class MediaViewModelTest {
 
         override suspend fun getJob(jobId: String): JobDto = job
         override suspend fun getFeedback(feedbackId: String): DomainFeedback = feedbackResult
+
+        override suspend fun getEvidenceFrame(
+            feedbackId: String,
+            mediaId: String,
+            frameIndex: Int,
+            timestampS: Double,
+        ): ByteArray? {
+            frameRequests += Triple(mediaId, frameIndex, timestampS)
+            val key = evidenceFrameKey(mediaId, frameIndex, timestampS) ?: return null
+            return evidenceFrames[key]
+        }
+
         override suspend fun listFeedback(sessionId: String, stepId: String?): List<DomainFeedback> =
             listOf(feedback())
     }
 
     private inner class FakeLoader : MediaLoader {
-        val frameRequests = mutableListOf<Double>()
-        var failFrameExtraction = false
+        val savedEvidenceFrames = mutableListOf<ByteArray>()
 
         override fun prepareImage(uri: String): PreparedImage {
             val file = File.createTempFile("media_test_", ".jpg")
@@ -253,11 +266,10 @@ class MediaViewModelTest {
             )
         }
 
-        override fun extractEvidenceFrame(videoFile: File, timestampS: Double): File? {
-            frameRequests += timestampS
-            if (failFrameExtraction) return null
+        override fun saveEvidenceFrame(data: ByteArray): File? {
+            savedEvidenceFrames += data
             val file = File.createTempFile("media_frame_", ".jpg")
-            file.writeBytes(ByteArray(4) { timestampS.toInt().toByte() })
+            file.writeBytes(data)
             return file
         }
     }
@@ -266,7 +278,7 @@ class MediaViewModelTest {
     fun uploadFailureShowsErrorWithoutFakeFeedbackAndRetrySucceeds() = runTest(dispatcher) {
         val gateway = FakeGateway()
         gateway.failUpload = true
-        val viewModel = MediaViewModel(FakeSessions(), gateway, FakeLoader())
+        val viewModel = MediaViewModel(FakeSessions(), gateway, FakeLoader(), dispatcher)
         viewModel.addImages(listOf("content://image/1"))
         viewModel.setPrivacyAccepted(true)
 
@@ -290,7 +302,7 @@ class MediaViewModelTest {
     fun visionUnavailableShowsExplicitErrorAndNoFakeFeedback() = runTest(dispatcher) {
         val gateway = FakeGateway()
         gateway.job = failedJob("VISION_UNSUPPORTED")
-        val viewModel = MediaViewModel(FakeSessions(), gateway, FakeLoader())
+        val viewModel = MediaViewModel(FakeSessions(), gateway, FakeLoader(), dispatcher)
         viewModel.addImages(listOf("content://image/1"))
         viewModel.setPrivacyAccepted(true)
 
@@ -302,7 +314,39 @@ class MediaViewModelTest {
     }
 
     @Test
-    fun videoEvidenceFramesFollowEachObservationTimestamp() = runTest(dispatcher) {
+    fun videoEvidenceFramesUseServerProvidedBytesForEachObservation() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        gateway.feedbackResult = videoFeedback()
+        gateway.evidenceFrames = mapOf(
+            evidenceFrameKey("media_1", 0, 0.0)!! to "model-frame-0".toByteArray(),
+            evidenceFrameKey("media_1", 2, 2.0)!! to "model-frame-2".toByteArray(),
+        )
+        val loader = FakeLoader()
+        val viewModel = MediaViewModel(FakeSessions(), gateway, loader, dispatcher)
+        viewModel.setVideo("content://video/1")
+        viewModel.setPrivacyAccepted(true)
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(Triple("media_1", 0, 0.0), Triple("media_1", 2, 2.0)),
+            gateway.frameRequests,
+        )
+        assertEquals(2, loader.savedEvidenceFrames.size)
+        val state = viewModel.state.value
+        val first = state.evidenceFrameFile("media_1", 0, 0.0)
+        val second = state.evidenceFrameFile("media_1", 2, 2.0)
+        assertNotNull(first)
+        assertNotNull(second)
+        assertEquals("model-frame-0", first!!.readText())
+        assertEquals("model-frame-2", second!!.readText())
+        assertNotEquals(first.absolutePath, second.absolutePath)
+        assertNull(state.evidenceFrameFile("media_1", 1, 1.0))
+    }
+
+    @Test
+    fun missingEvidenceFrameIsUnavailableWithoutVideoThumbnailFallback() = runTest(dispatcher) {
         val gateway = FakeGateway()
         gateway.feedbackResult = videoFeedback()
         val loader = FakeLoader()
@@ -313,31 +357,10 @@ class MediaViewModelTest {
         viewModel.submit()
         advanceUntilIdle()
 
-        assertEquals(listOf(0.0, 2.0), loader.frameRequests)
-        val state = viewModel.state.value
-        val first = state.evidenceFrameFile("media_1", 0, 0.0)
-        val second = state.evidenceFrameFile("media_1", 2, 2.0)
-        assertNotNull(first)
-        assertNotNull(second)
-        assertNotEquals(first!!.absolutePath, second!!.absolutePath)
-        assertNull(state.evidenceFrameFile("media_1", 1, 1.0))
-    }
-
-    @Test
-    fun missingEvidenceFrameIsUnavailableWithoutVideoThumbnailFallback() = runTest(dispatcher) {
-        val gateway = FakeGateway()
-        gateway.feedbackResult = videoFeedback()
-        val loader = FakeLoader().apply { failFrameExtraction = true }
-        val viewModel = MediaViewModel(FakeSessions(), gateway, loader, dispatcher)
-        viewModel.setVideo("content://video/1")
-        viewModel.setPrivacyAccepted(true)
-
-        viewModel.submit()
-        advanceUntilIdle()
-
         val state = viewModel.state.value
         assertNotNull(state.video?.thumbnail)
         assertTrue(state.evidenceFrames.isEmpty())
+        assertTrue(loader.savedEvidenceFrames.isEmpty())
         assertNull(state.evidenceFrameFile("media_1", 0, 0.0))
         assertNull(state.evidenceFrameFile("media_1", 2, 2.0))
     }

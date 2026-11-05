@@ -35,7 +35,7 @@ interface MediaLoader {
 
     fun prepareVideo(uri: String): PreparedVideo
 
-    fun extractEvidenceFrame(videoFile: File, timestampS: Double): File?
+    fun saveEvidenceFrame(data: ByteArray): File?
 }
 
 class MediaPreparer(context: Context) : MediaLoader {
@@ -105,32 +105,17 @@ class MediaPreparer(context: Context) : MediaLoader {
         }
     }
 
-    override fun extractEvidenceFrame(videoFile: File, timestampS: Double): File? {
-        val retriever = MediaMetadataRetriever()
-        var output: File? = null
-        try {
-            retriever.setDataSource(videoFile.absolutePath)
-            val frame = retriever.getFrameAtTime(
-                (timestampS * 1_000_000L).toLong(),
-                MediaMetadataRetriever.OPTION_CLOSEST,
-            ) ?: return null
-            val file = File.createTempFile("evidence_frame_", ".jpg", cacheDir)
-            output = file
-            val written = FileOutputStream(file).use { stream ->
-                frame.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+    override fun saveEvidenceFrame(data: ByteArray): File? {
+        val file = runCatching {
+            File.createTempFile("evidence_frame_", ".jpg", cacheDir).apply {
+                writeBytes(data)
             }
-            frame.recycle()
-            if (!written || file.length() == 0L) {
-                file.delete()
-                output = null
-            }
-            return output
-        } catch (error: Exception) {
-            output?.delete()
+        }.getOrNull() ?: return null
+        if (file.length() == 0L) {
+            file.delete()
             return null
-        } finally {
-            retriever.release()
         }
+        return file
     }
 
     private fun decodeImage(uri: Uri): Bitmap {

@@ -10,8 +10,8 @@ Android JVM 测试（D4）
 - MediaLimitsTest: 2（图片 10 MiB；视频 30 秒/100 MiB）
 - PlanValidatorTest: 4
 - TimerEngineTest: 3
-- MediaViewModelTest: 4（上传失败无假反馈 + 重试；视觉不可用明确报错；视频证据帧按两个不同时间戳提取；证据帧缺失不回退视频开头缩略图）
+- MediaViewModelTest: 4（上传失败无假反馈 + 重试；视觉不可用明确报错；两条视频观察使用服务端提供的不同证据帧字节；证据帧缺失不回退视频开头缩略图）
 - PlanViewModelTest: 3
 - StepViewModelTest: 11
 
-D4 复审修复新增覆盖：同一视频两个不同 timestamp/frame_index 的观察分别取帧且文件不同；提取失败时“证据帧不可用”，不得用视频开头预览图冒充。
+D4 复审第三轮新增覆盖：不再本地重新解码视频；按 media_id/frame_index/timestamp_s 下载服务端保存的模型输入帧；两条观察对应两份不同字节并写入不同文件；缺失时“证据帧不可用”。

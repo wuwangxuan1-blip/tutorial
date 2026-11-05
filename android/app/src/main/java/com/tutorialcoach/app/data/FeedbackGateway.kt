@@ -21,5 +21,12 @@ interface FeedbackGateway {
 
     suspend fun getFeedback(feedbackId: String): DomainFeedback
 
+    suspend fun getEvidenceFrame(
+        feedbackId: String,
+        mediaId: String,
+        frameIndex: Int,
+        timestampS: Double,
+    ): ByteArray?
+
     suspend fun listFeedback(sessionId: String, stepId: String? = null): List<DomainFeedback>
 }

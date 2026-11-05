@@ -166,6 +166,87 @@ async def test_video_feedback_timestamps_motion_and_audio_false(client, monkeypa
     assert analysis["motion_metrics"]["frame_count"] >= 2
 
 
+async def test_video_evidence_frames_are_exact_model_input_frames(client, monkeypatch):
+    session, _ = await setup_plan(client, monkeypatch)
+    video = (await upload(client, video_bytes(2), "video/mp4", "clip.mp4", "video")).json()
+    captured: dict[str, list[bytes]] = {}
+
+    async def fake_chat(
+        system_prompt,
+        user_prompt,
+        model=None,
+        timeout_s=None,
+        vision_images=None,
+    ):
+        captured["images"] = [data for data, _ in vision_images]
+        return {
+            "summary": "两帧均为测试卡。",
+            "observations": [
+                {
+                    "text": "第 0 秒画面为测试卡。",
+                    "evidence": {
+                        "media_id": video["id"],
+                        "kind": "video_frame",
+                        "frame_index": 0,
+                        "timestamp_s": 0.0,
+                    },
+                    "certainty": "high",
+                },
+                {
+                    "text": "第 1 秒画面为测试卡。",
+                    "evidence": {
+                        "media_id": video["id"],
+                        "kind": "video_frame",
+                        "frame_index": 1,
+                        "timestamp_s": 1.0,
+                    },
+                    "certainty": "high",
+                },
+            ],
+            "assessment": "unclear",
+            "uncertainties": ["测试卡不能替代真实拍摄。"],
+            "limitations": ["只能做定性观察。"],
+            "suggested_actions": [],
+            "follow_up_questions": [],
+        }
+
+    monkeypatch.setattr(client.app.state.model_client, "chat_json", fake_chat)
+    response = await client.post(
+        f"/v1/sessions/{session['id']}/feedback-jobs",
+        json={"step_id": "step_1", "plan_version": 1, "media_ids": [video["id"]]},
+    )
+    assert response.status_code == 202, response.text
+    job = await wait_job(client, response.json()["id"])
+    assert job["status"] == "succeeded", job
+    feedback = (await client.get(f"/v1/feedback/{job['result']['feedback_id']}")).json()
+
+    model_frames = captured["images"]
+    assert len(model_frames) == 2
+    assert model_frames[0] != model_frames[1]
+    for observation in feedback["analysis"]["observations"]:
+        evidence = observation["evidence"]
+        frame = await client.get(
+            f"/v1/feedback/{feedback['id']}/evidence-frames/"
+            f"{evidence['media_id']}/{evidence['frame_index']}",
+            params={"timestamp_s": evidence["timestamp_s"]},
+        )
+        assert frame.status_code == 200, frame.text
+        assert frame.headers["content-type"].startswith("image/jpeg")
+        assert frame.content == model_frames[evidence["frame_index"]]
+
+    wrong_timestamp = await client.get(
+        f"/v1/feedback/{feedback['id']}/evidence-frames/{video['id']}/0",
+        params={"timestamp_s": 5.0},
+    )
+    assert wrong_timestamp.status_code == 404
+
+    missing_feedback = await client.get(
+        f"/v1/feedback/fb_missing/evidence-frames/{video['id']}/0",
+        params={"timestamp_s": 0.0},
+    )
+    assert missing_feedback.status_code == 404
+
+
 async def test_video_feedback_rejects_bad_timestamp_and_motion_failure(client, monkeypatch):
     session, _ = await setup_plan(client, monkeypatch)
     video = (await upload(client, video_bytes(2), "video/mp4", "clip.mp4", "video")).json()

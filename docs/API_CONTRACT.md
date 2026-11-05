@@ -588,6 +588,8 @@ Observation：
 | `evidence.timestamp_s` | number/null | 视频时间戳；图片为 null |
 | `certainty` | enum | `low`、`medium`、`high`；是模型自评，不是统计置信度 |
 
+- 视频证据缩略图由服务端保存实际送模型的帧，按 `media_id`、`frame_index`、`timestamp_s` 通过 4.4 的证据帧端点获取；客户端不得重新解码视频替代。
+
 ### 3.8 视频与运动指标
 
 - 视频不直接送 DeepSeek；服务端 ffprobe 校验，ffmpeg 抽帧，图片带时间戳送多图分析。
@@ -1237,6 +1239,12 @@ Adjustment：
 
 - 分页；可按 `step_id` 过滤。
 - 返回 `items: Feedback[]`。
+
+#### GET /v1/feedback/{feedback_id}/evidence-frames/{media_id}/{frame_index}?timestamp_s=...
+
+- 仅视频帧证据。`media_id`、`frame_index`、`timestamp_s` 必须与反馈 `analysis.observations` 中的一条证据匹配（时间戳误差 ≤0.02）。
+- 返回服务端保存的、实际送给模型的该帧 JPEG（`image/jpeg`），不重新解码视频。
+- 反馈不存在、媒体不属于该反馈、帧/时间戳不匹配或帧文件缺失 → 404 `NOT_FOUND`；客户端显示“证据帧不可用”，不得用视频开头预览图替代。
 
 ### 4.5 修订
 
