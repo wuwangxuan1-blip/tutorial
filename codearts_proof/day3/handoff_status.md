@@ -2,7 +2,7 @@
 
 - 代码与测试：D3 三项复审修复已完成；服务端 **74 passed**，Android **33 passed**，`assembleDebug` 成功。
 - 真机：本轮未重跑。上一轮 D3 真机记录仍有效（软件主线、步骤/计时/暂停/恢复、提问、条件修订、杀进程恢复）；本轮三个修复点需在复审后补真机验证。
-- Git：第二轮复审修复提交 `3dc5388`，并已推送 `a486b65..3dc5388` 到 `origin/main`（exit 0，未强推）；密钥扫描 226 文件、0 匹配、clean。详见 `git_status.txt`。
+- Git：计时失败恢复提交 `7e610d8` 已完成；两次 `git push origin main` 均因 `Recv failure: Connection was reset` 失败，本地领先 `origin/main` 1 个提交（远程跟踪 `1188238`），未强推。密钥扫描 228 文件、0 匹配、clean。详见 `git_status.txt`。
 - 测试服务端：上一轮遗留的 8000 端口进程需在授权终端确认停止；本轮未启动服务端。
 - 未验证：设备重启计时确认弹窗、旋转恢复、中文输入法、截图 AI 视觉检查、真实 429/10 条假设。
 - 已知实现边界：Android 条件修改页目前暴露时间预算/人数/份量/备注，未单独暴露软件专用 `os_version`/`terminal_available`；服务端字段与测试已支持。

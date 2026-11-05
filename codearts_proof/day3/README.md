@@ -14,6 +14,6 @@
 | `commands.md` | 本轮实际运行命令与关键输出 |
 | `handoff_status.md` | 复审修复轮交接状态 |
 | `secret_scan.json` | 提交前密钥扫描（228 文件、0 匹配、clean） |
-| `git_status.txt` | 提交 `3dc5388` 与推送成功记录（a486b65..3dc5388） |
+| `git_status.txt` | 提交 `7e610d8` 与两次推送失败记录（本地领先 origin/main 1） |
 
 真实 DeepSeek 调用与测试替身严格区分：本轮真机计划、提问、修订均使用真实服务端 + 真实 DeepSeek；P2/P3 轮的限流与 10 条假设替身结果仍记录在 `codearts_proof/day2/`，不混用。
