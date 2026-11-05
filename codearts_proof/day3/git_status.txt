@@ -1,9 +1,11 @@
-# D3 Git 状态（2026-11-05）
+# D3 Git 状态（2026-11-05，第二轮复审修复）
 
-- HEAD：`e57c944`（feat: implement D3 step progress, revisions and software flow）
-- 待推送提交：`d28d8a6`、`ab3fbfa`、`e57c944`；本地 `main` 领先 `origin/main` 3 个提交。
-- 推送尝试：`git push origin main`
-  - 结果：失败，exit 128
-  - 错误：`fatal: unable to access 'https://github.com/wuwangxuan1-blip/tutorial.git/': Recv failure: Connection was reset`
-- 未强推；未伪造推送成功。远程实际状态未能在本轮核验。
-- 提交前密钥扫描：223 个文本文件、0 匹配、`clean=true`（`secret_scan.json`）。
+- HEAD：`3dc5388`（fix: validate revision sequences and guard timer reset race）
+- 本轮包含提交：
+  - `d28d8a6`、`ab3fbfa`：此前 P2/P3 与 P3 单调时钟修复
+  - `e57c944`：D3 实现与第一轮复审三项修复
+  - `8fb655c`：D3 首轮提交/推送记录
+  - `3dc5388`：第二轮复审两项修复
+- 推送：`git push origin main` → `a486b65..3dc5388  main -> main`，exit 0。
+- 远程 `origin/main` 已更新到 `3dc5388`，未强推。
+- 提交前密钥扫描：226 个文本文件、0 匹配、`clean=true`（`secret_scan.json`）。
