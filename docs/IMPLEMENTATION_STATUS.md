@@ -1,6 +1,6 @@
 # 实现状态
 
-> 最后更新：2026-11-05（P0/D1 完成 + P1/D2 契约固化/完整文本/真机复测）
+> 最后更新：2026-11-05（P0/D1 + P1/D2 完成；P2/P3 复审修复已实现并完成真机复核，等待复审）
 > 状态取值：未开始 / 进行中 / PASS / BLOCKED。PASS 只表示有本文件“证据”列指向的真实命令输出、日志或截图；未执行的项目不得写 PASS。
 
 ## 1. 需求到阶段映射
@@ -96,4 +96,30 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 | 两次非法 JSON 后 Job retryable | **PASS** | 真实 `ModelClient` + `httpx.MockTransport` 连续两次非法 JSON；Job `MODEL_BAD_OUTPUT` + `retryable=true`；调用次数恰好 2；无真实模型调用 |
 | 过敏提示泛化 | **PASS** | 未提供过敏信息时提示“核对本次实际使用的食材和调味料”，不含番茄/鸡蛋/面条；`allergies=[]` 不生成该提示；蘑菇汤假模型测试通过；服务端真实计划已重跑（30.837 s/5196 tokens、8 条假设）；未真机重跑该计划 |
 
-测试与构建：服务端 **47 passed**；安卓 **21 passed**（0 失败）；`assembleDebug` 成功，APK 约 11 MB。测试替身与真实模型严格区分；真机未重新验证限流 UI 与过敏提示。
+测试与构建：服务端 **47 passed**；安卓 **21 passed**（0 失败）；`assembleDebug` 成功，APK 约 11 MB。测试替身与真实模型严格区分；真机未重新验证限流 UI 与过敏提示（P2/P3 轮真机复核见第 8 节）。
+
+## 8. P2/P3 复审修复（2026-11-05）
+
+基线：`a486b65`。本轮只处理以下两项复审缺陷，不进入 P2/D3。
+
+| 修复项 | 状态 | 验证 |
+|---|---|---|
+| P2 过敏提示槽位 | **PASS** | `plan_service.py` 为“未提供过敏信息”的通用提示预留 1 个槽位；模型返回 10 条假设时保留前 9 条原序，第 10 条为通用提示；`assumptions` 始终 ≤10；`allergies=[]` 仍不添加该提示。新增 `test_allergy_note_reserves_slot_when_model_returns_ten`，保留蘑菇汤通用文案与显式无过敏测试 |
+| P3 共享限流冷却 | **PASS** | `RateLimitGate` 由 `AppContainer` 持有，`PlanScreen` 按 session id 创建 ViewModel 时共享同一 Gate；冷却期 `generate()`/`retry()` 均被拦截，不调用 `createPlanJob`；切会话取消旧任务并重置为 Idle/Ready，但保留剩余冷却；页面显示剩余秒数、生成按钮禁用、错误区重试按钮隐藏。`PlanViewModelTest` 覆盖 7 秒→3 秒→约 4 秒、冷却内重复触发不增 Job、结束后手动生成使用新会话 ID |
+| P0 回归 | **PASS** | 计划已生成、首次 GET 失败、重试只 GET 原计划：`createCalls` 不增，`loadCalls` 增加 |
+
+测试与构建（本轮实测）：
+
+- 服务端 **48 passed**，0 失败：`test_contract_examples` 8、`test_health` 3、`test_idempotency` 5、`test_model_client_errors` 8、`test_plan_assumptions` 3、`test_plan_flow` 6、`test_plan_repair` 6、`test_sessions` 9。
+- 安卓 `testDebugUnitTest --rerun-tasks` **21 passed**，0 失败：`ContractExamplesTest` 6、`DtoTest` 3、`ErrorMapperTest` 5、`PlanValidatorTest` 4、`PlanViewModelTest` 3。
+- `assembleDebug` BUILD SUCCESSFUL；APK `android/app/build/outputs/apk/debug/app-debug.apk`，10,445,372 字节（约 10.4 MB）。
+- `git diff --check` 通过；`git ls-files -s android/gradlew` 为 `100755`。
+
+真机复核（2026-11-05，realme GT6 / RMX3800 / Android 16，adb `eeffd16b`）：
+
+- 使用“真实服务端代码 + 测试模型替身”（`work/device_review_test_server.py`）注入 `MODEL_RATE_LIMITED` 与 10 条假设；**不是真实 DeepSeek 输出**。
+- 7 秒限流：页面显示倒计时；冷却内重复点击生成，Job 数不变（15→15）；冷却结束后手动生成，Job 15→16。
+- 切会话：20 秒注入下，新会话保留剩余冷却、保持“条件已就绪”、无旧错误覆盖；冷却内点击不新建 Job（17→17）；冷却结束后使用新会话生成成功（17→18）。
+- 10 条假设：计划页显示“模型假设 1–9”原序 + 第 10 条通用过敏提示，共 10 条，通用提示恰好一次。
+
+仍未验证（不得当作已通过）：真实 DeepSeek 恰好触发 429 并返回 `retry_after_s`、真实模型一次返回 10 条假设、旋转/切后台/进程被杀恢复、中文输入法直接输入目标、截图 AI 视觉检查。详细记录见 `codearts_proof/day2/review_fix_device.md`。

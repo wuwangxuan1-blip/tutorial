@@ -55,7 +55,7 @@ class FakeModelClient:
         return self.response
 
 
-def make_service(tmp_path: Path) -> PlanService:
+def make_service(tmp_path: Path, draft: dict[str, Any] | None = None) -> PlanService:
     settings = Settings(
         base_url="https://api.deepseek.com",
         api_key="test-key-not-used",
@@ -67,7 +67,7 @@ def make_service(tmp_path: Path) -> PlanService:
         log_dir=tmp_path / "data" / "logs",
         queue_max=5,
     )
-    return PlanService(settings, FakeModelClient(MUSHROOM_DRAFT))
+    return PlanService(settings, FakeModelClient(draft or MUSHROOM_DRAFT))
 
 
 def session_payload(goal: str, allergies: Any = None) -> dict[str, Any]:
@@ -109,3 +109,14 @@ async def test_explicit_no_allergies_skips_generic_allergy_note(tmp_path):
     )
     assert not any("未提供过敏信息" in item for item in plan["assumptions"])
     assert plan["title"] == "蘑菇汤"
+
+async def test_allergy_note_reserves_slot_when_model_returns_ten(tmp_path):
+    draft = dict(MUSHROOM_DRAFT)
+    draft["assumptions"] = [f"模型假设 {index}" for index in range(1, 11)]
+    service = make_service(tmp_path, draft)
+    plan = await service.generate_cooking_plan(session_payload("蘑菇汤"), 1)
+    generic = "未提供过敏信息，请核对本次实际使用的食材和调味料；无法确认是否存在过敏原。"
+    assert len(plan["assumptions"]) == 10
+    assert plan["assumptions"][:9] == [f"模型假设 {index}" for index in range(1, 10)]
+    assert plan["assumptions"][9] == generic
+    assert plan["assumptions"].count(generic) == 1

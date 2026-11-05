@@ -113,20 +113,41 @@ class PlanService:
                     "media_prompt": item.media_prompt,
                 }
             )
-        assumptions = list(draft.assumptions)
+        model_assumptions: list[str] = []
+        for note in draft.assumptions:
+            if note not in model_assumptions:
+                model_assumptions.append(note)
+
+        generated_notes: list[str] = []
         for name in COOKING_KEY_CONDITIONS:
             if conditions.get(name) is None:
                 note = f"未提供 {name}，按常见情况假设。"
-                if note not in assumptions:
-                    assumptions.append(note)
+                if note not in model_assumptions and note not in generated_notes:
+                    generated_notes.append(note)
         optional_assumptions = {
             "allergies": "未提供过敏信息，请核对本次实际使用的食材和调味料；无法确认是否存在过敏原。",
             "available_equipment": "未提供器具清单，按常见汤锅、炒锅、刀和砧板假设。",
             "oven_available": "未提供烤箱可用性，按以灶具为主的方案假设。",
         }
         for name, note in optional_assumptions.items():
-            if conditions.get(name) is None and note not in assumptions:
+            if name == "allergies":
+                continue
+            if conditions.get(name) is None and note not in model_assumptions and note not in generated_notes:
+                generated_notes.append(note)
+
+        allergy_note = optional_assumptions["allergies"]
+        allergy_needed = conditions.get("allergies") is None
+        allergy_already_present = allergy_note in model_assumptions
+        reserve_for_allergy = 1 if allergy_needed and not allergy_already_present else 0
+
+        assumptions = list(model_assumptions[: 10 - reserve_for_allergy])
+        for note in generated_notes:
+            if len(assumptions) >= 10 - reserve_for_allergy:
+                break
+            if note not in assumptions:
                 assumptions.append(note)
+        if allergy_needed and not allergy_already_present:
+            assumptions.append(allergy_note)
         safety_notes = list(draft.safety_notes)
         if not any("生熟" in note for note in safety_notes):
             safety_notes.append("生熟食材分开；处理生鸡蛋后洗手。")
@@ -139,7 +160,7 @@ class PlanService:
             domain=session["domain"],
             title=draft.title,
             summary=draft.summary,
-            assumptions=assumptions[:10],
+            assumptions=assumptions,
             preparation=preparation,
             steps=steps,
             total_estimated_min=draft.total_estimated_min,

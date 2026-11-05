@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.tutorialcoach.app.data.ApiException
 import com.tutorialcoach.app.data.NetworkException
 import com.tutorialcoach.app.data.PlanGateway
+import com.tutorialcoach.app.data.RateLimitGate
 import com.tutorialcoach.app.domain.DomainPlan
 import com.tutorialcoach.app.domain.DomainSession
 import com.tutorialcoach.app.domain.ErrorMapper
@@ -23,11 +24,12 @@ sealed interface PlanUiState {
     data class Working(val progress: Int, val stage: String) : PlanUiState
     data class Ready(val plan: DomainPlan) : PlanUiState
     data class Error(val message: String, val retryable: Boolean) : PlanUiState
-    data class RateLimited(val message: String, val remainingSeconds: Int) : PlanUiState
+
 }
 
 class PlanViewModel(
     private val repository: PlanGateway,
+    private val rateLimitGate: RateLimitGate,
 ) : ViewModel() {
     val session: StateFlow<DomainSession?> = repository.session
 
@@ -36,13 +38,12 @@ class PlanViewModel(
     )
     val uiState: StateFlow<PlanUiState> = _uiState.asStateFlow()
 
+    val cooldownSeconds: StateFlow<Int> = rateLimitGate.remainingSeconds
+
     private var observedSessionId: String? = repository.session.value?.id
     private var pollJob: Job? = null
     private var planIdempotencyKey: String? = null
     private var pendingPlanSessionId: String? = null
-    private var rateLimitTicker: Job? = null
-    private var rateLimitRemaining: Int = 0
-    private var rateLimitMessage: String = ""
 
     init {
         viewModelScope.launch {
@@ -50,10 +51,7 @@ class PlanViewModel(
                 if (current?.id != observedSessionId) {
                     observedSessionId = current?.id
                     pollJob?.cancel()
-                    rateLimitTicker?.cancel()
-                    rateLimitTicker = null
-                    rateLimitRemaining = 0
-                    rateLimitMessage = ""
+
                     planIdempotencyKey = null
                     pendingPlanSessionId = null
                     _uiState.value = repository.plan.value?.let { PlanUiState.Ready(it) } ?: PlanUiState.Idle
@@ -63,7 +61,7 @@ class PlanViewModel(
     }
 
     fun generate() {
-        if (rateLimitRemaining > 0) return
+        if (rateLimitGate.isBlocked()) return
         if (pollJob?.isActive == true) return
         if (pendingPlanSessionId != null) {
             retry()
@@ -107,13 +105,12 @@ class PlanViewModel(
                         planIdempotencyKey = null
                         val error = job.error?.error
                         val message = error?.message?.takeIf(String::isNotBlank) ?: "生成计划失败，请重试。"
+                        _uiState.value = PlanUiState.Error(
+                            message,
+                            error?.retryable ?: true,
+                        )
                         if (error?.code == "MODEL_RATE_LIMITED") {
-                            startRateLimit(message, error.retryAfterS ?: 1)
-                        } else {
-                            _uiState.value = PlanUiState.Error(
-                                message,
-                                error?.retryable ?: true,
-                            )
+                            rateLimitGate.start(error.retryAfterS ?: 1)
                         }
                     }
                     else -> {
@@ -132,7 +129,7 @@ class PlanViewModel(
     }
 
     fun retry() {
-        if (rateLimitRemaining > 0) return
+        if (rateLimitGate.isBlocked()) return
         val pending = pendingPlanSessionId
         if (pending == null) {
             generate()
@@ -146,21 +143,6 @@ class PlanViewModel(
         }
     }
 
-    private fun startRateLimit(message: String, retryAfterS: Int) {
-        val seconds = retryAfterS.coerceAtLeast(1)
-        rateLimitTicker?.cancel()
-        rateLimitRemaining = seconds
-        rateLimitMessage = message
-        _uiState.value = PlanUiState.RateLimited(message, seconds)
-        rateLimitTicker = viewModelScope.launch {
-            while (rateLimitRemaining > 0) {
-                _uiState.value = PlanUiState.RateLimited(rateLimitMessage, rateLimitRemaining)
-                delay(1000)
-                rateLimitRemaining -= 1
-            }
-            _uiState.value = PlanUiState.Error(rateLimitMessage, retryable = true)
-        }
-    }
 
     private suspend fun fetchPlan(sessionId: String) {
         try {

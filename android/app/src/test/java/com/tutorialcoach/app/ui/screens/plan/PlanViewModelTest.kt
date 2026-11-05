@@ -6,6 +6,7 @@ import com.tutorialcoach.app.data.JobDto
 import com.tutorialcoach.app.data.JobResultDto
 import com.tutorialcoach.app.data.NetworkException
 import com.tutorialcoach.app.data.PlanGateway
+import com.tutorialcoach.app.data.RateLimitGate
 import com.tutorialcoach.app.domain.DomainPlan
 import com.tutorialcoach.app.domain.DomainSession
 import com.tutorialcoach.app.domain.DomainStep
@@ -90,6 +91,7 @@ class PlanViewModelTest {
         var createCalls = 0
         var loadCalls = 0
         var failFirstLoad = true
+        val requestedSessionIds = mutableListOf<String>()
 
         fun changeSession(id: String) {
             _plan.value = null
@@ -102,6 +104,7 @@ class PlanViewModelTest {
             idempotencyKey: String,
         ): JobDto {
             createCalls += 1
+            requestedSessionIds += sessionId
             if (rateLimitRetryAfter != null) {
                 return JobDto(
                     id = "job_rate_limited",
@@ -157,7 +160,7 @@ class PlanViewModelTest {
     @Test
     fun successfulJobWithFailedPlanFetchRetriesOnlyTheFetch() = runTest(dispatcher) {
         val gateway = FakeGateway()
-        val viewModel = PlanViewModel(gateway)
+        val viewModel = PlanViewModel(gateway, RateLimitGate(this))
         advanceUntilIdle()
 
         viewModel.generate()
@@ -172,19 +175,19 @@ class PlanViewModelTest {
         assertTrue(viewModel.uiState.value is PlanUiState.Ready)
         assertEquals(1, gateway.createCalls)
         assertEquals(2, gateway.loadCalls)
-assertEquals(1, gateway.session.value?.currentPlanVersion ?: -1)
+        assertEquals(1, gateway.session.value?.currentPlanVersion ?: -1)
     }
 
     @Test
     fun rateLimitBlocksGenerationAndRetryUntilWaitExpires() = runTest(dispatcher) {
         val gateway = FakeGateway(rateLimitRetryAfter = 7)
-        val viewModel = PlanViewModel(gateway)
+        val viewModel = PlanViewModel(gateway, RateLimitGate(this))
         advanceUntilIdle()
 
         viewModel.generate()
         runCurrent()
-        val limited = viewModel.uiState.value as PlanUiState.RateLimited
-        assertEquals(7, limited.remainingSeconds)
+        assertEquals(7, viewModel.cooldownSeconds.value)
+        assertTrue(viewModel.uiState.value is PlanUiState.Error)
 
         viewModel.generate()
         viewModel.retry()
@@ -193,36 +196,55 @@ assertEquals(1, gateway.session.value?.currentPlanVersion ?: -1)
 
         advanceTimeBy(3_000)
         runCurrent()
-        val halfway = viewModel.uiState.value as PlanUiState.RateLimited
-        assertTrue(halfway.remainingSeconds in 1..4)
+        assertTrue(viewModel.cooldownSeconds.value in 1..4)
         viewModel.generate()
         assertEquals(1, gateway.createCalls)
 
         advanceTimeBy(4_000)
         runCurrent()
-        assertTrue(viewModel.uiState.value is PlanUiState.Error)
+        assertEquals(0, viewModel.cooldownSeconds.value)
 
         viewModel.generate()
         runCurrent()
         assertEquals(2, gateway.createCalls)
+        assertEquals(listOf("sess_1", "sess_1"), gateway.requestedSessionIds)
     }
 
     @Test
-    fun sessionChangeClearsOldRateLimitState() = runTest(dispatcher) {
-        val gateway = FakeGateway(rateLimitRetryAfter = 7)
-        val viewModel = PlanViewModel(gateway)
+    fun sessionChangeKeepsCooldownAndUsesNewSessionAfterWait() = runTest(dispatcher) {
+        val firstGateway = FakeGateway(rateLimitRetryAfter = 7)
+        val gate = RateLimitGate(this)
+        val firstViewModel = PlanViewModel(firstGateway, gate)
         advanceUntilIdle()
 
-        viewModel.generate()
+        firstViewModel.generate()
         runCurrent()
-        assertTrue(viewModel.uiState.value is PlanUiState.RateLimited)
+        assertEquals(7, firstViewModel.cooldownSeconds.value)
 
-        gateway.changeSession("sess_2")
+        advanceTimeBy(3_000)
         runCurrent()
-        assertTrue(viewModel.uiState.value is PlanUiState.Idle)
+        assertTrue(firstViewModel.cooldownSeconds.value in 1..4)
 
-        viewModel.generate()
+        val secondGateway = FakeGateway()
+        secondGateway.changeSession("sess_2")
+        val secondViewModel = PlanViewModel(secondGateway, gate)
         runCurrent()
-        assertEquals(2, gateway.createCalls)
+
+        assertTrue(secondViewModel.uiState.value is PlanUiState.Idle)
+        assertEquals(4, secondViewModel.cooldownSeconds.value)
+
+        secondViewModel.generate()
+        secondViewModel.retry()
+        secondViewModel.generate()
+        assertEquals(0, secondGateway.createCalls)
+
+        advanceTimeBy(4_000)
+        runCurrent()
+        assertEquals(0, secondViewModel.cooldownSeconds.value)
+
+        secondViewModel.generate()
+        runCurrent()
+        assertEquals(1, secondGateway.createCalls)
+        assertEquals(listOf("sess_2"), secondGateway.requestedSessionIds)
     }
 }

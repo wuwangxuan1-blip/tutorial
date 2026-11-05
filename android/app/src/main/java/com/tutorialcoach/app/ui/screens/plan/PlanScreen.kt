@@ -42,11 +42,12 @@ fun PlanScreen(
     val viewModel: PlanViewModel = viewModel(
         key = currentSession?.id ?: "no-session",
         factory = viewModelFactory {
-            initializer { PlanViewModel(container.repository) }
+            initializer { PlanViewModel(container.repository, container.rateLimitGate) }
         },
     )
     val session by viewModel.session.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val cooldownSeconds by viewModel.cooldownSeconds.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -75,6 +76,14 @@ fun PlanScreen(
                 )
             }
 
+            if (cooldownSeconds > 0) {
+                Text(
+                    text = "模型限流，请等待 $cooldownSeconds 秒后再试；等待期间不会创建新任务。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
             when (val state = uiState) {
                 is PlanUiState.Working -> {
                     Text(
@@ -92,32 +101,27 @@ fun PlanScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                is PlanUiState.RateLimited -> {
-                    Text(
-                        text = state.message,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    Text(
-                        text = "模型限流，请等待 ${state.remainingSeconds} 秒后再重试；等待期间不会创建新任务。",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
                 is PlanUiState.Error -> {
                     ErrorBanner(
                         message = state.message,
                         retryable = state.retryable,
-                        onRetry = viewModel::retry,
+                        onRetry = if (cooldownSeconds == 0) viewModel::retry else null,
                         onDismiss = viewModel::dismissError,
                     )
-                    GenerateButton(onClick = viewModel::generate)
+                    GenerateButton(
+                        onClick = viewModel::generate,
+                        enabled = cooldownSeconds == 0,
+                    )
                 }
                 is PlanUiState.Ready -> {
                     PlanContent(plan = state.plan, onOpenStep = onOpenStep)
                 }
                 PlanUiState.Idle -> {
                     Text("条件已就绪，点击下方按钮生成计划。")
-                    GenerateButton(onClick = viewModel::generate)
+                    GenerateButton(
+                        onClick = viewModel::generate,
+                        enabled = cooldownSeconds == 0,
+                    )
                 }
             }
         }
@@ -125,9 +129,10 @@ fun PlanScreen(
 }
 
 @Composable
-private fun GenerateButton(onClick: () -> Unit) {
+private fun GenerateButton(onClick: () -> Unit, enabled: Boolean = true) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp),
