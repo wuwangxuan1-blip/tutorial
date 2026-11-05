@@ -1,9 +1,9 @@
 branch: main
 upstream: origin/main
-p0_base_commit: 8c5054d
-d2_commit: e268dfe2662fce145d40df4b899a4a81283eb544
-d2_subject: feat: complete D2 contract and cooking text flow
-push: PASS (8c5054d..e268dfe main -> main)
+review_baseline: 2d232e2218b20f464984bdf7c421fcf4ab23bf54
+review_fix_commit: 741b2e40daab6f0609751392ab4fc36f0ed35f54
+review_fix_subject: fix: handle rate limit wait and generic allergy assumptions
+push: PASS (2d232e2..741b2e4 main -> main)
 force_push: false
-remote_main_before_docs_commit: e268dfe2662fce145d40df4b899a4a81283eb544
-note: This evidence file is committed in a follow-up docs-only commit; the final HEAD is recorded in the D2 stage report.
+remote_main_before_docs_commit: 741b2e40daab6f0609751392ab4fc36f0ed35f54
+note: This evidence file is committed in a follow-up docs-only commit; the final HEAD is recorded in the P1 re-review report.

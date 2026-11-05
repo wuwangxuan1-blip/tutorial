@@ -101,8 +101,9 @@
 | 第三轮修复提交 | `f405461 fix(android): fix P0 regression test and restore standard Gradle wrapper` |
 | 真机验证提交 | `8a6365d docs: add P0 real-device verification evidence` |
 | D2 提交 | `e268dfe feat: complete D2 contract and cooking text flow` |
-| 推送 | **PASS**：`ab6996a..bcd3cc9`、`bcd3cc9..4798f2f`、`4798f2f..f405461`、`2c168db..8a6365d`、`8c5054d..e268dfe`；未强推 |
-| 本地/远程一致性 | 推送后 `git status -sb` 显示 `## main...origin/main`；远程 main 指向 `e268dfe`（随后仅文档提交） |
+| P1 复审修复提交 | `741b2e4 fix: handle rate limit wait and generic allergy assumptions` |
+| 推送 | **PASS**：`ab6996a..bcd3cc9`、`bcd3cc9..4798f2f`、`4798f2f..f405461`、`2c168db..8a6365d`、`8c5054d..e268dfe`、`2d232e2..741b2e4`；未强推 |
+| 本地/远程一致性 | 推送后 `git status -sb` 显示 `## main...origin/main`；远程 main 指向 `741b2e4`（随后仅文档提交） |
 
 ## 9. 构建与安装状态
 

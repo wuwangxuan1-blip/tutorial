@@ -13,5 +13,6 @@
 | 契约样例双端 | 服务端 8 项 + 安卓 6 项通过，读取同一 `contracts/examples/` |
 | `git push origin main` | 本轮修复提交待推送（前序 `8c5054d..e268dfe`） |
 | 复审修复 | 见 `review_fix.md`；限流/非法 JSON/过敏提示测试 |
+| `git push origin main`（复审修复） | PASS：`2d232e2..741b2e4`；未强推 |
 
 说明：失败路径（无 Key/429/超时/非法 JSON/结构失败/拒绝）使用 httpx MockTransport/假模型和隔离 ASGI 应用，不是真实付费调用；真实模型只用于成功计划和真机流程。
