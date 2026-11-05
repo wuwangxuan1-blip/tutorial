@@ -1,0 +1,9 @@
+# D3 Git 状态（2026-11-05）
+
+- HEAD：`e57c944`（feat: implement D3 step progress, revisions and software flow）
+- 待推送提交：`d28d8a6`、`ab3fbfa`、`e57c944`；本地 `main` 领先 `origin/main` 3 个提交。
+- 推送尝试：`git push origin main`
+  - 结果：失败，exit 128
+  - 错误：`fatal: unable to access 'https://github.com/wuwangxuan1-blip/tutorial.git/': Recv failure: Connection was reset`
+- 未强推；未伪造推送成功。远程实际状态未能在本轮核验。
+- 提交前密钥扫描：223 个文本文件、0 匹配、`clean=true`（`secret_scan.json`）。
