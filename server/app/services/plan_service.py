@@ -120,7 +120,7 @@ class PlanService:
                 if note not in assumptions:
                     assumptions.append(note)
         optional_assumptions = {
-            "allergies": "未提供过敏信息，无法核对番茄、鸡蛋、面条及相关调味料的过敏原。",
+            "allergies": "未提供过敏信息，请核对本次实际使用的食材和调味料；无法确认是否存在过敏原。",
             "available_equipment": "未提供器具清单，按常见汤锅、炒锅、刀和砧板假设。",
             "oven_available": "未提供烤箱可用性，按以灶具为主的方案假设。",
         }

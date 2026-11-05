@@ -92,6 +92,17 @@ fun PlanScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                is PlanUiState.RateLimited -> {
+                    Text(
+                        text = state.message,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = "模型限流，请等待 ${state.remainingSeconds} 秒后再重试；等待期间不会创建新任务。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 is PlanUiState.Error -> {
                     ErrorBanner(
                         message = state.message,

@@ -1,13 +1,13 @@
 {
-  "started_at": "2026-11-05T05:25:44Z",
-  "finished_at": "2026-11-05T05:26:18Z",
+  "started_at": "2026-11-05T07:47:09Z",
+  "finished_at": "2026-11-05T07:47:40Z",
   "real_model_call": true,
   "text_model": "deepseek-flash",
   "goal": "两人份番茄鸡蛋面，30 分钟内完成",
   "health": {
     "status": "ok",
     "api_version": "v1",
-    "time": "2026-11-05T05:25:44Z",
+    "time": "2026-11-05T07:47:09Z",
     "checks": {
       "store": true,
       "ffmpeg": true,
@@ -24,7 +24,7 @@
   },
   "session": {
     "http_status": 201,
-    "id": "sess_01M6N2Q4C1GCN8KWAYGRXZVV3Z",
+    "id": "sess_01M6NAT2R6VV3QFH34YYJJW03V",
     "status_after_create": "clarifying",
     "rounds": [
       {
@@ -74,7 +74,7 @@
   },
   "job_created": {
     "http_status": 202,
-    "id": "job_01M6N2Q4CYJFFRFRHJM82CSQMS",
+    "id": "job_01M6NAT2SCPHBC58QCR0KYD9K3",
     "status": "queued"
   },
   "job_final": {
@@ -82,18 +82,18 @@
     "progress": 100,
     "stage": "done",
     "error": null,
-    "wall_time_s": 34.45
+    "wall_time_s": 31.103
   },
   "plan": {
     "http_status": 200,
-    "id": "plan_01M6N2R5Z01SZPX43A0945E3VQ",
+    "id": "plan_01M6NAV0XGBP9TQ5HJZVNCKJKD",
     "version": 1,
-    "title": "两人份番茄鸡蛋面（30分钟内）",
-    "summary": "两人份番茄鸡蛋面，使用燃气灶和一口可炒可煮的锅，先炒蛋、再炒番茄煮面，最后回锅分装。总时长约25分钟，步骤强调生熟分开、洗手和防烫。",
+    "title": "两人份番茄鸡蛋面（30分钟新手版）",
+    "summary": "为两位初学者设计的30分钟内番茄鸡蛋面：先备料烧水，再炒蛋、炒番茄出汁，按包装时间煮面，最后混合分装。全程强调生熟分开、防烫和计时。",
     "total_estimated_min": 25,
     "step_count": 5,
-    "assumption_count": 3,
-    "preparation_count": 3,
+    "assumption_count": 8,
+    "preparation_count": 4,
     "safety_note_count": 5,
     "all_steps_have_criteria": true,
     "steps": [
@@ -101,75 +101,78 @@
         "id": "step_1",
         "order": 1,
         "phase": "prepare",
-        "title": "切番茄与搅蛋液",
+        "title": "备料并开始烧水",
         "duration_s": 300,
         "completion_criteria": [
-          "番茄切成约2厘米小块",
-          "蛋液颜色均匀，无明显大块蛋清",
-          "面条、碗筷和调味品在灶台伸手可及处"
+          "番茄已切成可入口块状，蛋液无明显透明蛋清大块。",
+          "汤锅水面出现密集小泡，锅壁有水汽。",
+          "生蛋液碗与成品碗分开放置。"
         ],
         "safety": [
-          "处理生鸡蛋后立即洗手；生熟餐具分开。"
+          "处理生鸡蛋后立即洗手。",
+          "灶边不放抹布等易燃物。"
         ]
       },
       {
         "id": "step_2",
         "order": 2,
         "phase": "execute",
-        "title": "先炒鸡蛋",
-        "duration_s": 180,
+        "title": "炒鸡蛋并盛出",
+        "duration_s": 120,
         "completion_criteria": [
-          "蛋液大部分凝固成块",
-          "锅内无大面积流动蛋液",
-          "鸡蛋已盛出，锅中留少量油"
+          "蛋液大部分凝固，无大片流动蛋液。",
+          "蛋块能成团盛出，锅底无大量焦黑。"
         ],
         "safety": [
-          "热油可能溅出，放蛋液时贴近锅面；锅柄朝内。"
+          "热油防溅，蛋液沿锅边倒入。",
+          "盛蛋时锅柄朝内，避免碰翻。"
         ]
       },
       {
         "id": "step_3",
         "order": 3,
         "phase": "execute",
-        "title": "炒番茄并加水烧开",
-        "duration_s": 300,
+        "title": "炒番茄出汁",
+        "duration_s": 240,
         "completion_criteria": [
-          "番茄块明显变软并出红色汤汁",
-          "加水后水面明显沸腾",
-          "汤底可没过即将加入的面条"
+          "番茄块边缘变软，锅底可见红色汤汁。",
+          "加入热水后汤汁明显沸腾，番茄块未大面积焦黑。"
         ],
         "safety": [
-          "加水时沿锅边倒入，避免蒸汽和热水烫手。"
+          "加入热水时沿锅边倒入，防蒸汽和溅烫。",
+          "翻炒时手远离锅沿。"
         ]
       },
       {
         "id": "step_4",
         "order": 4,
         "phase": "execute",
-        "title": "下入面条并计时煮",
+        "title": "按包装时间煮面条",
         "duration_s": 360,
         "completion_criteria": [
-          "面条全部浸入沸水中并散开",
-          "按包装建议时间计时结束",
-          "夹起面条柔软可弯"
+          "面条全部浸入沸水中，能被筷子拨散不结大团。",
+          "包装标注的煮面计时已结束。",
+          "水面持续沸腾但未大量溢出锅沿。"
         ],
         "safety": [
-          "下生面条时轻放，防止开水溅出；保持通风。"
+          "下干面条时防热水溅出。",
+          "捞面时使用长筷或漏勺，脸不要正对蒸汽。"
         ]
       },
       {
         "id": "step_5",
         "order": 5,
         "phase": "finish",
-        "title": "回锅混合并分装",
+        "title": "混合分装并检查",
         "duration_s": 120,
         "completion_criteria": [
-          "两碗均分到面条、番茄和鸡蛋",
-          "碗中不见大块未凝固蛋液",
-          "碗沿擦净，稍放凉后食用"
+          "两个碗中均有面条、番茄块和鸡蛋块，份量大致相当。",
+          "成品碗和筷子未接触过生蛋液。",
+          "锅中和台面无大量汤汁溢出。"
         ],
         "safety": [
-          "热汤热面防烫，分装时不要将碗放在灶台边缘。"
+          "热锅和热汤防烫，端碗时用干布或托底。",
+          "处理生食材后洗手再接触成品餐具。"
         ]
       }
     ]

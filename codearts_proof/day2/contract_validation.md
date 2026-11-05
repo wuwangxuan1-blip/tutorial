@@ -23,7 +23,7 @@ cd server
 .venv/Scripts/python.exe -m pytest -q
 ```
 
-结果：**44 passed**。
+结果：**47 passed**。
 
 `server/tests/test_contract_examples.py`（8 项）覆盖：
 

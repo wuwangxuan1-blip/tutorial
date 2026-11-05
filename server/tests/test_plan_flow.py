@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
+
+import httpx
 
 from app.errors import ApiError
+from app.services.model_client import ModelClient
 
 FULL_COOKING = {
     "skill_level": "beginner",
@@ -193,3 +197,49 @@ async def test_plan_job_structural_failure_after_one_repair(client, monkeypatch)
     assert job["status"] == "failed"
     assert job["error"]["error"]["code"] == "MODEL_BAD_OUTPUT"
     assert calls["count"] == 2
+
+
+async def test_two_invalid_json_http_responses_fail_job_with_retryable(client):
+    calls = {"count": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["count"] += 1
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {"content": "this is definitely not json"},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"total_tokens": 10},
+            },
+        )
+
+    settings = replace(
+        client.app.state.settings,
+        api_key="test-key-value",
+        text_model="deepseek-flash",
+    )
+    real_client = ModelClient(settings, transport=httpx.MockTransport(handler))
+    client.app.state.model_client = real_client
+    client.app.state.plan_service.model_client = real_client
+
+    created = await client.post(
+        "/v1/sessions",
+        json={"domain": "cooking", "goal": "2 人份番茄鸡蛋面", "conditions": FULL_COOKING},
+    )
+    session = created.json()
+    response = await client.post(
+        f"/v1/sessions/{session['id']}/plan-jobs",
+        json={"base_plan_version": None},
+    )
+    assert response.status_code == 202
+    job = await wait_job(client, response.json()["id"])
+    assert job["status"] == "failed"
+    assert job["error"]["error"]["code"] == "MODEL_BAD_OUTPUT"
+    assert job["error"]["error"]["retryable"] is True
+    assert calls["count"] == 2
+    plan_response = await client.get(f"/v1/sessions/{session['id']}/plan")
+    assert plan_response.status_code == 404

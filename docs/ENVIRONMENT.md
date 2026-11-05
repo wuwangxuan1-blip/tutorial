@@ -49,7 +49,7 @@
 | 项目 venv | `server/.venv`，pip 24.3.1 |
 | 已安装 | fastapi 0.162.0、uvicorn 0.54.0、httpx 0.28.1、pydantic 2.14.2、python-dotenv 1.2.4、pytest 8.4.2、pytest-asyncio 0.25.3 |
 | 锁文件 | `server/requirements.txt`（pip freeze） |
-| 服务端测试 | `pytest -v`（D2）：**44 项 PASS**；见 `codearts_proof/day2/server_pytest.log` |
+| 服务端测试 | `pytest -v`（P1 复审后）：**47 项 PASS**；见 `codearts_proof/day2/server_pytest.log` |
 
 ## 5. ffmpeg
 
@@ -115,7 +115,7 @@
 | 断网恢复 | **PASS**：停止服务端→首页“服务端：未连接”；重启→“服务端：正常” |
 | 真机跨会话隔离 | **PASS**：第二个会话计划页无上一会话计划残留 |
 | 未真机验证项 | 旋转、切后台、进程被杀恢复；中文目标输入；第二份计划真实生成 |
-| Android JVM 测试 | **PASS（D2）**：19 项，0 失败；含 ContractExamplesTest 6、ErrorMapper 5、PlanViewModel 1；见 `codearts_proof/day2/android_test_results.txt` |
+| Android JVM 测试 | **PASS（P1 复审后）**：21 项，0 失败；含 ContractExamplesTest 6、ErrorMapper 5、PlanViewModel 3；见 `codearts_proof/day2/android_test_results.txt` |
 | FastAPI `/v1/health` | PASS：200、`status=ok`、无 Key |
 | 模型探针 | PASS：文本/JSON/图片 |
 | 真实计划垂直流程 | PASS（服务端 + 真机 UI：5 步计划、步骤卡） |
@@ -133,11 +133,23 @@
 | 项 | 实测 |
 |---|---|
 | 契约样例 | `contracts/examples/` 7 个 JSON；服务端 `test_contract_examples.py` 8 项、安卓 `ContractExamplesTest` 6 项通过 |
-| 服务端测试 | 44 项通过（含模型错误、修复重试、两轮澄清、Job 失败/幂等） |
-| 安卓测试 | 19 项通过（0 失败） |
-| APK | D2 构建约 11 MB；`com.tutorialcoach.app` / 0.1.0 / minSdk 26 / targetSdk 35 |
-| 真实模型流程 | 中文目标“两人份番茄鸡蛋面，30 分钟内完成”：两轮澄清→5 步计划；33.509 s / 5315 tokens；3 条服务端补充假设；`stage=done` |
+| 服务端测试 | 47 项通过（含模型错误、修复重试、两轮澄清、Job 失败/幂等、真实 ModelClient+MockTransport 非法 JSON） |
+| 安卓测试 | 21 项通过（0 失败；含限流等待与切会话清理） |
+| APK | 本轮构建约 11 MB；`com.tutorialcoach.app` / 0.1.0 / minSdk 26 / targetSdk 35 |
+| 真实模型流程 | 中文目标“两人份番茄鸡蛋面，30 分钟内完成”：两轮澄清→5 步计划；30.837 s / 5196 tokens；8 条假设；`stage=done` |
 | 真机 D2 | 真机完成两轮澄清、计划页（含 6 条假设、准备清单、安全提示）、步骤卡 1/5→2/5；设备端目标用 ASCII（adb 限制），模型输出中文 |
 | 真机模型调用 | 27.079 s / 4682 tokens（最新计划；`day2/device_server_full.log`） |
 | `gradlew` 模式 | `git ls-files -s android/gradlew` = `100755` |
 | 未覆盖 | 旋转/切后台/进程恢复、中文输入法、视觉截图检查、干净机器首次 Gradle/Maven 下载 |
+
+## 12. P1 复审三项修复（2026-11-05）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **47 passed**（新增真实 ModelClient+MockTransport 两次非法 JSON、蘑菇汤过敏提示、明确无过敏） |
+| 安卓测试 | **21 passed**（新增 PlanViewModel 限流等待 7 秒与切会话清理） |
+| APK | 修复后构建成功，约 11 MB |
+| 限流等待 | JVM 假网关验证：等待期间 generate/retry 不新建 Job；7 秒后可手动重试；切会话清理；未真机注入 429 |
+| 非法 JSON | 真实 ModelClient + httpx.MockTransport 两次非法：Job `MODEL_BAD_OUTPUT`、retryable=true、调用数=2；无真实模型调用 |
+| 过敏提示 | 未提供时通用提示；`allergies=[]` 不提示；蘑菇汤假计划测试通过；真实番茄鸡蛋面流程重跑 5 步/8 假设/30.837 s/5196 tokens |
+| 未覆盖 | 真机未重跑限流 UI/过敏提示；设备 D2 记录仍为上一版提示，已在 `day2/device_verification.md` 标注 |

@@ -95,6 +95,7 @@ async def test_invalid_json_maps_to_bad_output_with_reason(tmp_path):
     with pytest.raises(ApiError) as error:
         await client.chat_json("system", "user")
     assert error.value.code == "MODEL_BAD_OUTPUT"
+    assert error.value.retryable is True
     assert error.value.details["reason"] == "invalid_json"
 
 

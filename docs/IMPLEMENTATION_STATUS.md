@@ -50,7 +50,7 @@ P0 结论：构建、服务端测试、安卓测试、真实模型探针、真�
 | 1. `ApiClient.execute` 缺 return，安卓编译失败 | 已修复并验证 | 改为 `return response.use { ... }`；第三轮 `testDebugUnitTest` 与 `assembleDebug` 均通过 |
 | 2. plan-jobs 忽略 `Idempotency-Key` | 已修复并验证 | 服务端按 method+path+key 校验 body hash、replay 首次 202、冲突/处理中；新增 2 项单测；Android 复用同一逻辑请求的 key |
 | 3. 过敏/器具数组字段被文本问题回答成字符串导致 422 | 已修复并验证 | 服务端对数组字段做显式分隔归一化（`无`→`[]`）；新增 2 项单测 |
-| 4. 模型格式修复未 await | 现码已为 `await`（审查快照较早） | 新增修复路径单测（非法 JSON/结构失败/超时/拒绝）；D2 服务端 44 项测试通过 |
+| 4. 模型格式修复未 await | 现码已为 `await`（审查快照较早） | 新增修复路径单测（非法 JSON/结构失败/超时/拒绝）；P1 复审后服务端 47 项测试通过 |
 | 5. 新建第二次练习可能显示上一份计划 | 已修复并真机验证 | `PlanScreen` 按 session id 作为 ViewModel key；`PlanViewModel` 监听 session 变化并取消旧轮询；`loadPlan` 仅在 session 匹配时更新；真机新建第二会话后计划页无旧计划 |
 | 第二轮：Job 成功但 GET 计划失败后无法恢复 | 已修复并验证 | 保留“待取计划”状态；`retry()` 只重试 `GET /plan`，不重建 Job；取到计划后同步 session 版本；`PlanViewModelTest` 实际执行通过 |
 | 第三轮：PlanViewModelTest 可空类型编译失败 | 已修复并验证 | `_session` 显式声明为 `MutableStateFlow<DomainSession?>`；完整安卓单测 12 项通过 |
@@ -79,12 +79,21 @@ P0 结论：构建、服务端测试、安卓测试、真实模型探针、真�
 | 契约样例 + 双端解析 | **PASS**：7 个 JSON 样例；服务端 8 项、安卓 6 项 | `contracts/`、`contract_validation.md` |
 | 完整 Pydantic 校验 | **PASS**：Conditions/Question/Session/Plan/Step/Job/Error；非法枚举/空值/空标准拒绝 | `server_pytest.log` |
 | 两轮澄清与可选跳过 | **PASS**：服务端测试 + 真机两轮；可选跳过不阻塞 ready | `server_pytest.log`、`device_verification.md` |
-| 真实模型烹饪计划 | **PASS**：中文目标两轮 → 5 步、3 条假设、33.5 s/5315 tokens、stage=done | `vertical_flow.json` |
+| 真实模型烹饪计划 | **PASS**：中文目标两轮 → 5 步、8 条假设、30.837 s/5196 tokens、stage=done | `vertical_flow.json` |
 | 计划总览字段 | **PASS**：准备清单、假设、预计时间、步骤标准、安全提示；真机显示 6 条假设 | `plan_cooking_real.json`、`device_plan_cooking.json` |
 | 步骤卡 | **PASS**：真机 1/5→2/5，完成标准/安全提示可见 | `device_verification.md` |
 | 异常与恢复 | **PASS**：无 Key/429/超时/非法 JSON/结构失败/拒绝/一次修复/幂等/GET 重试 | `error_paths.md` |
-| 安卓测试与 APK | **PASS**：19 项、0 失败；APK 构建成功约 11 MB | `android_test_results.txt`、`android_apk_info.txt` |
+| 安卓测试与 APK | **PASS**：21 项、0 失败；APK 构建成功约 11 MB | `android_test_results.txt`、`android_apk_info.txt` |
 | `gradlew` 100755 | **PASS**：`git ls-files -s` = 100755 | `commands.md` |
 | 真正模型 vs 替身 | 已区分：真实模型仅成功流程；失败路径用 MockTransport/假模型 | `error_paths.md` |
 
 D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复测完成；等待 Codex 复审，不进入 P2/D3。
+## 7. P1 复审修复（2026-11-05）
+
+| 修复项 | 状态 | 验证 |
+|---|---|---|
+| 模型限流等待 | **PASS（JVM 测试替身）** | `PlanUiState.RateLimited` 显示 7 秒倒计时；等待期间 generate/retry 与 ViewModel 双重拦截；切换会话清理；`PlanViewModelTest` 2 项新增测试通过；未真机注入 429 |
+| 两次非法 JSON 后 Job retryable | **PASS** | 真实 `ModelClient` + `httpx.MockTransport` 连续两次非法 JSON；Job `MODEL_BAD_OUTPUT` + `retryable=true`；调用次数恰好 2；无真实模型调用 |
+| 过敏提示泛化 | **PASS** | 未提供过敏信息时提示“核对本次实际使用的食材和调味料”，不含番茄/鸡蛋/面条；`allergies=[]` 不生成该提示；蘑菇汤假模型测试通过；服务端真实计划已重跑（30.837 s/5196 tokens、8 条假设）；未真机重跑该计划 |
+
+测试与构建：服务端 **47 passed**；安卓 **21 passed**（0 失败）；`assembleDebug` 成功，APK 约 11 MB。测试替身与真实模型严格区分；真机未重新验证限流 UI 与过敏提示。

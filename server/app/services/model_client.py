@@ -219,6 +219,7 @@ class ModelClient:
                 502,
                 "MODEL_BAD_OUTPUT",
                 "模型未返回可解析的 JSON。",
+                retryable=True,
                 details={"reason": "invalid_json"},
             ) from exc
         tokens = usage.get("total_tokens")

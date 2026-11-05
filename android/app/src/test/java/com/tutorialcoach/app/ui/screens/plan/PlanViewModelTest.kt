@@ -1,5 +1,7 @@
 package com.tutorialcoach.app.ui.screens.plan
 
+import com.tutorialcoach.app.data.ErrorDetailDto
+import com.tutorialcoach.app.data.ErrorEnvelopeDto
 import com.tutorialcoach.app.data.JobDto
 import com.tutorialcoach.app.data.JobResultDto
 import com.tutorialcoach.app.data.NetworkException
@@ -12,8 +14,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -74,7 +78,9 @@ class PlanViewModelTest {
         safetyNotes = emptyList(),
     )
 
-    private inner class FakeGateway : PlanGateway {
+    private inner class FakeGateway(
+        private val rateLimitRetryAfter: Int? = null,
+    ) : PlanGateway {
         private val _session = MutableStateFlow<DomainSession?>(makeSession())
         override val session: StateFlow<DomainSession?> = _session
 
@@ -85,12 +91,36 @@ class PlanViewModelTest {
         var loadCalls = 0
         var failFirstLoad = true
 
+        fun changeSession(id: String) {
+            _plan.value = null
+            _session.value = makeSession(id)
+        }
+
         override suspend fun createPlanJob(
             sessionId: String,
             basePlanVersion: Int?,
             idempotencyKey: String,
         ): JobDto {
             createCalls += 1
+            if (rateLimitRetryAfter != null) {
+                return JobDto(
+                    id = "job_rate_limited",
+                    type = "plan_generation",
+                    status = "failed",
+                    progress = 100,
+                    stage = "failed",
+                    sessionId = sessionId,
+                    error = ErrorEnvelopeDto(
+                        ErrorDetailDto(
+                            code = "MODEL_RATE_LIMITED",
+                            message = "模型限流，请稍后重试。",
+                            retryable = true,
+                            retryAfterS = rateLimitRetryAfter,
+                            requestId = "req_test",
+                        )
+                    ),
+                )
+            }
             return JobDto(
                 id = "job_1",
                 type = "plan_generation",
@@ -142,6 +172,57 @@ class PlanViewModelTest {
         assertTrue(viewModel.uiState.value is PlanUiState.Ready)
         assertEquals(1, gateway.createCalls)
         assertEquals(2, gateway.loadCalls)
-        assertEquals(1, gateway.session.value?.currentPlanVersion ?: -1)
+assertEquals(1, gateway.session.value?.currentPlanVersion ?: -1)
+    }
+
+    @Test
+    fun rateLimitBlocksGenerationAndRetryUntilWaitExpires() = runTest(dispatcher) {
+        val gateway = FakeGateway(rateLimitRetryAfter = 7)
+        val viewModel = PlanViewModel(gateway)
+        advanceUntilIdle()
+
+        viewModel.generate()
+        runCurrent()
+        val limited = viewModel.uiState.value as PlanUiState.RateLimited
+        assertEquals(7, limited.remainingSeconds)
+
+        viewModel.generate()
+        viewModel.retry()
+        viewModel.generate()
+        assertEquals(1, gateway.createCalls)
+
+        advanceTimeBy(3_000)
+        runCurrent()
+        val halfway = viewModel.uiState.value as PlanUiState.RateLimited
+        assertTrue(halfway.remainingSeconds in 1..4)
+        viewModel.generate()
+        assertEquals(1, gateway.createCalls)
+
+        advanceTimeBy(4_000)
+        runCurrent()
+        assertTrue(viewModel.uiState.value is PlanUiState.Error)
+
+        viewModel.generate()
+        runCurrent()
+        assertEquals(2, gateway.createCalls)
+    }
+
+    @Test
+    fun sessionChangeClearsOldRateLimitState() = runTest(dispatcher) {
+        val gateway = FakeGateway(rateLimitRetryAfter = 7)
+        val viewModel = PlanViewModel(gateway)
+        advanceUntilIdle()
+
+        viewModel.generate()
+        runCurrent()
+        assertTrue(viewModel.uiState.value is PlanUiState.RateLimited)
+
+        gateway.changeSession("sess_2")
+        runCurrent()
+        assertTrue(viewModel.uiState.value is PlanUiState.Idle)
+
+        viewModel.generate()
+        runCurrent()
+        assertEquals(2, gateway.createCalls)
     }
 }
