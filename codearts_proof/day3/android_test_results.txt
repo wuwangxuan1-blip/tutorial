@@ -1,6 +1,6 @@
 Android JVM 测试（D3 收尾）
 命令：gradlew.bat --no-daemon --rerun-tasks :app:testDebugUnitTest :app:assembleDebug
-结果：BUILD SUCCESSFUL；34 tests，0 failures，0 errors
+结果：BUILD SUCCESSFUL；37 tests，0 failures，0 errors
 
 分套件：
 - ContractExamplesTest: 6
@@ -10,7 +10,7 @@ Android JVM 测试（D3 收尾）
 - PlanValidatorTest: 4
 - TimerEngineTest: 3（D3 新增）
 - PlanViewModelTest: 3
-- StepViewModelTest: 8（D3 新增 2 + 复审回归 6）
+- StepViewModelTest: 11（D3 新增 2 + 复审回归 9）
 
 D3 新增覆盖：
 - TimerEngine：start/tick 使用 remaining 快照、pause/resume 保持剩余时间、锚点失效检测（重启/墙钟异常）。
@@ -19,3 +19,5 @@ D3 新增覆盖：
 D3 复审新增回归（StepViewModelTest）：下一步 done/skipped 保留、单次 PATCH、PATCH 失败不前进；计时自然结束/无效锚点确认后重置并继续倒计时。
 
 第二轮复审新增回归（StepViewModelTest）：finished PATCH 挂起期间重置，新倒计时持续下降，旧响应返回后不覆盖新计时。
+
+第三轮复审新增回归（StepViewModelTest）：完成/重置 PATCH 失败后运行中计时继续倒计时、界面不提前前进；旧失败请求不干扰较新计时操作。

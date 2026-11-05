@@ -172,7 +172,7 @@ class StepViewModel(
         val currentPlan = gateway.plan.value ?: return
         val step = currentPlan.steps.getOrNull(index) ?: return
         val epoch = beginTimerChange()
-        runAction {
+        runAction(epoch) {
             val existing = gateway.progress.value.stepStatuses[step.id]
             val statuses = if (existing == null || existing == "not_started") {
                 mapOf(step.id to "in_progress")
@@ -202,7 +202,7 @@ class StepViewModel(
             durationS = step.durationS.takeIf { it > 0 } ?: DEFAULT_TIMER_SECONDS,
             nowEpochMs = nowEpochMs(),
         )
-        runAction {
+        runAction(epoch) {
             val existing = gateway.progress.value.stepStatuses[step.id]
             val statuses = if (existing == null || existing == "not_started") {
                 mapOf(step.id to "in_progress")
@@ -228,7 +228,7 @@ class StepViewModel(
         val timer = _state.value.timer ?: return
         val epoch = beginTimerChange()
         val paused = timerEngine.pause(timer, nowEpochMs())
-        runAction {
+        runAction(epoch) {
             patch(currentStepId = timer.stepId, includeCurrent = true, timer = paused, includeTimer = true)
             if (epoch == timerEpoch) {
                 _state.update {
@@ -246,7 +246,7 @@ class StepViewModel(
         val timer = _state.value.timer ?: return
         val epoch = beginTimerChange()
         val resumed = timerEngine.resume(timer, nowEpochMs())
-        runAction {
+        runAction(epoch) {
             patch(currentStepId = timer.stepId, includeCurrent = true, timer = resumed, includeTimer = true)
             if (epoch == timerEpoch) {
                 _state.update {
@@ -270,7 +270,7 @@ class StepViewModel(
             durationS = step.durationS.takeIf { it > 0 } ?: DEFAULT_TIMER_SECONDS,
             nowEpochMs = nowEpochMs(),
         )
-        runAction {
+        runAction(epoch) {
             patch(currentStepId = step.id, includeCurrent = true, timer = timer, includeTimer = true)
             if (epoch == timerEpoch) {
                 _state.update {
@@ -290,7 +290,7 @@ class StepViewModel(
         val timer = _state.value.timer ?: return
         val epoch = beginTimerChange()
         val resumed = timerEngine.resume(timer, nowEpochMs())
-        runAction {
+        runAction(epoch) {
             patch(currentStepId = timer.stepId, includeCurrent = true, timer = resumed, includeTimer = true)
             if (epoch == timerEpoch) {
                 _state.update {
@@ -343,7 +343,7 @@ class StepViewModel(
             }
         }
         val timerAfter = if (nextStep != null) null else paused
-        runAction {
+        runAction(epoch) {
             patch(
                 currentStepId = nextStep?.id ?: step.id,
                 includeCurrent = true,
@@ -378,7 +378,7 @@ class StepViewModel(
                 statuses[nextStep.id] = "in_progress"
             }
         }
-        runAction {
+        runAction(epoch) {
             patch(
                 currentStepId = nextStep?.id ?: step.id,
                 includeCurrent = true,
@@ -402,7 +402,7 @@ class StepViewModel(
     fun pauseSession() {
         val current = gateway.session.value ?: return
         val epoch = beginTimerChange()
-        runAction {
+        runAction(epoch) {
             val timer = _state.value.timer
             val paused = if (timer?.state == "running") timerEngine.pause(timer, nowEpochMs()) else timer
             if (paused != null) {
@@ -519,21 +519,35 @@ class StepViewModel(
         )
     }
 
-    private fun runAction(block: suspend () -> Unit) {
+    private fun restoreTickerIfRunning() {
+        if (_state.value.timer?.state == "running") {
+            ensureTicker()
+        }
+    }
+
+    private fun runAction(epoch: Int? = null, block: suspend () -> Unit) {
         viewModelScope.launch {
             _state.update { it.copy(saving = true, error = null) }
             try {
                 block()
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
+                if (epoch != null && epoch != timerEpoch) {
+                    return@launch
+                }
                 _state.update {
                     it.copy(
                         error = ErrorMapper.message(error),
                         retryable = ErrorMapper.isRetryable(error),
                     )
                 }
+                if (epoch != null) {
+                    restoreTickerIfRunning()
+                }
             } finally {
-                _state.update { it.copy(saving = false) }
+                if (epoch == null || epoch == timerEpoch) {
+                    _state.update { it.copy(saving = false) }
+                }
             }
         }
     }

@@ -21,3 +21,5 @@ D3 新增覆盖：self_reported、暂停写入 409 SESSION_PAUSED、版本冲突
 D3 复审新增回归（revisions）：3 步删 1、15 步加 1、组合删 2；失败均返回 422 INVALID_REQUEST，原计划/版本/进度/修订 proposed 保持不变。
 
 第二轮复审新增回归（revisions）：先 remove 再 update/reorder 同一步骤 → 422 step_removed_by_revision，旧计划/版本/进度/修订 proposed 保持，未写新计划版本。
+
+第三轮复审（计时失败恢复）未改服务端，服务端仍为 76 passed。

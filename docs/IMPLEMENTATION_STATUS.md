@@ -1,6 +1,6 @@
 # 实现状态
 
-> 最后更新：2026-11-05（P0/D1、P1/D2、P2/P3；P2/D3 实现与真机验证完成，D3 复审缺陷已修复（两轮），等待复审）
+> 最后更新：2026-11-05（P0/D1、P1/D2、P2/P3；P2/D3 实现与真机验证完成，D3 复审缺陷已修复（三轮），等待复审）
 > 状态取值：未开始 / 进行中 / PASS / BLOCKED。PASS 只表示有本文件“证据”列指向的真实命令输出、日志或截图；未执行的项目不得写 PASS。
 
 ## 1. 需求到阶段映射
@@ -201,3 +201,13 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 | P2 旧 finished PATCH 未返回时重置计时 | `StepViewModel` 增加 `timerEpoch` 与 `beginTimerChange()`：任何计时变更先递增 epoch 并取消旧 ticker；`ensureTicker()` 以 epoch 隔离旧协程，旧 finished PATCH 返回后不更新新计时状态 | `resetWhileFinishedPatchPendingKeepsNewCountdown`：用可挂起 fake 让 finished PATCH 挂起 → 重置 → 推进 5 秒新倒计时下降 → 释放旧响应 → 仍为新状态 → 再推进 2 秒继续下降 |
 
 本轮实测：服务端 **76 passed / 0 failed**（test_revisions 增至 10 项）；安卓 **34 passed / 0 failed**（StepViewModelTest 增至 8 项）；`assembleDebug` BUILD SUCCESSFUL；APK 10,639,369 字节；`git diff --check` 通过；密钥扫描 226 文件、0 匹配、`clean=true`。真机未重跑；两项修复待 Codex 复审后补设备验证。
+
+
+## 12. D3 复审修复第三轮（计时失败恢复，2026-11-05）
+
+| 问题 | 修复 | 回归测试 |
+|---|---|---|
+| 计时 PATCH 失败后 ticker 已取消、倒计时停住 | `StepViewModel` 的 `runAction` 增加 `epoch` 参数：计时相关动作失败且 epoch 仍为当前时显示错误，并调用 `restoreTickerIfRunning()` 在计时器仍为 `running` 时重启刷新协程 | `completeStepPatchFailureShowsErrorAndKeepsCounting`：完成 PATCH 失败 → 显示错误、索引不前进、剩余秒数继续下降；`resetTimerPatchFailureKeepsOldRunningTimerCounting`：重置 PATCH 失败 → 旧 running 计时不被改成新计时，倒计时继续 |
+| 旧请求失败干扰较新计时操作 | 失败路径仅在 `epoch == timerEpoch` 时显示错误、恢复 ticker、清除 saving；过期请求的失败静默丢弃 | `staleTimerFailureDoesNotAffectNewerTimerOperation`：旧重置失败请求挂起 → 新重置成功 → 释放旧失败 → 无错误、新计时保持并继续下降；旧的 finished PATCH 与重置交错回归保留 |
+
+本轮实测：服务端 **76 passed / 0 failed**（未变）；安卓 **37 passed / 0 failed**（StepViewModelTest 11 项，新增 3 项）；`assembleDebug` BUILD SUCCESSFUL；APK 10,639,798 字节；`git diff --check` 通过。真机未重跑；失败恢复路径待复审后补设备验证。

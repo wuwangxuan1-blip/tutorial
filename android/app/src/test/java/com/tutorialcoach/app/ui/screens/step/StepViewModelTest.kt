@@ -99,12 +99,19 @@ class StepViewModelTest {
         val updates = mutableListOf<ProgressUpdate>()
         var blockFinishedPatch = false
         var finishedPatchGate: CompletableDeferred<Unit>? = null
+        var blockFailingPatch = false
+        var failingPatchGate: CompletableDeferred<Unit>? = null
 
         override suspend fun updateProgress(
             sessionId: String,
             update: ProgressUpdate,
         ): DomainProgress {
             if (failUpdates) {
+                if (blockFailingPatch) {
+                    val gate = CompletableDeferred<Unit>()
+                    failingPatchGate = gate
+                    withContext(NonCancellable) { gate.await() }
+                }
                 throw RuntimeException("progress patch rejected")
             }
             if (blockFinishedPatch && update.timer?.state == "finished") {
@@ -412,6 +419,125 @@ class StepViewModelTest {
         advanceTimeBy(2_000)
         runCurrent()
         assertTrue(viewModel.state.value.timerRemainingS < remainingAfterReset)
+
+        viewModel.pauseTimer()
+        runCurrent()
+        advanceTimeBy(1_000)
+        runCurrent()
+    }
+
+    @Test
+    fun completeStepPatchFailureShowsErrorAndKeepsCounting() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        val viewModel = StepViewModel(
+            gateway,
+            FakeCache(),
+            TimerEngine { testScheduler.currentTime },
+            { testScheduler.currentTime },
+        )
+        runCurrent()
+
+        viewModel.startTimer()
+        runCurrent()
+        advanceTimeBy(2_000)
+        runCurrent()
+        val remainingBeforeFailure = viewModel.state.value.timerRemainingS
+        assertTrue(remainingBeforeFailure < 60)
+
+        gateway.failUpdates = true
+        viewModel.completeStep()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.error != null)
+        assertEquals(0, viewModel.state.value.index)
+        assertEquals("running", viewModel.state.value.timer?.state)
+
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertTrue(viewModel.state.value.timerRemainingS < remainingBeforeFailure)
+
+        gateway.failUpdates = false
+        viewModel.pauseTimer()
+        runCurrent()
+        advanceTimeBy(1_000)
+        runCurrent()
+    }
+
+    @Test
+    fun resetTimerPatchFailureKeepsOldRunningTimerCounting() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        val viewModel = StepViewModel(
+            gateway,
+            FakeCache(),
+            TimerEngine { testScheduler.currentTime },
+            { testScheduler.currentTime },
+        )
+        runCurrent()
+
+        viewModel.startTimer()
+        runCurrent()
+        advanceTimeBy(2_000)
+        runCurrent()
+        val remainingBeforeFailure = viewModel.state.value.timerRemainingS
+
+        gateway.failUpdates = true
+        viewModel.resetTimer()
+        runCurrent()
+
+        assertTrue(viewModel.state.value.error != null)
+        assertEquals("running", viewModel.state.value.timer?.state)
+        assertTrue(viewModel.state.value.timerRemainingS <= remainingBeforeFailure)
+
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertTrue(viewModel.state.value.timerRemainingS < remainingBeforeFailure)
+
+        gateway.failUpdates = false
+        viewModel.pauseTimer()
+        runCurrent()
+        advanceTimeBy(1_000)
+        runCurrent()
+    }
+
+    @Test
+    fun staleTimerFailureDoesNotAffectNewerTimerOperation() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        val viewModel = StepViewModel(
+            gateway,
+            FakeCache(),
+            TimerEngine { testScheduler.currentTime },
+            { testScheduler.currentTime },
+        )
+        runCurrent()
+
+        viewModel.startTimer()
+        runCurrent()
+        advanceTimeBy(1_000)
+        runCurrent()
+
+        gateway.failUpdates = true
+        gateway.blockFailingPatch = true
+        viewModel.resetTimer()
+        runCurrent()
+        val oldFailure = gateway.failingPatchGate
+        assertTrue(oldFailure != null)
+
+        gateway.failUpdates = false
+        viewModel.resetTimer()
+        runCurrent()
+        assertEquals("running", viewModel.state.value.timer?.state)
+        assertEquals(60, viewModel.state.value.timerRemainingS)
+        assertTrue(viewModel.state.value.error == null)
+
+        oldFailure!!.complete(Unit)
+        runCurrent()
+        assertTrue(viewModel.state.value.error == null)
+        assertEquals("running", viewModel.state.value.timer?.state)
+        assertEquals(60, viewModel.state.value.timerRemainingS)
+
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertTrue(viewModel.state.value.timerRemainingS < 60)
 
         viewModel.pauseTimer()
         runCurrent()
