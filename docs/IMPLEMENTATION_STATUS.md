@@ -1,6 +1,6 @@
 # 实现状态
 
-> 最后更新：2026-11-05（P0/D1、P1/D2、P2/P3；P2/D3 实现与真机验证完成，D3 复审三项缺陷已修复，等待复审）
+> 最后更新：2026-11-05（P0/D1、P1/D2、P2/P3；P2/D3 实现与真机验证完成，D3 复审缺陷已修复（两轮），等待复审）
 > 状态取值：未开始 / 进行中 / PASS / BLOCKED。PASS 只表示有本文件“证据”列指向的真实命令输出、日志或截图；未执行的项目不得写 PASS。
 
 ## 1. 需求到阶段映射
@@ -191,3 +191,13 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 | P3 重置已结束计时器后不刷新 | `resetTimer()` 成功后调用 `ensureTicker()`；`confirmTimerReset()` 复用 resetTimer；`ensureTicker()` 用 `ticker.isActive` 保证同一时刻只有一个刷新协程 | `StepViewModelTest`：计时自然结束→重置→推进时钟剩余秒数下降；无效锚点确认重置→推进时钟剩余秒数下降 |
 
 本轮实测：服务端 **74 passed**；安卓 **33 passed / 0 failed**（StepViewModelTest 7 项）；`assembleDebug` BUILD SUCCESSFUL；APK 10,576,503 字节；`git diff --check` 通过；密钥扫描 223 文件、0 匹配、`clean=true`。真机本轮未重跑，待 Codex 复审后验证这三个修复路径。
+
+
+## 11. D3 复审修复第二轮（2026-11-05）
+
+| 问题 | 修复 | 回归测试 |
+|---|---|---|
+| P1 同一修订先 remove 再 update/reorder | `RevisionService._validate_changes` 增加顺序校验：按 changes 顺序维护可用步骤集合与剩余步数；被前序 remove 的步骤再被 update/reorder/remove 引用时返回 422 `INVALID_REQUEST` / `details.reason=step_removed_by_revision`。`apply` 使用顺序校验，且仍在校验完整候选计划后才写盘 | `test_revision_apply_rejects_update_of_removed_step`、`test_revision_apply_rejects_reorder_of_removed_step`：旧计划 v1/3 步不变、会话版本 1、进度保持、修订仍 `proposed`、`load_plan(session,2)` 为空 |
+| P2 旧 finished PATCH 未返回时重置计时 | `StepViewModel` 增加 `timerEpoch` 与 `beginTimerChange()`：任何计时变更先递增 epoch 并取消旧 ticker；`ensureTicker()` 以 epoch 隔离旧协程，旧 finished PATCH 返回后不更新新计时状态 | `resetWhileFinishedPatchPendingKeepsNewCountdown`：用可挂起 fake 让 finished PATCH 挂起 → 重置 → 推进 5 秒新倒计时下降 → 释放旧响应 → 仍为新状态 → 再推进 2 秒继续下降 |
+
+本轮实测：服务端 **76 passed / 0 failed**（test_revisions 增至 10 项）；安卓 **34 passed / 0 failed**（StepViewModelTest 增至 8 项）；`assembleDebug` BUILD SUCCESSFUL；APK 10,639,369 字节；`git diff --check` 通过；密钥扫描 226 文件、0 匹配、`clean=true`。真机未重跑；两项修复待 Codex 复审后补设备验证。

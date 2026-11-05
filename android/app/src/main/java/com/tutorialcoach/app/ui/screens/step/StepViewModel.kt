@@ -56,6 +56,7 @@ class StepViewModel(
 
     private var initializedIndex = false
     private var ticker: Job? = null
+    private var timerEpoch = 0
 
     init {
         restorePlan()
@@ -113,16 +114,27 @@ class StepViewModel(
         }
     }
 
+    private fun beginTimerChange(): Int {
+        timerEpoch += 1
+        ticker?.cancel()
+        ticker = null
+        return timerEpoch
+    }
+
     private fun ensureTicker() {
-        if (ticker?.isActive == true) return
+        val epoch = timerEpoch
+        ticker?.cancel()
         ticker = viewModelScope.launch {
             while (true) {
+                if (epoch != timerEpoch) return@launch
                 val timer = _state.value.timer
                 if (timer?.state != "running") return@launch
                 delay(1_000)
+                if (epoch != timerEpoch) return@launch
                 val current = _state.value.timer
                 if (current?.state != "running") return@launch
                 val ticked = timerEngine.tick(current, nowEpochMs())
+                if (epoch != timerEpoch) return@launch
                 _state.update {
                     it.copy(
                         timer = ticked,
@@ -130,8 +142,10 @@ class StepViewModel(
                     )
                 }
                 if (ticked.state == "finished") {
-                    runCatching {
-                        patchTimer(ticked)
+                    if (epoch == timerEpoch) {
+                        runCatching {
+                            patchTimer(ticked)
+                        }
                     }
                     return@launch
                 }
@@ -157,6 +171,7 @@ class StepViewModel(
     private fun moveTo(index: Int) {
         val currentPlan = gateway.plan.value ?: return
         val step = currentPlan.steps.getOrNull(index) ?: return
+        val epoch = beginTimerChange()
         runAction {
             val existing = gateway.progress.value.stepStatuses[step.id]
             val statuses = if (existing == null || existing == "not_started") {
@@ -171,14 +186,17 @@ class StepViewModel(
                 timer = null,
                 includeTimer = true,
             )
-            _state.update {
-                it.copy(index = index, timer = null, timerRemainingS = 0)
+            if (epoch == timerEpoch) {
+                _state.update {
+                    it.copy(index = index, timer = null, timerRemainingS = 0)
+                }
             }
         }
     }
 
     fun startTimer() {
         val step = currentStep() ?: return
+        val epoch = beginTimerChange()
         val timer = timerEngine.start(
             stepId = step.id,
             durationS = step.durationS.takeIf { it > 0 } ?: DEFAULT_TIMER_SECONDS,
@@ -192,52 +210,61 @@ class StepViewModel(
                 null
             }
             patch(currentStepId = step.id, includeCurrent = true, statuses = statuses, timer = timer, includeTimer = true)
-            _state.update {
-                it.copy(
-                    timer = timer,
-                    timerRemainingS = timer.remainingS,
-                    timerNeedsConfirmation = false,
-                    message = "计时开始。",
-                )
+            if (epoch == timerEpoch) {
+                _state.update {
+                    it.copy(
+                        timer = timer,
+                        timerRemainingS = timer.remainingS,
+                        timerNeedsConfirmation = false,
+                        message = "计时开始。",
+                    )
+                }
+                ensureTicker()
             }
-            ensureTicker()
         }
     }
 
     fun pauseTimer() {
         val timer = _state.value.timer ?: return
+        val epoch = beginTimerChange()
         val paused = timerEngine.pause(timer, nowEpochMs())
         runAction {
             patch(currentStepId = timer.stepId, includeCurrent = true, timer = paused, includeTimer = true)
-            _state.update {
-                it.copy(
-                    timer = paused,
-                    timerRemainingS = paused.remainingS,
-                    message = "计时已暂停。",
-                )
+            if (epoch == timerEpoch) {
+                _state.update {
+                    it.copy(
+                        timer = paused,
+                        timerRemainingS = paused.remainingS,
+                        message = "计时已暂停。",
+                    )
+                }
             }
         }
     }
 
     fun resumeTimer() {
         val timer = _state.value.timer ?: return
+        val epoch = beginTimerChange()
         val resumed = timerEngine.resume(timer, nowEpochMs())
         runAction {
             patch(currentStepId = timer.stepId, includeCurrent = true, timer = resumed, includeTimer = true)
-            _state.update {
-                it.copy(
-                    timer = resumed,
-                    timerRemainingS = timerEngine.remainingSeconds(resumed),
-                    timerNeedsConfirmation = false,
-                    message = "计时继续。",
-                )
+            if (epoch == timerEpoch) {
+                _state.update {
+                    it.copy(
+                        timer = resumed,
+                        timerRemainingS = timerEngine.remainingSeconds(resumed),
+                        timerNeedsConfirmation = false,
+                        message = "计时继续。",
+                    )
+                }
+                ensureTicker()
             }
-            ensureTicker()
         }
     }
 
     fun resetTimer() {
         val step = currentStep() ?: return
+        val epoch = beginTimerChange()
         val timer = timerEngine.start(
             stepId = step.id,
             durationS = step.durationS.takeIf { it > 0 } ?: DEFAULT_TIMER_SECONDS,
@@ -245,31 +272,36 @@ class StepViewModel(
         )
         runAction {
             patch(currentStepId = step.id, includeCurrent = true, timer = timer, includeTimer = true)
-            _state.update {
-                it.copy(
-                    timer = timer,
-                    timerRemainingS = timer.remainingS,
-                    timerNeedsConfirmation = false,
-                    message = "计时已重置。",
-                )
+            if (epoch == timerEpoch) {
+                _state.update {
+                    it.copy(
+                        timer = timer,
+                        timerRemainingS = timer.remainingS,
+                        timerNeedsConfirmation = false,
+                        message = "计时已重置。",
+                    )
+                }
+                ensureTicker()
             }
-            ensureTicker()
         }
     }
 
     fun confirmTimerContinue() {
         val timer = _state.value.timer ?: return
+        val epoch = beginTimerChange()
         val resumed = timerEngine.resume(timer, nowEpochMs())
         runAction {
             patch(currentStepId = timer.stepId, includeCurrent = true, timer = resumed, includeTimer = true)
-            _state.update {
-                it.copy(
-                    timer = resumed,
-                    timerRemainingS = timerEngine.remainingSeconds(resumed),
-                    timerNeedsConfirmation = false,
-                )
+            if (epoch == timerEpoch) {
+                _state.update {
+                    it.copy(
+                        timer = resumed,
+                        timerRemainingS = timerEngine.remainingSeconds(resumed),
+                        timerNeedsConfirmation = false,
+                    )
+                }
+                ensureTicker()
             }
-            ensureTicker()
         }
     }
 
@@ -300,6 +332,7 @@ class StepViewModel(
         if (status == "done" || status == "skipped") return
         val timer = _state.value.timer
         val paused = if (timer?.state == "running") timerEngine.pause(timer, nowEpochMs()) else timer
+        val epoch = beginTimerChange()
         val nextIndex = _state.value.index + 1
         val nextStep = currentPlan.steps.getOrNull(nextIndex)
         val statuses = mutableMapOf(step.id to "done")
@@ -319,13 +352,15 @@ class StepViewModel(
                 timer = timerAfter,
                 includeTimer = true,
             )
-            _state.update {
-                it.copy(
-                    index = if (nextStep != null) nextIndex else it.index,
-                    timer = timerAfter,
-                    timerRemainingS = timerAfter?.remainingS ?: 0,
-                    message = "已标记完成（self_reported）。",
-                )
+            if (epoch == timerEpoch) {
+                _state.update {
+                    it.copy(
+                        index = if (nextStep != null) nextIndex else it.index,
+                        timer = timerAfter,
+                        timerRemainingS = timerAfter?.remainingS ?: 0,
+                        message = "已标记完成（self_reported）。",
+                    )
+                }
             }
         }
     }
@@ -333,6 +368,7 @@ class StepViewModel(
     fun skipStep() {
         val currentPlan = gateway.plan.value ?: return
         val step = currentStep() ?: return
+        val epoch = beginTimerChange()
         val nextIndex = _state.value.index + 1
         val nextStep = currentPlan.steps.getOrNull(nextIndex)
         val statuses = mutableMapOf(step.id to "skipped")
@@ -350,19 +386,22 @@ class StepViewModel(
                 timer = null,
                 includeTimer = true,
             )
-            _state.update {
-                it.copy(
-                    index = if (nextStep != null) nextIndex else it.index,
-                    timer = null,
-                    timerRemainingS = 0,
-                    message = "已跳过本步。",
-                )
+            if (epoch == timerEpoch) {
+                _state.update {
+                    it.copy(
+                        index = if (nextStep != null) nextIndex else it.index,
+                        timer = null,
+                        timerRemainingS = 0,
+                        message = "已跳过本步。",
+                    )
+                }
             }
         }
     }
 
     fun pauseSession() {
         val current = gateway.session.value ?: return
+        val epoch = beginTimerChange()
         runAction {
             val timer = _state.value.timer
             val paused = if (timer?.state == "running") timerEngine.pause(timer, nowEpochMs()) else timer
@@ -370,8 +409,10 @@ class StepViewModel(
                 patch(currentStepId = paused.stepId, includeCurrent = true, timer = paused, includeTimer = true)
             }
             gateway.pauseSession(current.id)
-            _state.update {
-                it.copy(timer = paused, message = "练习已暂停；暂停期间不能写入进度。")
+            if (epoch == timerEpoch) {
+                _state.update {
+                    it.copy(timer = paused, message = "练习已暂停；暂停期间不能写入进度。")
+                }
             }
         }
     }

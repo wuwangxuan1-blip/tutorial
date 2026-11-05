@@ -101,15 +101,26 @@ class RevisionService:
         changes: list[RevisionChange],
         session: dict[str, Any],
         plan: dict[str, Any],
+        *,
+        sequential: bool = False,
     ) -> None:
         steps = {step["id"]: step for step in plan["steps"]}
+        original_ids = set(steps)
+        available_ids = set(steps)
+        remaining_count = len(steps)
         locked = locked_step_ids(session)
         for change in changes:
             if change.op in {"update", "remove", "reorder"}:
-                if not change.step_id or change.step_id not in steps:
+                known_ids = available_ids if sequential else original_ids
+                if not change.step_id or change.step_id not in known_ids:
+                    reason = (
+                        "step_removed_by_revision"
+                        if sequential and change.step_id in original_ids
+                        else "unknown_step"
+                    )
                     raise invalid_request(
-                        "修订引用了不存在的步骤。",
-                        {"field": "changes.step_id", "reason": "unknown_step"},
+                        "修订引用了已被删除或不存在的步骤。",
+                        {"field": "changes.step_id", "reason": reason},
                     )
                 if change.step_id in locked:
                     raise ApiError(
@@ -161,12 +172,18 @@ class RevisionService:
                         "新增步骤不符合契约。",
                         {"field": "changes.after", "reason": "invalid_step"},
                     ) from exc
+                if sequential:
+                    remaining_count += 1
             elif change.op == "remove":
-                if len(steps) <= 1:
+                limit = remaining_count if sequential else len(steps)
+                if limit <= 1:
                     raise invalid_request(
                         "不能删除最后一步。",
                         {"field": "changes.step_id", "reason": "last_step"},
                     )
+                if sequential:
+                    available_ids.discard(change.step_id)
+                    remaining_count -= 1
             elif change.op == "reorder":
                 if locked:
                     raise ApiError(
@@ -175,7 +192,8 @@ class RevisionService:
                         "已有完成或跳过的步骤，不能重排计划。",
                     )
                 order = (change.after or {}).get("order")
-                if not isinstance(order, int) or not 1 <= order <= len(steps):
+                limit = remaining_count if sequential else len(steps)
+                if not isinstance(order, int) or not 1 <= order <= limit:
                     raise invalid_request(
                         "reorder 修订必须提供有效 order。",
                         {"field": "changes.after.order", "reason": "invalid_order"},
@@ -202,7 +220,7 @@ class RevisionService:
             raise ApiError(404, "NOT_FOUND", "当前计划不存在。")
 
         changes = [RevisionChange.model_validate(item) for item in revision["changes"]]
-        self._validate_changes(changes, session, plan)
+        self._validate_changes(changes, session, plan, sequential=True)
 
         new_plan = copy.deepcopy(plan)
         steps: list[dict[str, Any]] = new_plan["steps"]

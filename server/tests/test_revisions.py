@@ -333,3 +333,73 @@ async def test_revision_apply_rejects_combined_removes_below_minimum(client, mon
     await assert_plan_unchanged(client, session_id, expected_steps=3)
     revisions = await client.get(f"/v1/sessions/{session_id}/revisions")
     assert revisions.json()[0]["status"] == "proposed"
+
+
+async def test_revision_apply_rejects_update_of_removed_step(client, monkeypatch):
+    session, _ = await setup_plan(client, monkeypatch)
+    session_id = session["id"]
+    await client.patch(
+        f"/v1/sessions/{session_id}/progress",
+        json={"base_plan_version": 1, "step_statuses": {"step_2": "in_progress"}},
+    )
+    revision_id = await create_revision(
+        client,
+        monkeypatch,
+        session_id,
+        [
+            {"op": "remove", "step_id": "step_1", "reason": "先删除第一步。"},
+            {
+                "op": "update",
+                "step_id": "step_1",
+                "after": {"title": "已被删除的步骤"},
+                "reason": "再修改已删除的步骤。",
+            },
+        ],
+    )
+
+    applied = await client.post(
+        f"/v1/sessions/{session_id}/revisions/{revision_id}/apply",
+        json={"base_plan_version": 1},
+    )
+    assert applied.status_code == 422, applied.text
+    assert applied.json()["error"]["code"] == "INVALID_REQUEST"
+    assert applied.json()["error"]["details"]["reason"] == "step_removed_by_revision"
+
+    await assert_plan_unchanged(client, session_id, expected_steps=3)
+    fresh = await client.get(f"/v1/sessions/{session_id}")
+    assert fresh.json()["status"] == "in_progress"
+    assert fresh.json()["progress"]["step_statuses"] == {"step_2": "in_progress"}
+    revisions = await client.get(f"/v1/sessions/{session_id}/revisions")
+    assert revisions.json()[0]["status"] == "proposed"
+    assert await client.app.state.store.load_plan(session_id, 2) is None
+
+
+async def test_revision_apply_rejects_reorder_of_removed_step(client, monkeypatch):
+    session, _ = await setup_plan(client, monkeypatch)
+    session_id = session["id"]
+    revision_id = await create_revision(
+        client,
+        monkeypatch,
+        session_id,
+        [
+            {"op": "remove", "step_id": "step_1", "reason": "先删除第一步。"},
+            {
+                "op": "reorder",
+                "step_id": "step_1",
+                "after": {"order": 1},
+                "reason": "再重排已删除的步骤。",
+            },
+        ],
+    )
+
+    applied = await client.post(
+        f"/v1/sessions/{session_id}/revisions/{revision_id}/apply",
+        json={"base_plan_version": 1},
+    )
+    assert applied.status_code == 422, applied.text
+    assert applied.json()["error"]["details"]["reason"] == "step_removed_by_revision"
+
+    await assert_plan_unchanged(client, session_id, expected_steps=3)
+    revisions = await client.get(f"/v1/sessions/{session_id}/revisions")
+    assert revisions.json()[0]["status"] == "proposed"
+    assert await client.app.state.store.load_plan(session_id, 2) is None

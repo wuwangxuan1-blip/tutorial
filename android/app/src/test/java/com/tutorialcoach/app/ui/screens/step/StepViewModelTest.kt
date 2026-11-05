@@ -14,10 +14,13 @@ import com.tutorialcoach.app.domain.DomainSession
 import com.tutorialcoach.app.domain.DomainStep
 import com.tutorialcoach.app.domain.DomainTimer
 import com.tutorialcoach.app.domain.TimerEngine
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
@@ -94,6 +97,8 @@ class StepViewModelTest {
 
         var failUpdates = false
         val updates = mutableListOf<ProgressUpdate>()
+        var blockFinishedPatch = false
+        var finishedPatchGate: CompletableDeferred<Unit>? = null
 
         override suspend fun updateProgress(
             sessionId: String,
@@ -101,6 +106,11 @@ class StepViewModelTest {
         ): DomainProgress {
             if (failUpdates) {
                 throw RuntimeException("progress patch rejected")
+            }
+            if (blockFinishedPatch && update.timer?.state == "finished") {
+                val gate = CompletableDeferred<Unit>()
+                finishedPatchGate = gate
+                withContext(NonCancellable) { gate.await() }
             }
             updates += update
             val current = if (update.includeCurrentStep) {
@@ -357,6 +367,51 @@ class StepViewModelTest {
         advanceTimeBy(5_000)
         runCurrent()
         assertTrue(viewModel.state.value.timerRemainingS < 60)
+
+        viewModel.pauseTimer()
+        runCurrent()
+        advanceTimeBy(1_000)
+        runCurrent()
+    }
+
+    @Test
+    fun resetWhileFinishedPatchPendingKeepsNewCountdown() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        gateway.blockFinishedPatch = true
+        val viewModel = StepViewModel(
+            gateway,
+            FakeCache(),
+            TimerEngine { testScheduler.currentTime },
+            { testScheduler.currentTime },
+        )
+        runCurrent()
+
+        viewModel.startTimer()
+        runCurrent()
+        advanceTimeBy(60_000)
+        runCurrent()
+        assertEquals("finished", viewModel.state.value.timer?.state)
+        val oldPatch = gateway.finishedPatchGate
+        assertTrue(oldPatch != null)
+
+        viewModel.resetTimer()
+        runCurrent()
+        assertEquals("running", viewModel.state.value.timer?.state)
+        assertEquals(60, viewModel.state.value.timerRemainingS)
+
+        advanceTimeBy(5_000)
+        runCurrent()
+        val remainingAfterReset = viewModel.state.value.timerRemainingS
+        assertTrue(remainingAfterReset < 60)
+
+        oldPatch!!.complete(Unit)
+        runCurrent()
+        assertEquals("running", viewModel.state.value.timer?.state)
+        assertEquals(remainingAfterReset, viewModel.state.value.timerRemainingS)
+
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertTrue(viewModel.state.value.timerRemainingS < remainingAfterReset)
 
         viewModel.pauseTimer()
         runCurrent()
