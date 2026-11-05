@@ -9,7 +9,10 @@
 | `bash ./gradlew --no-daemon :app:testDebugUnitTest`（第三轮） | PASS：`BUILD SUCCESSFUL in 15s`，12 项，0 失败；见 `android_test_round3.log` |
 | `bash ./gradlew --no-daemon :app:assembleDebug --rerun-tasks`（第三轮） | PASS：`BUILD SUCCESSFUL in 28s`，35 任务全部执行；APK 约 10 MB；见 `android_build_round3.log` |
 | `:wrapper --gradle-version 8.9 --no-validate-url --gradle-distribution-sha256-sum ...` | 成功生成标准 Wrapper；官方 URL/SHA-256 见 `gradle/wrapper/gradle-wrapper.properties` |
-| `adb devices -l` | 空列表，无设备；见 `device_status.txt` |
+| `adb devices -l` | `eeffd16b device`（RMX3800 / Android 16） |
+| `adb reverse tcp:8000 tcp:8000` + `adb install -r` | PASS：反向转发建立，安装 `Success` |
+| 真机主流程 | PASS：5 问澄清→真实模型 5 步计划（26.449 s / 4445 tokens）→步骤卡 1/5→2/5 |
+| 真机诊断/断网恢复 | PASS：诊断 status=ok、vision 探针通过；停服显示“未连接”，重启恢复“正常” |
 | `emulator -list-avds` | 无 AVD |
 | `server/.venv/Scripts/python.exe -m pytest -v` | PASS：21 项；见 `server_pytest.log` |
 | `server/.venv/Scripts/python.exe scripts/probe_deepseek.py` | PASS：文本/JSON/图片；见 `model_probe.json` |

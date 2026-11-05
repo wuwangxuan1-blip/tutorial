@@ -17,8 +17,10 @@
 | `android_test_results.txt` | 安卓 12 项 JVM 测试（含 PlanViewModelTest） |
 | `android_test_round3.log` | 第三轮标准 Wrapper 单测完整输出 |
 | `android_build_round3.log` | 第三轮强制重建 APK 完整输出 |
-| `device_status.txt` | adb 设备为空、无 AVD |
+| `device_status.txt` | adb 设备：eeffd16b device（RMX3800 / Android 16） |
+| `device_verification.md` | 真机安装、主流程、诊断、跨会话、断网恢复脱敏摘要 |
+| `device_server_full.log` | 真机流程对应服务端脱敏日志 |
 | `git_status.txt` | 本地提交、远程 main 核验与推送结果 |
 | `build_status.md` | APK 构建/安装状态说明 |
 
-未包含：API Key、`.env`、个人媒体、真实用户数据、截图（无设备，BLOCKED）。
+未包含：API Key、`.env`、个人媒体、真实用户数据、设备截图（截图只留本地，未提交）。

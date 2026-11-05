@@ -62,6 +62,10 @@ bash ./gradlew --no-daemon :app:assembleDebug --rerun-tasks --console=plain
 
 ## 设备安装
 
-`adb devices -l` 为空，无 AVD，系统镜像仅安装器残留。
+- 设备：realme GT6 / RMX3800，Android 16，adb 序列号 `eeffd16b`，状态 `device`。
+- `adb install -r app-debug.apk`：`Success`。
+- 冷启动成功；首页、澄清 5 问、真实模型 5 步计划、步骤卡 1/5→2/5、诊断页、跨会话隔离、断网恢复均通过。
+- 截图保存在本地 `device_home.png`、`device_step.png`，未提交。
+- 未测试：旋转、切后台、进程被杀恢复、中文输入、第二份计划生成。
 
-结论：真机安装、启动、截图、实际 UI 操作、断网恢复仍为 **BLOCKED**，不能用构建成功代替设备验收，P0 未全部完成。
+结论：真机最小垂直流程 **PASS**；更完整的健壮性验证仍待后续补充，不据此宣称所有设备场景通过。

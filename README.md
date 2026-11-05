@@ -5,7 +5,7 @@
 
 用户输入目标，应用结合现有材料、设备和经验提供步骤指导，并接收图片或短片反馈。覆盖烹饪烘焙、摄影与相机运镜、软件技能、咖啡饮品。
 
-当前状态（P0/D1）：Kotlin + Jetpack Compose Android 骨架、FastAPI 服务端、真实 DeepSeek 文本/图片/JSON 探针、烹饪“目标→澄清→计划→步骤卡”垂直流程已实现；服务端 21 项测试、安卓 12 项 JVM 测试通过，debug APK 已构建。真机安装/交互尚未验收（本机无设备/AVD），P0 未全部完成。
+当前状态（P0/D1）：Kotlin + Jetpack Compose Android、FastAPI 服务端、真实 DeepSeek 文本/图片/JSON 探针、烹饪“目标→澄清→计划→步骤卡”垂直流程已实现；服务端 21 项测试、安卓 12 项 JVM 测试通过，debug APK 已构建。真机（realme GT6）安装、主流程、诊断、跨会话隔离、断网恢复已验证；旋转/切后台/进程恢复尚未验证。P0 主流程完成，等待 Codex 复审。
 
 - 项目入口：[PROJECT_PLAN.md](PROJECT_PLAN.md)
 - 文档索引：[docs/README.md](docs/README.md)
