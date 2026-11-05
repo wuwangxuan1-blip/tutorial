@@ -17,6 +17,7 @@
 | `device_status.txt` | adb 设备状态 |
 | `device_server_full.log` | 真机流程对应服务端脱敏日志 |
 | `device_plan_cooking.json` | 真机最新计划 JSON |
+| `git_status.txt` | D2 提交与推送 SHA 核验 |
 | `device_*.xml` | UI 层级证据（本地保留，不提交） |
 | `device_step.png` | 步骤卡截图（本地保留，不提交） |
 
