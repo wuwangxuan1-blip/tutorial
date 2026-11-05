@@ -1,12 +1,17 @@
 package com.tutorialcoach.app.data
 
+import com.tutorialcoach.app.domain.DomainAdjustment
 import com.tutorialcoach.app.domain.DomainAnswer
 import com.tutorialcoach.app.domain.DomainFeedback
 import com.tutorialcoach.app.domain.DomainImpact
 import com.tutorialcoach.app.domain.DomainPlan
 import com.tutorialcoach.app.domain.DomainProgress
+import com.tutorialcoach.app.domain.DomainRecipe
+import com.tutorialcoach.app.domain.DomainRecipeCompare
+import com.tutorialcoach.app.domain.DomainRecipeVersion
 import com.tutorialcoach.app.domain.DomainRevision
 import com.tutorialcoach.app.domain.DomainSession
+import com.tutorialcoach.app.domain.DomainTasting
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +23,7 @@ import kotlinx.serialization.json.JsonObject
 class SessionRepository(
     private val api: ApiClient,
     private val localStore: LocalStore,
-) : PlanGateway, SessionActions, FeedbackGateway {
+) : PlanGateway, SessionActions, FeedbackGateway, RecipeGateway {
     private val _session = MutableStateFlow<DomainSession?>(null)
     override val session: StateFlow<DomainSession?> = _session.asStateFlow()
 
@@ -106,6 +111,39 @@ class SessionRepository(
         sessionId: String,
         stepId: String?,
     ): List<DomainFeedback> = api.listFeedback(sessionId, stepId).map { it.toDomain() }
+
+    override suspend fun createRecipe(
+        sessionId: String,
+        basePlanVersion: Int,
+        demo: Boolean,
+    ): DomainRecipe = api.createRecipe(sessionId, basePlanVersion, demo).toDomain()
+
+    override suspend fun listRecipes(sessionId: String): List<DomainRecipe> =
+        api.listRecipes(sessionId).map { it.toDomain() }
+
+    override suspend fun getRecipe(recipeId: String): DomainRecipe =
+        api.getRecipe(recipeId).toDomain()
+
+    override suspend fun addTasting(
+        recipeId: String,
+        request: TastingRequestDto,
+    ): DomainTasting = api.addTasting(recipeId, request).toDomain()
+
+    override suspend fun adjustRecipe(
+        recipeId: String,
+        request: AdjustmentRequestDto,
+    ): Pair<DomainRecipe, DomainAdjustment> {
+        val response = api.adjustRecipe(recipeId, request)
+        return response.recipe.toDomain() to response.adjustment.toDomain()
+    }
+
+    override suspend fun listRecipeHistory(recipeId: String): List<DomainRecipeVersion> =
+        api.listRecipeHistory(recipeId).map { it.toDomain() }
+
+    override suspend fun compareRecipes(
+        recipeId: String,
+        againstId: String,
+    ): DomainRecipeCompare = api.compareRecipes(recipeId, againstId).toDomain()
 
     override suspend fun loadPlan(sessionId: String): DomainPlan {
         val mapped = api.getPlan(sessionId).toDomain()

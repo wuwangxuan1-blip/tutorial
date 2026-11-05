@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class Point(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    x: float = Field(ge=0, le=1)
-    y: float = Field(ge=0, le=1)
+    x: float = Field(ge=0, le=1, allow_inf_nan=False)
+    y: float = Field(ge=0, le=1, allow_inf_nan=False)
 
 
 class SubjectAnchor(Point):
@@ -35,10 +35,10 @@ class PositionPath(BaseModel):
 class OrientationPath(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    start_yaw_deg: float = Field(ge=-180, le=180)
-    end_yaw_deg: float = Field(ge=-180, le=180)
-    start_pitch_deg: float = Field(ge=-90, le=90)
-    end_pitch_deg: float = Field(ge=-90, le=90)
+    start_yaw_deg: float = Field(ge=-180, le=180, allow_inf_nan=False)
+    end_yaw_deg: float = Field(ge=-180, le=180, allow_inf_nan=False)
+    start_pitch_deg: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    end_pitch_deg: float = Field(ge=-90, le=90, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def orientation_differs(self) -> "OrientationPath":
@@ -53,8 +53,8 @@ class OrientationPath(BaseModel):
 class ZoomSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    start_scale: float = Field(ge=0.5, le=5)
-    end_scale: float = Field(ge=0.5, le=5)
+    start_scale: float = Field(ge=0.5, le=5, allow_inf_nan=False)
+    end_scale: float = Field(ge=0.5, le=5, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def zoom_differs(self) -> "ZoomSpec":
@@ -94,6 +94,14 @@ class CameraMoveSpec(BaseModel):
     notes: list[str] = Field(default_factory=list, max_length=5)
     limitations: list[str] = Field(min_length=1, max_length=5)
 
+    @field_validator("notes", "limitations")
+    @classmethod
+    def validate_text_items(cls, values: list[str]) -> list[str]:
+        for item in values:
+            if not 1 <= len(item) <= 200:
+                raise ValueError("notes/limitations items must be 1-200 chars")
+        return values
+
     @model_validator(mode="after")
     def validate_consistency(self) -> "CameraMoveSpec":
         if self.motion_type == "camera_move":
@@ -111,6 +119,10 @@ class CameraMoveSpec(BaseModel):
                 raise ValueError("lens_zoom requires zoom and zoom_in/zoom_out")
             if self.position_path is not None or self.orientation_path is not None:
                 raise ValueError("lens_zoom forbids position/orientation paths")
+            if self.shot_type == "zoom_in" and self.zoom.start_scale >= self.zoom.end_scale:
+                raise ValueError("zoom_in requires end_scale > start_scale")
+            if self.shot_type == "zoom_out" and self.zoom.start_scale <= self.zoom.end_scale:
+                raise ValueError("zoom_out requires end_scale < start_scale")
         elif self.motion_type == "orientation_only":
             if self.shot_type not in {"pan_left", "pan_right", "tilt_up", "tilt_down"}:
                 raise ValueError("orientation_only shot_type is invalid")
@@ -118,11 +130,26 @@ class CameraMoveSpec(BaseModel):
                 raise ValueError("orientation_only requires orientation_path")
             if self.position_path is not None or self.zoom is not None:
                 raise ValueError("orientation_only forbids position path and zoom")
+            yaw_delta = self.orientation_path.end_yaw_deg - self.orientation_path.start_yaw_deg
+            pitch_delta = self.orientation_path.end_pitch_deg - self.orientation_path.start_pitch_deg
+            if self.shot_type == "pan_left" and yaw_delta >= 0:
+                raise ValueError("pan_left requires decreasing yaw")
+            if self.shot_type == "pan_right" and yaw_delta <= 0:
+                raise ValueError("pan_right requires increasing yaw")
+            if self.shot_type == "tilt_up" and pitch_delta <= 0:
+                raise ValueError("tilt_up requires increasing pitch")
+            if self.shot_type == "tilt_down" and pitch_delta >= 0:
+                raise ValueError("tilt_down requires decreasing pitch")
         else:
             if self.shot_type != "static":
                 raise ValueError("static requires shot_type=static")
             if self.position_path is not None or self.orientation_path is not None or self.zoom is not None:
                 raise ValueError("static forbids movement fields")
+        if not any(
+            "2D" in item or "俯视" in item or "焦距" in item
+            for item in self.limitations
+        ):
+            raise ValueError("limitations must state the 2D/planar limitation")
         return self
 
 

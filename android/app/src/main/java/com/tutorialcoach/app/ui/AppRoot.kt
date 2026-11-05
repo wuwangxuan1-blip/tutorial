@@ -12,6 +12,7 @@ import com.tutorialcoach.app.ui.screens.conditions.ConditionsScreen
 import com.tutorialcoach.app.ui.screens.home.HomeScreen
 import com.tutorialcoach.app.ui.screens.media.MediaScreen
 import com.tutorialcoach.app.ui.screens.plan.PlanScreen
+import com.tutorialcoach.app.ui.screens.recipe.RecipeScreen
 import com.tutorialcoach.app.ui.screens.revision.RevisionScreen
 import com.tutorialcoach.app.ui.screens.settings.DiagnosticsScreen
 import com.tutorialcoach.app.ui.screens.step.StepScreen
@@ -23,6 +24,7 @@ private const val SCREEN_STEP = "step"
 private const val SCREEN_CONDITIONS = "conditions"
 private const val SCREEN_REVISION = "revision"
 private const val SCREEN_MEDIA = "media"
+private const val SCREEN_RECIPE = "recipe"
 private const val SCREEN_DIAGNOSTICS = "diagnostics"
 
 @Composable
@@ -53,6 +55,7 @@ fun AppRoot(container: AppContainer) {
             onOpenStep = { screen = SCREEN_STEP },
             onOpenConditions = { screen = SCREEN_CONDITIONS },
             onOpenRevision = { screen = SCREEN_REVISION },
+            onOpenRecipe = { screen = SCREEN_RECIPE },
             onBack = { screen = SCREEN_HOME },
         )
         SCREEN_STEP -> StepScreen(
@@ -74,6 +77,10 @@ fun AppRoot(container: AppContainer) {
         SCREEN_MEDIA -> MediaScreen(
             container = container,
             onBack = { screen = SCREEN_STEP },
+        )
+        SCREEN_RECIPE -> RecipeScreen(
+            container = container,
+            onBack = { screen = SCREEN_PLAN },
         )
         SCREEN_DIAGNOSTICS -> DiagnosticsScreen(
             container = container,

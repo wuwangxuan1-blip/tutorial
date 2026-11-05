@@ -275,3 +275,36 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 | Android 用 `OPTION_CLOSEST` 重新解码视频，显示的帧可能不是模型实际看到的帧 | 服务端在反馈写入时保存实际送入模型的视频帧到 `feedback_frames/{feedback_id}/frame_{index}.jpg`；新增 `GET /v1/feedback/{feedback_id}/evidence-frames/{media_id}/{frame_index}?timestamp_s=...`，校验 observation 的 `media_id/frame_index/timestamp_s` 后返回该 JPEG，不重新解码；Android 下载该字节并本地缓存，404/失败显示“证据帧不可用”，不回退开头缩略图 | 服务端 `test_video_evidence_frames_are_exact_model_input_frames`（同一短片 frame 0/1，端点字节与模型输入字节逐字节一致）；Android `videoEvidenceFramesUseServerProvidedBytesForEachObservation`、`missingEvidenceFrameIsUnavailableWithoutVideoThumbnailFallback` |
 
 本轮实测：服务端 **91 passed / 0 failed**；安卓 **43 tests / 0 failures**；`assembleDebug` BUILD SUCCESSFUL；APK 10,816,510 字节；`git diff --check` 通过；密钥扫描 263 文件、0 匹配、clean。并发进度与计划版本冲突回归保留。上一轮 `videoEvidenceFramesFollowEachObservationTimestamp` 已由 `videoEvidenceFramesUseServerProvidedBytesForEachObservation` 取代（不再本地解码）。真实拍摄图片/短片反馈仍为 **BLOCKED**。
+## 16. D5 摄影运镜与咖啡配方（2026-11-05）
+
+基线：`fb05fde`。本轮只实现 D5，不进入 D6。
+
+| 能力 | 实现 | 回归 |
+|---|---|---|
+| 摄影运镜 | Pydantic `CameraMoveSpec` 补齐 NaN/Infinity、组合、方向、时长/缓动、备注/局限校验；摄影提示词要求合法 `camera_move`；模型缺失“环绕”spec 时服务端生成带明确“非模型输出”说明的结构化 2D 兜底；Android `CameraMoveValidator` 同规则校验，`CameraPathCanvas` 区分机位移动/变焦/原地转向/静止，支持播放、暂停、重播、时间轴，非法数据只显示明确提示 | `test_camera`、`test_plan_photography`、`CameraMoveValidatorTest`、`CameraPlaybackStateTest`、`DtoTest` |
+| 咖啡配方 | 新增 Recipe/RecipeVersion/Tasting/Adjustment/History/Compare 后端与 Android 页面；V60 演示 15 g / 225 g / 92 °C / 150 s；缺少磨豆机/电子秤/温控壶给替代提示；提示词明确口味不得由模型推断 | `test_recipe`、`RecipeViewModelTest` |
+| 配方修订 | 服务端按实际参数判断单变量；多变量 422 `SINGLE_VARIABLE_REQUIRED`；`base_version` 冲突 409；校验失败不写新版本；旧版本只读；compare 仅参数与用户评分差异 | `test_recipe`、`RecipeViewModelTest` |
+
+本轮实测：服务端 **108 passed / 0 failed**；安卓 **52 tests / 0 failures**（`CameraMoveValidatorTest` 3、`CameraPlaybackStateTest` 1、`RecipeViewModelTest` 3、`DtoTest` 5）；`:app:assembleDebug` BUILD SUCCESSFUL；APK **10,869,987 字节**。真实模型运行证据见 `codearts_proof/day5/real_flow.json`、`plan_photography_real.json`、`plan_coffee_real.json`。
+
+真机（realme GT6 / RMX3800 / Android 16 / `eeffd16b`）：运镜播放/暂停/重播/时间轴通过；咖啡计划→配方 v1→品尝表单可见通过。口味保存、单变量调整与对比因工具权限拒绝未完成，标 **BLOCKED**（不重试、不伪造）；`real_flow.json` 中的口味值为脚本测试输入，不是真实用户品尝结论。
+### 16.1 D5 补验：第三方实拍、时间轴拖动与咖啡 92→90（2026-11-05）
+
+- **第三方公开授权实拍链路通过**：
+  - CC0 照片 `Coffee cup seen from above.jpg`（1,003,643 字节，SHA-256 `351eb4...ac681`）；真实反馈 `unclear`，描述主体/构图/可见光线，无口味或安全推断。
+  - CC BY-SA 4.0 短片 `A man pours Arabic coffee.ogv`（Sarah Canbel，原 1,037,297 字节；转 H.264 MP4 去音轨 486,725 字节，4.204204 秒）；主反馈 `unclear`，4/4 证据帧与模型输入逐字节一致；提交到“顺时针环绕拍摄 8 秒”步骤 3 的反例实际返回 `not_met`，明确指出去咖啡动作而非环绕，5/5 证据帧字节一致。
+  - 素材来源、许可、SHA-256、页面副本与处理记录见 `codearts_proof/day5/third_party_assets.json`、`source/`、`third_party/README.md`、`third_party/real_feedback.json`；未用于微调/训练/冒充用户自拍。
+- **用户自拍环绕反馈仍 BLOCKED**：没有用户自拍的“手机环绕咖啡 8 秒”素材；不能用倒咖啡短片冒充。第三方实拍通过不改变该 BLOCKED 状态。
+- **运镜**：新增时间轴拖动 `CameraPlaybackState.seek()`，JVM 覆盖 seek 边界与暂停；真机本轮新 APK 已安装，但拖动时间轴未再次走查。
+- **咖啡**：真实模型重跑 V60 92→90，v2 与 compare 的差值为 `water_temp_c 92→90, delta -2`；服务端按实际参数差异判断，0 变化返回 422 `no_parameter_change`，多变量仍 422 `SINGLE_VARIABLE_REQUIRED`。
+- **真机咖啡**：v1 与用户评分已通过 UI 保存（服务端 201：酸4/甜3/苦2/醇厚3/香气4/余韵3/总体4，notes `sour mild finish short`）；按钮点击命中不稳定，92→90 调整与对比未在真机完成，断网重试未触发请求，均标 **BLOCKED**（权限拒绝，不重试/不伪造）。
+- 本轮实测仍为服务端 **108 passed / 0 failed**、Android **52 tests / 0 failures**、`:app:assembleDebug` 成功、APK 10,869,987 字节。
+### 16.2 D5 复审三项修复（2026-11-05）
+
+1. **配方创建使用已确认计划参数**：`RecipeCreateRequest.demo` 默认 false，按计划文本解析 15/225/92/150；仅 `demo=true` 且计划与 V60 演示值一致时才用固定演示配方，否则 422 `demo_parameters_mismatch` 且不创建。新增非默认 18 g/270 g/90 °C/165 秒用例，断言计划、配方参数与步骤说明一致。
+2. **可编辑变量与派生粉水比**：`ratio` 改为派生、不可直接编辑；只改水量 225→240 g 时 ratio 15→16 自动派生，不算第二个主动调整；新版本同步参数、用料与步骤文本，旧版本按原值回查。覆盖 225→240、92→90、多变量拒绝、版本冲突、直接改 ratio、非法值与失败不写入。
+3. **Canvas easing**：新增 `CameraEasing`，位置/变焦/转向使用 eased progress，时间轴显示真实时间；`CameraEasingTest` 断言 linear 与 ease_in_out 在 0.25 时分别为 0.25/0.125，`CameraPlaybackStateTest` 覆盖拖动 seek。
+
+本轮实测：服务端 **111 passed / 0 failed**；Android **55 tests / 0 failures**（`CameraEasingTest` 2、`RecipeViewModelTest` 4）；`:app:assembleDebug` BUILD SUCCESSFUL；APK **10,896,532 字节**；真实模型 V60 按计划解析并完成 92→90。
+
+状态分列：第三方实拍链路通过；用户自拍环绕 BLOCKED；真机配方 92→90/对比 BLOCKED；真机断网重试 BLOCKED；真机 easing/拖动未复测。

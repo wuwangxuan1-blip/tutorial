@@ -1,0 +1,21 @@
+Android JVM 测试（D5）
+命令：gradlew.bat --no-daemon --console=plain :app:testDebugUnitTest --rerun-tasks
+结果：BUILD SUCCESSFUL；55 tests，0 failures，0 errors
+
+分套件：
+- ContractExamplesTest: 6
+- DtoTest: 5（camera move visual_aid 与 recipe DTO 解析）
+- RateLimitGateTest: 2
+- CameraEasingTest: 2（linear 与 ease_in_out 同一中间时刻不同；边界 clamp）
+- CameraMoveValidatorTest: 3（合法/非法组合、NaN/越界、变焦与朝向方向）
+- CameraPlaybackStateTest: 1（播放/暂停/重播/结束/拖动 seek）
+- ErrorMapperTest: 5
+- MediaLimitsTest: 2
+- PlanValidatorTest: 4
+- TimerEngineTest: 3
+- MediaViewModelTest: 4
+- PlanViewModelTest: 3
+- RecipeViewModelTest: 4（创建→品尝→单变量 v2→对比；409 刷新不覆盖最新版本；非法数值不调用网关；demo 选择透传）
+- StepViewModelTest: 11
+
+D4 回归保留：证据帧字节与模型输入一致、反馈写入不覆盖并发进度等既有用例全部通过。

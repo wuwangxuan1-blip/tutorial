@@ -132,11 +132,11 @@ class JobService:
                 session = await self.store.load_session(job["session_id"])
                 if not session:
                     raise ApiError(404, "NOT_FOUND", "会话不存在。")
-                if session["domain"] not in ("cooking", "software", "photography"):
+                if session["domain"] not in ("cooking", "software", "photography", "coffee"):
                     raise ApiError(
                         422,
                         "DOMAIN_MISMATCH",
-                        "本阶段仅启用烹饪、软件与摄影领域的计划生成。",
+                        "本阶段仅启用烹饪、软件、摄影与咖啡领域的计划生成。",
                     )
                 if session["status"] == SessionStatus.clarifying.value:
                     raise ApiError(422, "INVALID_REQUEST", "请先完成澄清问题。")

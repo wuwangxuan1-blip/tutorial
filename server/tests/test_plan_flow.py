@@ -125,7 +125,7 @@ async def test_plan_job_without_key_fails_with_model_not_configured(client):
     assert plan_response.status_code == 404
 
 
-async def test_plan_job_rejects_unsupported_domain(client):
+async def test_plan_job_accepts_coffee_domain(client):
     created = await client.post(
         "/v1/sessions",
         json={
@@ -143,8 +143,10 @@ async def test_plan_job_rejects_unsupported_domain(client):
         f"/v1/sessions/{session['id']}/plan-jobs",
         json={"base_plan_version": None},
     )
-    assert job_response.status_code == 422
-    assert job_response.json()["error"]["code"] == "DOMAIN_MISMATCH"
+    assert job_response.status_code == 202
+    job = await wait_job(client, job_response.json()["id"])
+    assert job["status"] == "failed"
+    assert job["error"]["error"]["code"] == "MODEL_NOT_CONFIGURED"
 
 async def test_plan_job_surfaces_rate_limit_error(client, monkeypatch):
     async def fake_chat_json(system_prompt, user_prompt, model=None, timeout_s=None):

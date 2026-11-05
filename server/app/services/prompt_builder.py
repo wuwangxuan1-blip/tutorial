@@ -11,6 +11,8 @@ SOFTWARE_KEY_CONDITIONS = ("skill_level", "os")
 SOFTWARE_OPTIONAL_CONDITIONS = ("os_version", "backup_available", "terminal_available")
 PHOTOGRAPHY_KEY_CONDITIONS = ("skill_level", "stabilization", "aspect_ratio")
 PHOTOGRAPHY_OPTIONAL_CONDITIONS = ("device_model", "lighting", "subject")
+COFFEE_KEY_CONDITIONS = ("skill_level", "brewer")
+COFFEE_OPTIONAL_CONDITIONS = ("grinder", "scale_available", "taste_preference")
 
 
 def load_prompt(name: str) -> str:
@@ -62,7 +64,26 @@ def build_photography_user_prompt(goal: str, conditions: dict[str, Any], domain:
         f"已知条件（JSON）：{condition_text}\n"
         f"仍缺失的关键条件：{'、'.join(missing) if missing else '无'}\n"
         f"仍缺失的可选条件：{'、'.join(optional_missing) if optional_missing else '无'}\n"
-        "本阶段 visual_aid 必须为 null；请把运镜方向和起止要求写进 instruction。"
+        "至少一个运镜步骤必须提供合法 camera_move visual_aid（优先 orbit_cw、8 秒、9:16），"
+        "并把运镜方向和起止要求写进 instruction；其他步骤 visual_aid 可为 null。"
+        "请生成符合系统消息结构要求的完整 JSON。"
+    )
+
+
+def build_coffee_user_prompt(goal: str, conditions: dict[str, Any], domain: str) -> str:
+    condition_text = json.dumps(conditions, ensure_ascii=False, sort_keys=True)
+    missing = [name for name in COFFEE_KEY_CONDITIONS if conditions.get(name) is None]
+    optional_missing = [
+        name for name in COFFEE_OPTIONAL_CONDITIONS if conditions.get(name) is None
+    ]
+    return (
+        f"领域：{domain}\n"
+        f"用户目标：{goal}\n"
+        f"已知条件（JSON）：{condition_text}\n"
+        f"仍缺失的关键条件：{'、'.join(missing) if missing else '无'}\n"
+        f"仍缺失的可选条件：{'、'.join(optional_missing) if optional_missing else '无'}\n"
+        "固定演示任务为 V60 手冲：15 g 咖啡粉、225 g 水、92 °C、约 2 分 30 秒。"
+        "请在步骤中写清这些参数与时间轴；缺少磨豆机、电子秤等设备时给出替代操作提示，不得编造设备型号或精确参数。"
         "请生成符合系统消息结构要求的完整 JSON。"
     )
 

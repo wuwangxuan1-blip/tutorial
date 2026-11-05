@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .api import ask, feedback, health, jobs, media, progress, revisions, sessions
+from .api import ask, feedback, health, jobs, media, progress, recipes, revisions, sessions
 from .config import Settings, load_settings
 from .errors import ApiError, error_body
 from .ids import new_id
@@ -23,6 +23,7 @@ from .services.media_service import MediaService
 from .services.model_client import ModelClient
 from .services.plan_service import PlanService
 from .services.progress_service import ProgressService
+from .services.recipe_service import RecipeService
 from .services.revision_service import RevisionService
 from .services.store import JsonStore
 
@@ -40,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     revision_service = RevisionService(app_settings, model_client, store)
     media_service = MediaService(store)
     feedback_service = FeedbackService(app_settings, model_client, store, media_service)
+    recipe_service = RecipeService(store)
     job_service = JobService(
         app_settings,
         store,
@@ -66,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.revision_service = revision_service
     app.state.media_service = media_service
     app.state.feedback_service = feedback_service
+    app.state.recipe_service = recipe_service
     app.state.job_service = job_service
 
     @app.middleware("http")
@@ -156,6 +159,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(revisions.router, prefix="/v1")
     app.include_router(media.router, prefix="/v1")
     app.include_router(feedback.router, prefix="/v1")
+    app.include_router(recipes.router, prefix="/v1")
     app.include_router(jobs.router, prefix="/v1")
     return app
 

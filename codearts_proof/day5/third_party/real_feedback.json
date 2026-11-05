@@ -1,0 +1,521 @@
+{
+  "session": {
+    "id": "sess_01M6P6CQFRM8BX6JYPT3VSFFBP",
+    "goal": "手机环绕拍一杯咖啡 8 秒",
+    "plan_version": 1,
+    "steps": [
+      {
+        "id": "step_1",
+        "title": "布置台面与确定光源方向",
+        "phase": "prepare"
+      },
+      {
+        "id": "step_2",
+        "title": "竖屏试走位与 8 秒节奏预演",
+        "phase": "execute"
+      },
+      {
+        "id": "step_3",
+        "title": "顺时针环绕拍摄 8 秒",
+        "phase": "execute"
+      },
+      {
+        "id": "step_4",
+        "title": "回看检查与必要重拍",
+        "phase": "verify"
+      },
+      {
+        "id": "step_5",
+        "title": "保存成片并记录可复现要点",
+        "phase": "finish"
+      }
+    ]
+  },
+  "photo": {
+    "media": {
+      "id": "media_01M6P6D4VT6WB6NBV1C7M921TD",
+      "kind": "image",
+      "mime": "image/jpeg",
+      "size_bytes": 22790,
+      "width": 1024,
+      "height": 576,
+      "duration_s": null,
+      "sha256": "45b73a5fbf26fe76b8e5e883bc625033f6f4b9e388ff09c98c0d32ee9da9d699",
+      "status": "ready",
+      "warnings": [
+        "已按长边 1024 压缩，仅用于模型分析与预览。"
+      ],
+      "created_at": "2026-11-05T15:49:26Z"
+    },
+    "step": {
+      "id": "step_1",
+      "title": "布置台面与确定光源方向"
+    },
+    "job": {
+      "id": "job_01M6P6D50G2HRVMPB0K9D45W97",
+      "type": "feedback_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "stage": "done",
+      "session_id": "sess_01M6P6CQFRM8BX6JYPT3VSFFBP",
+      "created_at": "2026-11-05T15:49:26Z",
+      "updated_at": "2026-11-05T15:49:39Z",
+      "expires_at": "2026-11-06T15:49:26Z",
+      "result": {
+        "feedback_id": "fb_01M6P6DJFGH2WJEN44T6VKR3M0"
+      },
+      "error": null
+    },
+    "feedback": {
+      "id": "fb_01M6P6DJFGH2WJEN44T6VKR3M0",
+      "session_id": "sess_01M6P6CQFRM8BX6JYPT3VSFFBP",
+      "step_id": "step_1",
+      "plan_version": 1,
+      "media_ids": [
+        "media_01M6P6D4VT6WB6NBV1C7M921TD"
+      ],
+      "analysis": {
+        "summary": "画面显示纯红色背景上的白杯与咖啡，杯身、液面和杯柄均完整可见，背景未见明显杂物。杯柄朝向画面左侧而非右下方，布置方向与步骤要求不一致；杯影落在右侧，提示主光可能来自左侧，但杯沿亮边与暗部层次是否达标难以确认。静态图片未显示对焦框或曝光锁定状态。",
+        "observations": [
+          {
+            "text": "白色杯身、咖啡液面与杯柄完整可见；杯子位于画面中央偏上，杯柄朝画面左侧、接近水平，与步骤要求的朝右下方不一致。",
+            "evidence": {
+              "media_id": "media_01M6P6D4VT6WB6NBV1C7M921TD",
+              "kind": "image",
+              "frame_index": null,
+              "timestamp_s": null
+            },
+            "certainty": "high"
+          },
+          {
+            "text": "背景为均匀纯红色，杯后及周围未见明显杂物，纯色背景遮挡杂乱区域的效果可见。",
+            "evidence": {
+              "media_id": "media_01M6P6D4VT6WB6NBV1C7M921TD",
+              "kind": "image",
+              "frame_index": null,
+              "timestamp_s": null
+            },
+            "certainty": "high"
+          },
+          {
+            "text": "杯影主要落在画面右侧，提示现有主光可能来自左侧或左上方；但单帧中杯沿亮边与另一侧暗部层次不够明确，无法确认是否形成理想侧光。",
+            "evidence": {
+              "media_id": "media_01M6P6D4VT6WB6NBV1C7M921TD",
+              "kind": "image",
+              "frame_index": null,
+              "timestamp_s": null
+            },
+            "certainty": "medium"
+          },
+          {
+            "text": "静态画面中看不到对焦框或手机取景界面，无法判断点击屏幕后曝光与对焦是否已锁定。",
+            "evidence": {
+              "media_id": "media_01M6P6D4VT6WB6NBV1C7M921TD",
+              "kind": "image",
+              "frame_index": null,
+              "timestamp_s": null
+            },
+            "certainty": "medium"
+          }
+        ],
+        "assessment": "unclear",
+        "uncertainties": [
+          "杯沿亮边是否足够明确、是否符合侧后方光要求，单帧难以判断。",
+          "阴影提示的光源方向是否能稳定形成所需明暗关系，缺少现场信息。",
+          "对焦与曝光锁定是否执行，图片未显示手机屏幕或对焦框。"
+        ],
+        "limitations": [
+          "单帧只能做定性观察，无法验证8秒环绕运镜、对焦锁定或曝光稳定性；未分析音频。",
+          "红色背景可能掩盖杯后杂物，无法确认清理范围是否达到30厘米。",
+          "画面未包含手机取景界面，无法核实对焦框是否出现。",
+          "单帧/短片只能做定性观察，不提供精确稳定性评分。",
+          "2D 画面不代表真实焦距、景深或精确轨迹。"
+        ],
+        "motion_metrics": null,
+        "sampled_frame_timestamps_s": [],
+        "audio_analyzed": false,
+        "audio_note": "本期不分析音频，也不生成转写。"
+      },
+      "suggested_actions": [
+        "将杯柄转到画面右下方后重新拍摄布置图，确认主体朝向符合步骤要求。",
+        "从侧面观察并轻移杯位或加挡板，使杯沿一侧出现明确亮边，另一侧保留自然暗部。",
+        "补拍包含手机取景界面的照片或屏幕录制截图，用于确认曝光与对焦已锁定。"
+      ],
+      "follow_up_questions": [
+        "能否补一张包含手机取景界面的照片，以确认对焦框与曝光锁定状态？",
+        "是否愿意将杯柄调整到画面右下方后重新提交布置图？"
+      ],
+      "revision_id": null,
+      "created_at": "2026-11-05T15:49:39Z"
+    },
+    "vision_input_count": 1,
+    "frame_checks": []
+  },
+  "video_primary": {
+    "media": {
+      "id": "media_01M6P6D504R5CGB5AR69KJ710Z",
+      "kind": "video",
+      "mime": "video/mp4",
+      "size_bytes": 486725,
+      "width": 640,
+      "height": 640,
+      "duration_s": 4.204,
+      "sha256": "4119c7624e8a04c361c087369e321ade4cf0b65f3525590c413ace10a1fdec5f",
+      "status": "ready",
+      "warnings": [
+        "本期不分析音频，也不生成转写。"
+      ],
+      "created_at": "2026-11-05T15:49:26Z"
+    },
+    "step": {
+      "id": "step_4",
+      "title": "回看检查与必要重拍"
+    },
+    "job": {
+      "id": "job_01M6P6DK43CP9C52WCG43772W9",
+      "type": "feedback_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "stage": "done",
+      "session_id": "sess_01M6P6CQFRM8BX6JYPT3VSFFBP",
+      "created_at": "2026-11-05T15:49:40Z",
+      "updated_at": "2026-11-05T15:50:00Z",
+      "expires_at": "2026-11-06T15:49:40Z",
+      "result": {
+        "feedback_id": "fb_01M6P6E691PJKY4Q0JZK3Z1TAE"
+      },
+      "error": null
+    },
+    "feedback": {
+      "id": "fb_01M6P6E691PJKY4Q0JZK3Z1TAE",
+      "session_id": "sess_01M6P6CQFRM8BX6JYPT3VSFFBP",
+      "step_id": "step_4",
+      "plan_version": 1,
+      "media_ids": [
+        "media_01M6P6D504R5CGB5AR69KJ710Z"
+      ],
+      "analysis": {
+        "summary": "提交的是约0–4秒的5个抽帧，画面中手托白色小杯接咖啡，杯子在各抽帧均可见且大体完整；第1秒起出现倒液动作。仅凭这些抽帧不能确认原定8秒全程、起止静止、顺时针环绕、明显抖动或曝光跳变；运动指标显示平移估计较小但有6次方向变化，需结合完整回放判断。",
+        "observations": [
+          {
+            "text": "各抽帧中白色小杯均由手托住并出现在画面内，未见明显偏出画面；第4秒杯子靠近右下边缘但仍基本完整可见。",
+            "evidence": {
+              "media_id": "media_01M6P6D504R5CGB5AR69KJ710Z",
+              "kind": "video_frame",
+              "frame_index": 4,
+              "timestamp_s": 4.0
+            },
+            "certainty": "medium"
+          },
+          {
+            "text": "第0秒杯内未见明显倒液，第1–3秒可见深色液体从金属壶嘴流入杯中，第4秒杯内已有液体且金属壶底部进入画面左下。",
+            "evidence": {
+              "media_id": "media_01M6P6D504R5CGB5AR69KJ710Z",
+              "kind": "video_frame",
+              "frame_index": 2,
+              "timestamp_s": 2.0
+            },
+            "certainty": "medium"
+          },
+          {
+            "text": "第4帧左下金属表面出现强高光/亮斑，0–3秒抽帧整体明暗较稳定；是否为曝光突然跳变无法仅凭单帧确认。",
+            "evidence": {
+              "media_id": "media_01M6P6D504R5CGB5AR69KJ710Z",
+              "kind": "video_frame",
+              "frame_index": 4,
+              "timestamp_s": 4.0
+            },
+            "certainty": "low"
+          },
+          {
+            "text": "抽帧中壶嘴与杯子的相对位置有变化，但无法据此判断相机是否始终顺时针环绕；运动指标显示方向变化6次，但不能区分主体运动与相机运动。",
+            "evidence": {
+              "media_id": "media_01M6P6D504R5CGB5AR69KJ710Z",
+              "kind": "video_frame",
+              "frame_index": 1,
+              "timestamp_s": 1.0
+            },
+            "certainty": "low"
+          }
+        ],
+        "assessment": "unclear",
+        "uncertainties": [
+          "提交抽帧仅覆盖约0–4秒，无法验证原定8秒视频的完整时长和全程杯子在画面内。",
+          "无法从5个抽帧判断环绕方向是否始终顺时针，也无法确认起止各约1秒相机静止。",
+          "第4秒左下强光是否为曝光跳变、以及运动指标中的方向变化是否对应明显抖动，均需完整回放确认。"
+        ],
+        "limitations": [
+          "单帧/短片只能做定性观察，不能精确判断稳定性、曝光连续性或运动方向。",
+          "运动指标为2D图像平面估计，不还原真实3D轨迹，也无法可靠区分主体运动与相机运动。",
+          "未分析音频，且未提供完整8秒原片回放。",
+          "单帧/短片只能做定性观察，不提供精确稳定性评分。",
+          "2D 画面不代表真实焦距、景深或精确轨迹。"
+        ],
+        "motion_metrics": {
+          "method": "vidstabdetect_ascii_10fps_320px+global_motions",
+          "sample_fps": 10,
+          "frame_count": 42,
+          "mean_translation_px": 3.234,
+          "p95_translation_px": 5.974,
+          "mean_rotation_deg": 0.381,
+          "direction_changes": 6,
+          "limitations": [
+            "基于 2D 图像平面估计，不还原真实 3D 轨迹。",
+            "无法可靠区分主体运动与相机运动。",
+            "快速运动、低纹理、遮挡会导致估计失败或偏差。",
+            "不是 0–100 的稳定性评分，不能用于精确比较。"
+          ]
+        },
+        "sampled_frame_timestamps_s": [
+          0.0,
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "audio_analyzed": false,
+        "audio_note": "本期不分析音频，也不生成转写。"
+      },
+      "suggested_actions": [
+        "在手机相册连续回放完整8秒原片，按杯子出画、首尾静止、顺时针方向、抖动、曝光五项逐条核对。",
+        "若仅第4秒附近金属反光变亮，先判断是否整体曝光跳变；确属跳变再锁定曝光重拍。",
+        "根据回放只保留一条成片，或明确一个重拍调整点，不要同时改动走位、步速和曝光。"
+      ],
+      "follow_up_questions": [
+        "提交的这段视频是否就是完整8秒成片，还是只截取了前4秒？",
+        "第4秒左下金属表面的强高光，是否对应你回放时看到的曝光变亮？"
+      ],
+      "revision_id": null,
+      "created_at": "2026-11-05T15:50:00Z"
+    },
+    "vision_input_count": 5,
+    "frame_checks": [
+      {
+        "observation": "各抽帧中白色小杯均由手托住并出现在画面内，未见明显偏出画面；第4秒杯子靠近右下边缘但仍基本完整可见。",
+        "frame_index": 4,
+        "timestamp_s": 4.0,
+        "model_input_sha256": "31cf5731ea67936b2db6c60e8fd8ca879ef709e0a7fd8afeb7084de712ee7279",
+        "returned_sha256": "31cf5731ea67936b2db6c60e8fd8ca879ef709e0a7fd8afeb7084de712ee7279",
+        "byte_equal": true,
+        "bytes": 32657,
+        "saved_frame": "codearts_proof\\day5\\third_party\\frames\\video_frame_4.jpg"
+      },
+      {
+        "observation": "第0秒杯内未见明显倒液，第1–3秒可见深色液体从金属壶嘴流入杯中，第4秒杯内已有液体且金属壶底部进入画面左下。",
+        "frame_index": 2,
+        "timestamp_s": 2.0,
+        "model_input_sha256": "753ad40fc004816000dcf4086597c61b9e2216f9c10b32e73326a854900f4faf",
+        "returned_sha256": "753ad40fc004816000dcf4086597c61b9e2216f9c10b32e73326a854900f4faf",
+        "byte_equal": true,
+        "bytes": 32859,
+        "saved_frame": "codearts_proof\\day5\\third_party\\frames\\video_frame_2.jpg"
+      },
+      {
+        "observation": "第4帧左下金属表面出现强高光/亮斑，0–3秒抽帧整体明暗较稳定；是否为曝光突然跳变无法仅凭单帧确认。",
+        "frame_index": 4,
+        "timestamp_s": 4.0,
+        "model_input_sha256": "31cf5731ea67936b2db6c60e8fd8ca879ef709e0a7fd8afeb7084de712ee7279",
+        "returned_sha256": "31cf5731ea67936b2db6c60e8fd8ca879ef709e0a7fd8afeb7084de712ee7279",
+        "byte_equal": true,
+        "bytes": 32657,
+        "saved_frame": "codearts_proof\\day5\\third_party\\frames\\video_frame_4.jpg"
+      },
+      {
+        "observation": "抽帧中壶嘴与杯子的相对位置有变化，但无法据此判断相机是否始终顺时针环绕；运动指标显示方向变化6次，但不能区分主体运动与相机运动。",
+        "frame_index": 1,
+        "timestamp_s": 1.0,
+        "model_input_sha256": "ef1cf13aef2f2432b9eadadfea161efcb4bb807cfbfbc2d29b8bd2ac8e67465f",
+        "returned_sha256": "ef1cf13aef2f2432b9eadadfea161efcb4bb807cfbfbc2d29b8bd2ac8e67465f",
+        "byte_equal": true,
+        "bytes": 37357,
+        "saved_frame": "codearts_proof\\day5\\third_party\\frames\\video_frame_1.jpg"
+      }
+    ]
+  },
+  "video_counterexample": {
+    "step": {
+      "id": "step_3",
+      "title": "顺时针环绕拍摄 8 秒"
+    },
+    "job": {
+      "id": "job_01M6P6E6ZTCK4MD3K2EQZYADA1",
+      "type": "feedback_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "stage": "done",
+      "session_id": "sess_01M6P6CQFRM8BX6JYPT3VSFFBP",
+      "created_at": "2026-11-05T15:50:00Z",
+      "updated_at": "2026-11-05T15:50:13Z",
+      "expires_at": "2026-11-06T15:50:00Z",
+      "result": {
+        "feedback_id": "fb_01M6P6EJWPZ2NN0PH34DP2QCEG"
+      },
+      "error": null
+    },
+    "feedback": {
+      "id": "fb_01M6P6EJWPZ2NN0PH34DP2QCEG",
+      "session_id": "sess_01M6P6CQFRM8BX6JYPT3VSFFBP",
+      "step_id": "step_3",
+      "plan_version": 1,
+      "media_ids": [
+        "media_01M6P6D504R5CGB5AR69KJ710Z"
+      ],
+      "analysis": {
+        "summary": "提交的5帧主要呈现金属壶向小杯中倒咖啡的过程，画面主体是手托杯子与倒液动作，未见手机围绕杯子从左上后方移动到右前方的环绕过程。杯子多数时间位于画面右下方，最后帧接近右下边缘且部分被裁切，难以确认“始终完整可见”。抽帧仅覆盖0—4秒，无法确认成片约8秒及起止各约1秒静止；运动指标提示方向变化较多，但该指标只能作定性参考。",
+        "observations": [
+          {
+            "text": "画面中可见金属壶嘴、手持小杯和白衬衫，场景表现为向杯中倒咖啡，而非围绕杯子移动拍摄。",
+            "evidence": {
+              "media_id": "media_01M6P6D504R5CGB5AR69KJ710Z",
+              "kind": "video_frame",
+              "frame_index": 0,
+              "timestamp_s": 0.0
+            },
+            "certainty": "high"
+          },
+          {
+            "text": "1—3秒抽帧中，深色液体从壶嘴连续流入杯中，壶嘴与杯子的相对位置变化主要来自倒液动作。",
+            "evidence": {
+              "media_id": "media_01M6P6D504R5CGB5AR69KJ710Z",
+              "kind": "video_frame",
+              "frame_index": 1,
+              "timestamp_s": 1.0
+            },
+            "certainty": "high"
+          },
+          {
+            "text": "杯子在画面中持续偏右下，未见从杯子左后方绕至右前方的明显环绕轨迹。",
+            "evidence": {
+              "media_id": "media_01M6P6D504R5CGB5AR69KJ710Z",
+              "kind": "video_frame",
+              "frame_index": 3,
+              "timestamp_s": 3.0
+            },
+            "certainty": "medium"
+          },
+          {
+            "text": "最后一帧杯子位于右下区域，右侧边缘附近被裁切，无法确认整段视频中杯子始终完整可见。",
+            "evidence": {
+              "media_id": "media_01M6P6D504R5CGB5AR69KJ710Z",
+              "kind": "video_frame",
+              "frame_index": 4,
+              "timestamp_s": 4.0
+            },
+            "certainty": "medium"
+          },
+          {
+            "text": "运动指标显示42帧、抽样10fps，抽帧仅列到4秒；direction_changes=6提示方向变化较多，但该指标不能还原真实3D环绕路径或精确时长。",
+            "evidence": {
+              "media_id": "media_01M6P6D504R5CGB5AR69KJ710Z",
+              "kind": "video_frame",
+              "frame_index": 2,
+              "timestamp_s": 2.0
+            },
+            "certainty": "low"
+          }
+        ],
+        "assessment": "not_met",
+        "uncertainties": [
+          "提交抽帧仅覆盖0—4秒，无法确认完整成片是否约8秒、起止是否各有约1秒静止。",
+          "无法从这些帧可靠还原手机的3D运动路径，无法确认是否顺时针匀速环绕。",
+          "画面核心是倒咖啡动作，无法确认用户是否实际执行了本步骤的环绕拍摄目标。"
+        ],
+        "limitations": [
+          "单帧/短片只能做定性观察，且未分析音频。",
+          "运动指标基于2D图像平面估计，不能精确判断真实轨迹、时长或稳定性。",
+          "抽帧数量有限，不能代表视频全部时段。",
+          "单帧/短片只能做定性观察，不提供精确稳定性评分。",
+          "2D 画面不代表真实焦距、景深或精确轨迹。"
+        ],
+        "motion_metrics": {
+          "method": "vidstabdetect_ascii_10fps_320px+global_motions",
+          "sample_fps": 10,
+          "frame_count": 42,
+          "mean_translation_px": 3.234,
+          "p95_translation_px": 5.974,
+          "mean_rotation_deg": 0.381,
+          "direction_changes": 6,
+          "limitations": [
+            "基于 2D 图像平面估计，不还原真实 3D 轨迹。",
+            "无法可靠区分主体运动与相机运动。",
+            "快速运动、低纹理、遮挡会导致估计失败或偏差。",
+            "不是 0–100 的稳定性评分，不能用于精确比较。"
+          ]
+        },
+        "sampled_frame_timestamps_s": [
+          0.0,
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "audio_analyzed": false,
+        "audio_note": "本期不分析音频，也不生成转写。"
+      },
+      "suggested_actions": [
+        "若目标是环绕拍摄，请重拍：从杯子左后方起幅，先保持约1秒静止。",
+        "以身体为轴用脚步绕到杯子右前方，避免手腕甩动，并让杯子保持在画面中央且完整可见。",
+        "拍摄后检查完整8秒成片及起止静止，确保没有壶嘴、手指或画面边缘遮挡杯身。"
+      ],
+      "follow_up_questions": [
+        "是否能提供完整8秒原片，以便核对时长、起止静止和全程杯子完整性？",
+        "本次要提交的是环绕咖啡杯的镜头，还是倒咖啡过程的记录？"
+      ],
+      "revision_id": null,
+      "created_at": "2026-11-05T15:50:13Z"
+    },
+    "vision_input_count": 5,
+    "frame_checks": [
+      {
+        "observation": "画面中可见金属壶嘴、手持小杯和白衬衫，场景表现为向杯中倒咖啡，而非围绕杯子移动拍摄。",
+        "frame_index": 0,
+        "timestamp_s": 0.0,
+        "model_input_sha256": "2a2c7236dec6beeb4f7211f7a353c6edb67bd302001ec90da18c49c08d9fe611",
+        "returned_sha256": "2a2c7236dec6beeb4f7211f7a353c6edb67bd302001ec90da18c49c08d9fe611",
+        "byte_equal": true,
+        "bytes": 32700,
+        "saved_frame": "codearts_proof\\day5\\third_party\\frames\\counterexample_frame_0.jpg"
+      },
+      {
+        "observation": "1—3秒抽帧中，深色液体从壶嘴连续流入杯中，壶嘴与杯子的相对位置变化主要来自倒液动作。",
+        "frame_index": 1,
+        "timestamp_s": 1.0,
+        "model_input_sha256": "ef1cf13aef2f2432b9eadadfea161efcb4bb807cfbfbc2d29b8bd2ac8e67465f",
+        "returned_sha256": "ef1cf13aef2f2432b9eadadfea161efcb4bb807cfbfbc2d29b8bd2ac8e67465f",
+        "byte_equal": true,
+        "bytes": 37357,
+        "saved_frame": "codearts_proof\\day5\\third_party\\frames\\counterexample_frame_1.jpg"
+      },
+      {
+        "observation": "杯子在画面中持续偏右下，未见从杯子左后方绕至右前方的明显环绕轨迹。",
+        "frame_index": 3,
+        "timestamp_s": 3.0,
+        "model_input_sha256": "e3927859f437fb01b2fa1edfba72706f9ff8ff1efb6a5caaf29ec692b3bd5ff9",
+        "returned_sha256": "e3927859f437fb01b2fa1edfba72706f9ff8ff1efb6a5caaf29ec692b3bd5ff9",
+        "byte_equal": true,
+        "bytes": 33196,
+        "saved_frame": "codearts_proof\\day5\\third_party\\frames\\counterexample_frame_3.jpg"
+      },
+      {
+        "observation": "最后一帧杯子位于右下区域，右侧边缘附近被裁切，无法确认整段视频中杯子始终完整可见。",
+        "frame_index": 4,
+        "timestamp_s": 4.0,
+        "model_input_sha256": "31cf5731ea67936b2db6c60e8fd8ca879ef709e0a7fd8afeb7084de712ee7279",
+        "returned_sha256": "31cf5731ea67936b2db6c60e8fd8ca879ef709e0a7fd8afeb7084de712ee7279",
+        "byte_equal": true,
+        "bytes": 32657,
+        "saved_frame": "codearts_proof\\day5\\third_party\\frames\\counterexample_frame_4.jpg"
+      },
+      {
+        "observation": "运动指标显示42帧、抽样10fps，抽帧仅列到4秒；direction_changes=6提示方向变化较多，但该指标不能还原真实3D环绕路径或精确时长。",
+        "frame_index": 2,
+        "timestamp_s": 2.0,
+        "model_input_sha256": "753ad40fc004816000dcf4086597c61b9e2216f9c10b32e73326a854900f4faf",
+        "returned_sha256": "753ad40fc004816000dcf4086597c61b9e2216f9c10b32e73326a854900f4faf",
+        "byte_equal": true,
+        "bytes": 32859,
+        "saved_frame": "codearts_proof\\day5\\third_party\\frames\\counterexample_frame_2.jpg"
+      }
+    ]
+  }
+}

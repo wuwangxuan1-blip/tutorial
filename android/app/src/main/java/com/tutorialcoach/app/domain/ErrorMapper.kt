@@ -19,7 +19,7 @@ object ErrorMapper {
             "MODEL_BAD_OUTPUT" -> "模型返回格式异常，已重试一次仍失败，请重试或缩短输入。"
             "PLAN_LOCKED" -> "已有步骤进度，不能全量重新生成。"
             "VERSION_CONFLICT" -> "计划版本已变化，请刷新后重试。"
-            "DOMAIN_MISMATCH" -> "当前阶段仅支持烹饪、软件与摄影领域的计划生成。"
+            "DOMAIN_MISMATCH" -> "当前阶段支持烹饪、软件、摄影与咖啡领域的计划生成。"
             "MEDIA_TOO_LARGE" -> "媒体文件超过大小限制，请压缩后重试。"
             "MEDIA_TOO_LONG" -> "视频超过 30 秒，请先裁剪。"
             "UNSUPPORTED_MEDIA" -> "不支持该媒体格式；图片请用 JPEG/PNG/WebP。"

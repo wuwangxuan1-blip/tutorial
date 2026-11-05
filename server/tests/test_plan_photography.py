@@ -55,7 +55,7 @@ def photo_plan(visual_aid=None) -> dict:
     return plan
 
 
-async def test_photography_plan_with_null_visual_aid_and_assumptions(client, monkeypatch):
+async def test_photography_missing_orbit_gets_structured_fallback(client, monkeypatch):
     session, plan = await setup_plan(
         client,
         monkeypatch,
@@ -64,11 +64,28 @@ async def test_photography_plan_with_null_visual_aid_and_assumptions(client, mon
         plan=photo_plan(),
     )
     assert plan["domain"] == "photography"
-    assert all(step["visual_aid"] is None for step in plan["steps"])
-    assert any("visual_aid=null" in note for note in plan["safety_notes"])
+    camera = plan["steps"][1]["visual_aid"]["camera_move"]
+    assert camera["shot_type"] == "orbit_cw"
+    assert camera["duration_s"] == 8
+    assert any("服务端按步骤文字生成" in note for note in plan["safety_notes"])
     assert any("device_model" in note for note in plan["assumptions"])
     assert any("lighting" in note for note in plan["assumptions"])
     assert any("运动" in note or "评分" in note for note in plan["safety_notes"])
+
+
+async def test_photography_non_orbit_missing_spec_stays_clearly_missing(client, monkeypatch):
+    plan_data = photo_plan()
+    plan_data["steps"][1]["instruction"] = "保持机位不变，推近拍摄 8 秒。"
+    plan_data["steps"][1]["title"] = "推近拍摄"
+    session, plan = await setup_plan(
+        client,
+        monkeypatch,
+        domain="photography",
+        conditions=PHOTO_CONDITIONS,
+        plan=plan_data,
+    )
+    assert all(step["visual_aid"] is None for step in plan["steps"])
+    assert any("未提供合法运镜数据" in note for note in plan["safety_notes"])
 
 
 async def test_photography_valid_camera_move_is_preserved(client, monkeypatch):
@@ -108,7 +125,10 @@ async def test_photography_valid_camera_move_is_preserved(client, monkeypatch):
     assert step["visual_aid"]["camera_move"]["duration_s"] == 8
 
 
-async def test_photography_invalid_camera_move_is_dropped_with_note(client, monkeypatch):
+async def test_photography_invalid_camera_move_is_replaced_by_structured_fallback(
+    client,
+    monkeypatch,
+):
     session, plan = await setup_plan(
         client,
         monkeypatch,
@@ -116,6 +136,8 @@ async def test_photography_invalid_camera_move_is_dropped_with_note(client, monk
         conditions=PHOTO_CONDITIONS,
         plan=photo_plan({"type": "camera_move", "camera_move": {"id": "bad"}}),
     )
-    assert plan["steps"][1]["visual_aid"] is None
-    assert any("visual_aid=null" in note for note in plan["safety_notes"])
+    camera = plan["steps"][1]["visual_aid"]["camera_move"]
+    assert camera["id"] == "cam_orbit"
+    assert camera["shot_type"] == "orbit_cw"
+    assert any("服务端按步骤文字生成" in note for note in plan["safety_notes"])
     assert plan["version"] == 1

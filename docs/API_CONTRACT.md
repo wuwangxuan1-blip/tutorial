@@ -1306,12 +1306,15 @@ Adjustment：
 
 ```json
 {
-  "base_plan_version": 1
+  "base_plan_version": 1,
+  "demo": false
 }
 ```
 
 - 仅 `coffee`；从当前计划创建配方 v1；无计划/领域不符 → 422 `DOMAIN_MISMATCH`。
-- 201 Recipe。
+- `demo=false`（默认）：必须从计划文本中解析用户已确认的咖啡粉量、水量、水温、总时长；缺失/越界 → 422 `INVALID_REQUEST`（`recipe_parameters_missing`/`recipe_parameters_invalid`），不得静默套用演示参数。
+- `demo=true`：仅用于用户明确选择的 V60 演示配方（15 g / 225 g / 92 °C / 150 秒）；当前计划已确认参数必须与演示值一致，否则 422 `INVALID_REQUEST`（`demo_parameters_mismatch`）且不创建配方。
+- 201 Recipe；配方步骤与已确认参数保持一致。
 
 #### POST /v1/recipes/{id}/tastings
 
@@ -1337,15 +1340,25 @@ Adjustment：
 {
   "base_version": 1,
   "variable": "water_temp_c",
-  "to_value": 94,
-  "reason": "用户觉得偏酸，先只提高水温。",
+  "to_value": 90,
+  "reason": "用户觉得偏酸，先只降低水温。",
   "tasting_id": "taste_01J9Z9D5FF"
 }
 ```
 
-- 只允许一个变量；`variable` 必须在 `variables` 中；`to_value` 类型/范围匹配；`base_version` 必须当前；否则 409/422。
+- 用户可编辑变量：`dose_g`、`water_g`、`water_temp_c`、`grind_setting`、`brew_time_s`、`milk_ml`、`ice_g`、`sweetener_g`。`ratio` 是派生变量，不可直接编辑；请求 `ratio` → 422 `INVALID_REQUEST`（reason=`derived_variable`）。
+- 粉水比派生规则：当配方同时有 `dose_g` 与 `water_g` 时，`ratio = round(water_g / dose_g, 2)`。只主动改水量（如 225→240 g）时，派生粉水比同步更新（15→16），**不计作第二个主动调整**。
+- 新版必须同步更新参数、用料与可执行步骤中的参数文本；旧版本保持原值只读。
+- 只允许一个**主动**变量；`variable` 必须在 `variables` 中；`to_value` 类型/范围匹配；`base_version` 必须当前；否则 409/422。
+- 服务端按**实际主动参数差异**判断：0 个主动变化返回 422 `INVALID_REQUEST`（reason=`no_parameter_change`）；超过 1 个主动变化返回 422 `SINGLE_VARIABLE_REQUIRED`；失败不写新版本。
+- 为明确拒绝多变量，服务端也接受 `variables` 对象；与 `variable` 合计按实际主动差异判断，多变化返回 `SINGLE_VARIABLE_REQUIRED`。
 - `tasting_id` 可选；若给出，必须属于 `base_version`。
 - 201 新 Recipe（version+1）+ Adjustment。
+
+#### GET /v1/recipes/{id}/history
+
+- 返回 `RecipeVersion[]`；每项含 `version`、`variables`、`created_at`，可选 `tasting` 与 `adjustment`。
+- 旧版本只读；按 version 升序返回同一会话版本链。
 
 #### GET /v1/recipes/{id}/compare?against={other_recipe_id}
 

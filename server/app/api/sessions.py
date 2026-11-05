@@ -369,11 +369,12 @@ async def create_plan_job(
                 Domain.cooking.value,
                 Domain.software.value,
                 Domain.photography.value,
+                Domain.coffee.value,
             ):
                 raise ApiError(
                     422,
                     "DOMAIN_MISMATCH",
-                    "本阶段仅启用烹饪、软件与摄影领域的计划生成；其它领域将在后续阶段开放。",
+                    "本阶段仅启用烹饪、软件、摄影与咖啡领域的计划生成。",
                 )
             if session["status"] == SessionStatus.clarifying.value:
                 raise invalid_request("请先完成澄清问题。", {"reason": "clarification_incomplete"})

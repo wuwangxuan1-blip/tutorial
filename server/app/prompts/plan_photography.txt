@@ -17,7 +17,30 @@ JSON 结构严格为：
       "duration_s": 300,
       "completion_criteria": ["可观察完成标准，2-3 条，每条最多 80 字"],
       "safety": ["安全提示，0-2 条，每条最多 60 字"],
-      "visual_aid": null
+      "visual_aid": {
+        "type": "camera_move",
+        "camera_move": {
+          "id": "cam_1",
+          "shot_type": "orbit_cw",
+          "motion_type": "camera_move",
+          "technique": "handheld",
+          "subject_anchor": {"x": 0.5, "y": 0.5, "label": "咖啡杯"},
+          "position_path": {
+            "space": "normalized_top_down",
+            "start": {"x": 0.3, "y": 0.7},
+            "end": {"x": 0.7, "y": 0.3},
+            "control": null,
+            "arc": "cw"
+          },
+          "orientation_path": null,
+          "zoom": null,
+          "duration_s": 8,
+          "easing": "ease_in_out",
+          "aspect_ratio": "9:16",
+          "notes": ["主体保持在画面中央"],
+          "limitations": ["2D 俯视示意，不代表真实焦距、景深或精确轨迹。"]
+        }
+      }
     }
   ],
   "total_estimated_min": 20,
@@ -29,7 +52,7 @@ JSON 结构严格为：
 2. 每步 completion_criteria 必须可观察，例如“主体始终在画面内”“起止各停留约 1 秒”“环绕方向一致”。
 3. duration_s 为 0–7200 的整数。
 4. assumptions 只写因条件缺失而采用的假设；不得编造设备型号、镜头、场地或灯光。
-5. 本阶段不提供运镜动画：visual_aid 必须为 null；运镜方向、速度、起止要求写进 instruction。若确实提供 visual_aid，只能是符合 CameraMoveSpec 契约的 camera_move 对象，否则一律 null。
-6. 不承诺 0–100 的稳定性评分；不要写“专业级”“电影级”等无法验证的结论。
-7. 不分析音频；不得输出 HTML、SVG、脚本、可执行代码或要求客户端执行命令。
-8. 总输出控制在 3000 字以内。
+5. 至少一个运镜步骤必须提供合法的 camera_move visual_aid，且与文字说明一致；演示任务优先使用 orbit_cw、camera_move、duration_s=8、aspect_ratio=9:16、归一化俯视路径、easing=ease_in_out。其他步骤 visual_aid 可以为 null。
+6. visual_aid 只允许 CameraMoveSpec 契约字段；禁止输出代码、HTML、SVG、脚本或要求客户端执行命令。
+7. 不承诺 0–100 的稳定性评分；不要写“专业级”“电影级”等无法验证的结论。
+8. 不分析音频。总输出控制在 3000 字以内。

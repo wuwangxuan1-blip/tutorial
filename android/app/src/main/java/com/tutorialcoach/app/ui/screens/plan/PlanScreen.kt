@@ -39,6 +39,7 @@ fun PlanScreen(
     onOpenStep: () -> Unit,
     onOpenConditions: () -> Unit,
     onOpenRevision: () -> Unit,
+    onOpenRecipe: () -> Unit,
     onBack: () -> Unit,
 ) {
     val currentSession by container.repository.session.collectAsStateWithLifecycle()
@@ -134,6 +135,16 @@ fun PlanScreen(
                                 .height(52.dp),
                         ) {
                             Text("修订提案")
+                        }
+                    }
+                    if (session?.domain == "coffee") {
+                        Button(
+                            onClick = onOpenRecipe,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                        ) {
+                            Text("打开咖啡配方")
                         }
                     }
                 }

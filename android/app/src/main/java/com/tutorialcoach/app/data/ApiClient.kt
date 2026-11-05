@@ -371,6 +371,63 @@ class ApiClient(
         }
     }
 
+    suspend fun createRecipe(
+        sessionId: String,
+        basePlanVersion: Int,
+        demo: Boolean,
+    ): RecipeDto {
+        val body = json.encodeToString(
+            RecipeCreateRequestDto.serializer(),
+            RecipeCreateRequestDto(basePlanVersion, demo),
+        )
+        return postJson(
+            path = "/v1/sessions/$sessionId/recipes",
+            body = body,
+            serializer = RecipeDto.serializer(),
+        )
+    }
+
+    suspend fun listRecipes(sessionId: String): List<RecipeDto> = getJson(
+        path = "/v1/sessions/$sessionId/recipes",
+        serializer = ListSerializer(RecipeDto.serializer()),
+    )
+
+    suspend fun getRecipe(recipeId: String): RecipeDto = getJson(
+        path = "/v1/recipes/$recipeId",
+        serializer = RecipeDto.serializer(),
+    )
+
+    suspend fun addTasting(recipeId: String, request: TastingRequestDto): TastingDto {
+        val body = json.encodeToString(TastingRequestDto.serializer(), request)
+        return postJson(
+            path = "/v1/recipes/$recipeId/tastings",
+            body = body,
+            serializer = TastingDto.serializer(),
+        )
+    }
+
+    suspend fun adjustRecipe(
+        recipeId: String,
+        request: AdjustmentRequestDto,
+    ): AdjustmentResponseDto {
+        val body = json.encodeToString(AdjustmentRequestDto.serializer(), request)
+        return postJson(
+            path = "/v1/recipes/$recipeId/adjustments",
+            body = body,
+            serializer = AdjustmentResponseDto.serializer(),
+        )
+    }
+
+    suspend fun listRecipeHistory(recipeId: String): List<RecipeVersionDto> = getJson(
+        path = "/v1/recipes/$recipeId/history",
+        serializer = ListSerializer(RecipeVersionDto.serializer()),
+    )
+
+    suspend fun compareRecipes(recipeId: String, againstId: String): RecipeCompareDto = getJson(
+        path = "/v1/recipes/$recipeId/compare?against=$againstId",
+        serializer = RecipeCompareDto.serializer(),
+    )
+
     suspend fun listFeedback(sessionId: String, stepId: String? = null): List<FeedbackDto> {
         val suffix = stepId?.let { "?step_id=$it" } ?: ""
         val response = getJson(

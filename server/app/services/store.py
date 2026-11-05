@@ -22,6 +22,9 @@ class JsonStore:
             "media",
             "feedback",
             "feedback_frames",
+            "recipes",
+            "tastings",
+            "adjustments",
             "logs",
         ):
             (self.data_dir / name).mkdir(parents=True, exist_ok=True)
@@ -142,6 +145,90 @@ class JsonStore:
             return path.read_bytes()
         except OSError as exc:
             raise ApiError(500, "INTERNAL_ERROR", "证据帧读取失败。") from exc
+
+    def recipe_rel(self, session_id: str, recipe_id: str) -> str:
+        return f"recipes/{session_id}/{recipe_id}.json"
+
+    def tasting_rel(self, recipe_id: str, tasting_id: str) -> str:
+        return f"tastings/{recipe_id}/{tasting_id}.json"
+
+    def adjustment_rel(self, recipe_id: str, adjustment_id: str) -> str:
+        return f"adjustments/{recipe_id}/{adjustment_id}.json"
+
+    async def load_recipe(self, session_id: str, recipe_id: str) -> dict[str, Any] | None:
+        return await self.read_json(self.recipe_rel(session_id, recipe_id))
+
+    async def find_recipe(self, recipe_id: str) -> dict[str, Any] | None:
+        root = self.data_dir / "recipes"
+        if not root.exists():
+            return None
+        for session_dir in root.iterdir():
+            if not session_dir.is_dir():
+                continue
+            data = await self.read_json(f"recipes/{session_dir.name}/{recipe_id}.json")
+            if data:
+                return data
+        return None
+
+    async def save_recipe(self, payload: dict[str, Any]) -> None:
+        await self.write_json(
+            self.recipe_rel(payload["session_id"], payload["id"]),
+            payload,
+        )
+
+    async def list_recipes(self, session_id: str) -> list[dict[str, Any]]:
+        directory = self.data_dir / "recipes" / session_id
+        if not directory.exists():
+            return []
+        items = []
+        for path in directory.glob("*.json"):
+            try:
+                items.append(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ApiError(500, "INTERNAL_ERROR", "数据文件损坏，请联系维护者。") from exc
+        items.sort(key=lambda item: item.get("version", 0))
+        return items
+
+    async def load_tasting(self, recipe_id: str, tasting_id: str) -> dict[str, Any] | None:
+        return await self.read_json(self.tasting_rel(recipe_id, tasting_id))
+
+    async def save_tasting(self, payload: dict[str, Any]) -> None:
+        await self.write_json(
+            self.tasting_rel(payload["recipe_id"], payload["id"]),
+            payload,
+        )
+
+    async def list_tastings(self, recipe_id: str) -> list[dict[str, Any]]:
+        directory = self.data_dir / "tastings" / recipe_id
+        if not directory.exists():
+            return []
+        items = []
+        for path in directory.glob("*.json"):
+            try:
+                items.append(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ApiError(500, "INTERNAL_ERROR", "数据文件损坏，请联系维护者。") from exc
+        items.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+        return items
+
+    async def save_adjustment(self, payload: dict[str, Any]) -> None:
+        await self.write_json(
+            self.adjustment_rel(payload["recipe_id"], payload["id"]),
+            payload,
+        )
+
+    async def list_adjustments(self, recipe_id: str) -> list[dict[str, Any]]:
+        directory = self.data_dir / "adjustments" / recipe_id
+        if not directory.exists():
+            return []
+        items = []
+        for path in directory.glob("*.json"):
+            try:
+                items.append(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ApiError(500, "INTERNAL_ERROR", "数据文件损坏，请联系维护者。") from exc
+        items.sort(key=lambda item: item.get("created_at", ""))
+        return items
 
     async def list_feedback(self, session_id: str) -> list[dict[str, Any]]:
         directory = self.data_dir / "feedback"

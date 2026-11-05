@@ -1,0 +1,52 @@
+{
+  "created_at": "2026-11-05T15:48:31Z",
+  "policy": "仅用于真实模型推理与产品验收；禁止微调、批量训练或冒充用户自拍。",
+  "photo": {
+    "title": "Coffee cup seen from above.jpg",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Coffee_cup_seen_from_above.jpg",
+    "direct_url": "https://upload.wikimedia.org/wikipedia/commons/3/3a/Coffee_cup_seen_from_above.jpg",
+    "author": "www.Pixel.la Free Stock Photos (Flickr)",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "bytes": 1003643,
+    "sha256": "351eb4ccac402eb1f683c741248b80f1efa195c85a247bd9abcdd15fb93ac681",
+    "sha1": "19054c84669decf2f1949cba3a566b65bf7ed580",
+    "width": 5422,
+    "height": 3050,
+    "local_path": "work/d5_assets/coffee_cup.jpg",
+    "source_page_saved": "work/d5_assets/photo_page.html",
+    "source_page_sha256": "8b4d8b86c8193ad3ef9f6e95a92ff1eb685d099fad9ffa7361f75b0f6248bf42"
+  },
+  "video": {
+    "title": "A man pours Arabic coffee.ogv",
+    "source_page": "https://commons.wikimedia.org/wiki/File:A_man_pours_Arabic_coffee.ogv",
+    "direct_url": "https://upload.wikimedia.org/wikipedia/commons/2/22/A_man_pours_Arabic_coffee.ogv",
+    "author": "Sarah Canbel",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attribution": "A man pours Arabic coffee.ogv, Sarah Canbel, CC BY-SA 4.0",
+    "original": {
+      "path": "work/d5_assets/arabic_coffee.ogv",
+      "bytes": 1037297,
+      "sha256": "529bfc00f3d43a2333099217e77d5ed47a48e480018edab10964d4d3811a60bc",
+      "sha1": "efcec63ef1ae635bac4250e7aa88c6fe2fedd90e",
+      "format": "ogg/theora",
+      "duration_s": 4.204204,
+      "width": 640,
+      "height": 640
+    },
+    "processed": {
+      "path": "work/d5_assets/arabic_coffee_h264.mp4",
+      "bytes": 486725,
+      "sha256": "4119c7624e8a04c361c087369e321ade4cf0b65f3525590c413ace10a1fdec5f",
+      "format": "mp4/h264",
+      "duration_s": 4.204204,
+      "width": 640,
+      "height": 640,
+      "audio": "removed (-an)",
+      "modification_note": "Transcoded from OGV/Theora to H.264 MP4 and audio removed for model inference/acceptance; no content editing."
+    },
+    "source_page_saved": "work/d5_assets/video_page.html",
+    "source_page_sha256": "17f10d6caa4c28031d1c3bd112deebbfa4c92e58633688e543901080690f99e2"
+  }
+}

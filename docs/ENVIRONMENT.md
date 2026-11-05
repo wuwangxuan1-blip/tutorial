@@ -193,3 +193,31 @@
 | 密钥扫描 | 263 文件、0 匹配、`clean=true` |
 | 真实素材 | 仍 **BLOCKED**；合成短片只用于技术测试 |
 | 未覆盖 | 真机视频证据帧 UI 未复测；Canvas/配方属 D5 |
+## 16. D5 摄影运镜与咖啡配方实测（2026-11-05）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **108 passed / 0 failed**（D5 新增 camera 14、recipe 2、摄影计划 1） |
+| Android 测试 | **52 tests / 0 failures**（CameraMoveValidator 3、CameraPlayback 1、RecipeViewModel 3、Dto +2） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,869,987 字节 |
+| 真实模型 | 摄影计划含合法 `orbit_cw`（8 秒）；V60 计划含 15 g / 225 g / 92 °C / 150 秒；证据帧字节一致的 D4 回归保留 |
+| 真机 | RMX3800 / Android 16 / `eeffd16b`；运镜播放/暂停/重播通过；咖啡 v1 + 品尝表单通过；口味保存/调整/对比 **BLOCKED**（工具权限拒绝） |
+| 未覆盖 | 真机配方单变量调整与对比；设备截图 AI 视觉检查 |
+### D5 补验实测（2026-11-05）
+
+| 项 | 实测 |
+|---|---|
+| 第三方实拍 | CC0 照片反馈 `unclear`；CC BY-SA 4.0 短片主反馈 `unclear`，4/4 帧字节一致；倒咖啡反例 `not_met`，5/5 帧字节一致 |
+| D4 状态 | 第三方实拍链路通过；用户自拍环绕仍 BLOCKED |
+| 运镜 | 新增拖动时间轴 `seek()`；JVM 覆盖，真机新 APK 已装但拖动未再次走查 |
+| 咖啡 | 真实模型 92→90 v2/compare 实际通过；真机 v1+用户评分保存成功，真机调整/对比/断网重试 BLOCKED |
+| 测试/构建 | 服务端 108 passed；Android 52 tests / 0 failures；`assembleDebug` 成功；APK 10,869,987 字节 |
+### D5 复审三项修复实测（2026-11-05）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **111 passed / 0 failed**（配方测试 5 项：计划参数/demo、225→240 派生、92→90、多变量/冲突/失败不写） |
+| Android 测试 | **55 tests / 0 failures**（CameraEasing 2、RecipeViewModel 4） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,896,532 字节 |
+| 真实模型 | 非 demo 路径从计划解析 15/225/15/92/150，用户测试 tasting → 92→90 v2/compare |
+| 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测 |

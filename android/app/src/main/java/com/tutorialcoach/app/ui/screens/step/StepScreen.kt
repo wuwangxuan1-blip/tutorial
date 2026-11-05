@@ -30,6 +30,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.tutorialcoach.app.di.AppContainer
 import com.tutorialcoach.app.domain.DomainStep
 import com.tutorialcoach.app.domain.DomainTimer
+import com.tutorialcoach.app.ui.components.CameraMoveSection
 import com.tutorialcoach.app.ui.components.ErrorBanner
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,7 +100,7 @@ fun StepScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            StepContentCard(step)
+            StepContentCard(step, showVisualAid = currentPlan.domain == "photography")
 
             TimerCard(
                 timer = state.timer,
@@ -363,7 +364,7 @@ private fun AskSection(
 }
 
 @Composable
-private fun StepContentCard(step: DomainStep) {
+private fun StepContentCard(step: DomainStep, showVisualAid: Boolean) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(18.dp),
@@ -376,6 +377,22 @@ private fun StepContentCard(step: DomainStep) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(step.instruction, style = MaterialTheme.typography.bodyLarge)
+            if (showVisualAid) {
+                when {
+                    step.visualAidType == null -> Text(
+                        "本步骤未提供运镜数据，无法播放动画。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    step.visualAidType == "camera_move" && step.cameraMove != null ->
+                        CameraMoveSection(step.cameraMove)
+                    else -> Text(
+                        "运镜数据不可用：不支持的图示类型 ${step.visualAidType}。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
             if (step.why.isNotBlank()) {
                 Section(title = "为什么这样做") {
                     Text(step.why, style = MaterialTheme.typography.bodyMedium)

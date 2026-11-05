@@ -1,0 +1,12 @@
+服务端测试（D5）
+命令：.venv/Scripts/python.exe -m pytest -o addopts=""
+结果：111 passed，0 failed，0 errors
+
+本轮相关：
+- test_camera：14（合法 orbit/zoom/static；NaN、越界、缺路径、类型冲突、方向、缓动、时长、备注/局限）
+- test_recipe：5（按计划已确认参数创建；demo 仅显式选择且须与计划一致；92→90；225→240 派生粉水比；多变量/冲突/无变化/直接改 ratio/非法值失败不写入）
+- test_plan_photography：4（合法 spec 保留；缺失/非法 spec 结构化兜底；无环绕文字时明确缺失）
+- test_plan_flow：coffee 计划域已启用。
+- D4 回归保留：反馈并发进度、计划版本冲突、证据帧与模型输入逐字节一致。
+
+说明：真实计划/配方链路见 codearts_proof/day5/real_flow.json；口味字段由脚本作为用户输入测试值提交，不是真实用户品尝结论。

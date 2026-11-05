@@ -92,6 +92,8 @@ data class DomainStep(
     val commonMistakes: List<String>,
     val evidenceHint: String,
     val mediaPrompt: String,
+    val visualAidType: String? = null,
+    val cameraMove: DomainCameraMoveSpec? = null,
 )
 
 data class DomainPlan(
@@ -162,4 +164,162 @@ data class DomainFeedback(
     val suggestedActions: List<String>,
     val followUpQuestions: List<String>,
     val createdAt: String,
+)
+data class DomainPoint(
+    val x: Double,
+    val y: Double,
+)
+
+data class DomainSubjectAnchor(
+    val x: Double,
+    val y: Double,
+    val label: String,
+)
+
+data class DomainPositionPath(
+    val space: String,
+    val start: DomainPoint,
+    val end: DomainPoint,
+    val control: DomainPoint?,
+    val arc: String,
+)
+
+data class DomainOrientationPath(
+    val startYawDeg: Double,
+    val endYawDeg: Double,
+    val startPitchDeg: Double,
+    val endPitchDeg: Double,
+)
+
+data class DomainZoomSpec(
+    val startScale: Double,
+    val endScale: Double,
+)
+
+data class DomainCameraMoveSpec(
+    val id: String,
+    val shotType: String,
+    val motionType: String,
+    val technique: String,
+    val subjectAnchor: DomainSubjectAnchor,
+    val positionPath: DomainPositionPath?,
+    val orientationPath: DomainOrientationPath?,
+    val zoom: DomainZoomSpec?,
+    val durationS: Int,
+    val easing: String,
+    val aspectRatio: String,
+    val notes: List<String>,
+    val limitations: List<String>,
+)
+
+data class DomainRecipeVariables(
+    val doseG: Double? = null,
+    val waterG: Double? = null,
+    val ratio: Double? = null,
+    val waterTempC: Double? = null,
+    val grindSetting: String? = null,
+    val brewTimeS: Int? = null,
+    val milkMl: Double? = null,
+    val iceG: Double? = null,
+    val sweetenerG: Double? = null,
+) {
+    fun entries(): List<Pair<String, String>> = buildList {
+        doseG?.let { add("咖啡粉" to "${formatNumber(it)} g") }
+        waterG?.let { add("水" to "${formatNumber(it)} g") }
+        ratio?.let { add("粉水比" to "1:${formatNumber(it)}") }
+        waterTempC?.let { add("水温" to "${formatNumber(it)} °C") }
+        grindSetting?.let { add("研磨" to it) }
+        brewTimeS?.let { add("总时长" to "${it} 秒") }
+        milkMl?.let { add("牛奶" to "${formatNumber(it)} ml") }
+        iceG?.let { add("冰" to "${formatNumber(it)} g") }
+        sweetenerG?.let { add("甜味剂" to "${formatNumber(it)} g") }
+    }
+
+    private fun formatNumber(value: Double): String =
+        if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+}
+
+data class DomainRecipeIngredient(
+    val name: String,
+    val amount: Double,
+    val unit: String,
+)
+
+data class DomainRecipeStep(
+    val id: String,
+    val order: Int,
+    val instruction: String,
+    val durationS: Int,
+    val target: String,
+)
+
+data class DomainRecipe(
+    val id: String,
+    val sessionId: String,
+    val version: Int,
+    val name: String,
+    val brewer: String,
+    val method: String,
+    val servings: Int,
+    val variables: DomainRecipeVariables,
+    val ingredients: List<DomainRecipeIngredient>,
+    val steps: List<DomainRecipeStep>,
+    val sourcePlanVersion: Int,
+    val createdAt: String,
+)
+
+data class DomainTasting(
+    val id: String,
+    val recipeId: String,
+    val recipeVersion: Int,
+    val sourness: Int,
+    val sweetness: Int,
+    val bitterness: Int,
+    val body: Int,
+    val aroma: Int,
+    val aftertaste: Int,
+    val overall: Int,
+    val notes: String,
+    val createdAt: String,
+)
+
+data class DomainAdjustment(
+    val id: String,
+    val recipeId: String,
+    val baseVersion: Int,
+    val newVersion: Int,
+    val variable: String,
+    val fromValue: String,
+    val toValue: String,
+    val reason: String,
+    val expectedEffect: String,
+    val tastingId: String?,
+    val createdAt: String,
+)
+
+data class DomainRecipeVersion(
+    val recipeId: String,
+    val version: Int,
+    val name: String,
+    val variables: DomainRecipeVariables,
+    val createdAt: String,
+    val tasting: DomainTasting?,
+    val adjustment: DomainAdjustment?,
+)
+
+data class DomainVariableDiff(
+    val variable: String,
+    val baseValue: String,
+    val targetValue: String,
+    val delta: Double?,
+)
+
+data class DomainRecipeCompare(
+    val baseRecipeId: String,
+    val baseVersion: Int,
+    val targetRecipeId: String,
+    val targetVersion: Int,
+    val variableDiffs: List<DomainVariableDiff>,
+    val tastingDeltas: Map<String, Int>?,
+    val notes: List<String>,
 )

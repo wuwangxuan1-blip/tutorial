@@ -125,7 +125,7 @@ fun HomeScreen(
             }
 
             Text(
-                text = "当前阶段（P3/D4）开放烹饪、软件与摄影领域的真实模型计划；咖啡领域可创建会话和澄清，计划生成在后续阶段开放。",
+                text = "当前阶段（D5）开放烹饪、软件、摄影与咖啡领域的真实模型计划；咖啡可继续进入 V60 配方、品尝与单变量调整。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

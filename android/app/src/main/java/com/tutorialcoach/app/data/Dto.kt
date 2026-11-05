@@ -73,7 +73,7 @@ data class StepDto(
     @SerialName("safety") val safety: List<String> = emptyList(),
     @SerialName("common_mistakes") val commonMistakes: List<String> = emptyList(),
     @SerialName("timer") val timer: JsonElement? = null,
-    @SerialName("visual_aid") val visualAid: JsonElement? = null,
+    @SerialName("visual_aid") val visualAid: VisualAidDto? = null,
     @SerialName("evidence_hint") val evidenceHint: String = "",
     @SerialName("media_prompt") val mediaPrompt: String = "",
 )
@@ -357,6 +357,218 @@ data class FeedbackDto(
 data class FeedbackListDto(
     @SerialName("items") val items: List<FeedbackDto> = emptyList(),
     @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+@Serializable
+data class PointDto(
+    @SerialName("x") val x: Double,
+    @SerialName("y") val y: Double,
+)
+
+@Serializable
+data class SubjectAnchorDto(
+    @SerialName("x") val x: Double,
+    @SerialName("y") val y: Double,
+    @SerialName("label") val label: String,
+)
+
+@Serializable
+data class PositionPathDto(
+    @SerialName("space") val space: String,
+    @SerialName("start") val start: PointDto,
+    @SerialName("end") val end: PointDto,
+    @SerialName("control") val control: PointDto? = null,
+    @SerialName("arc") val arc: String = "none",
+)
+
+@Serializable
+data class OrientationPathDto(
+    @SerialName("start_yaw_deg") val startYawDeg: Double,
+    @SerialName("end_yaw_deg") val endYawDeg: Double,
+    @SerialName("start_pitch_deg") val startPitchDeg: Double,
+    @SerialName("end_pitch_deg") val endPitchDeg: Double,
+)
+
+@Serializable
+data class ZoomSpecDto(
+    @SerialName("start_scale") val startScale: Double,
+    @SerialName("end_scale") val endScale: Double,
+)
+
+@Serializable
+data class CameraMoveSpecDto(
+    @SerialName("id") val id: String,
+    @SerialName("shot_type") val shotType: String,
+    @SerialName("motion_type") val motionType: String,
+    @SerialName("technique") val technique: String,
+    @SerialName("subject_anchor") val subjectAnchor: SubjectAnchorDto,
+    @SerialName("position_path") val positionPath: PositionPathDto? = null,
+    @SerialName("orientation_path") val orientationPath: OrientationPathDto? = null,
+    @SerialName("zoom") val zoom: ZoomSpecDto? = null,
+    @SerialName("duration_s") val durationS: Int,
+    @SerialName("easing") val easing: String,
+    @SerialName("aspect_ratio") val aspectRatio: String,
+    @SerialName("notes") val notes: List<String> = emptyList(),
+    @SerialName("limitations") val limitations: List<String> = emptyList(),
+)
+
+@Serializable
+data class VisualAidDto(
+    @SerialName("type") val type: String,
+    @SerialName("camera_move") val cameraMove: CameraMoveSpecDto? = null,
+)
+
+@Serializable
+data class RecipeVariablesDto(
+    @SerialName("dose_g") val doseG: Double? = null,
+    @SerialName("water_g") val waterG: Double? = null,
+    @SerialName("ratio") val ratio: Double? = null,
+    @SerialName("water_temp_c") val waterTempC: Double? = null,
+    @SerialName("grind_setting") val grindSetting: String? = null,
+    @SerialName("brew_time_s") val brewTimeS: Int? = null,
+    @SerialName("milk_ml") val milkMl: Double? = null,
+    @SerialName("ice_g") val iceG: Double? = null,
+    @SerialName("sweetener_g") val sweetenerG: Double? = null,
+)
+
+@Serializable
+data class RecipeIngredientDto(
+    @SerialName("name") val name: String,
+    @SerialName("amount") val amount: Double,
+    @SerialName("unit") val unit: String,
+)
+
+@Serializable
+data class RecipeStepDto(
+    @SerialName("id") val id: String,
+    @SerialName("order") val order: Int,
+    @SerialName("instruction") val instruction: String,
+    @SerialName("duration_s") val durationS: Int,
+    @SerialName("target") val target: String,
+)
+
+@Serializable
+data class RecipeDto(
+    @SerialName("id") val id: String,
+    @SerialName("session_id") val sessionId: String,
+    @SerialName("version") val version: Int,
+    @SerialName("name") val name: String,
+    @SerialName("brewer") val brewer: String,
+    @SerialName("method") val method: String,
+    @SerialName("servings") val servings: Int,
+    @SerialName("variables") val variables: RecipeVariablesDto,
+    @SerialName("ingredients") val ingredients: List<RecipeIngredientDto> = emptyList(),
+    @SerialName("steps") val steps: List<RecipeStepDto> = emptyList(),
+    @SerialName("source_plan_version") val sourcePlanVersion: Int,
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+@Serializable
+data class TastingDto(
+    @SerialName("id") val id: String,
+    @SerialName("recipe_id") val recipeId: String,
+    @SerialName("recipe_version") val recipeVersion: Int,
+    @SerialName("sourness") val sourness: Int,
+    @SerialName("sweetness") val sweetness: Int,
+    @SerialName("bitterness") val bitterness: Int,
+    @SerialName("body") val body: Int,
+    @SerialName("aroma") val aroma: Int,
+    @SerialName("aftertaste") val aftertaste: Int,
+    @SerialName("overall") val overall: Int,
+    @SerialName("notes") val notes: String = "",
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+@Serializable
+data class AdjustmentDto(
+    @SerialName("id") val id: String,
+    @SerialName("recipe_id") val recipeId: String,
+    @SerialName("base_version") val baseVersion: Int,
+    @SerialName("new_version") val newVersion: Int,
+    @SerialName("variable") val variable: String,
+    @SerialName("from_value") val fromValue: JsonElement,
+    @SerialName("to_value") val toValue: JsonElement,
+    @SerialName("reason") val reason: String,
+    @SerialName("expected_effect") val expectedEffect: String = "",
+    @SerialName("tasting_id") val tastingId: String? = null,
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+@Serializable
+data class AdjustmentResponseDto(
+    @SerialName("recipe") val recipe: RecipeDto,
+    @SerialName("adjustment") val adjustment: AdjustmentDto,
+)
+
+@Serializable
+data class RecipeVersionDto(
+    @SerialName("recipe_id") val recipeId: String,
+    @SerialName("version") val version: Int,
+    @SerialName("name") val name: String,
+    @SerialName("brewer") val brewer: String,
+    @SerialName("method") val method: String,
+    @SerialName("servings") val servings: Int,
+    @SerialName("variables") val variables: RecipeVariablesDto,
+    @SerialName("created_at") val createdAt: String = "",
+    @SerialName("tasting") val tasting: TastingDto? = null,
+    @SerialName("adjustment") val adjustment: AdjustmentDto? = null,
+)
+
+@Serializable
+data class RecipeRefDto(
+    @SerialName("recipe_id") val recipeId: String,
+    @SerialName("version") val version: Int,
+)
+
+@Serializable
+data class VariableDiffDto(
+    @SerialName("variable") val variable: String,
+    @SerialName("base_value") val baseValue: JsonElement? = null,
+    @SerialName("target_value") val targetValue: JsonElement? = null,
+    @SerialName("delta") val delta: Double? = null,
+)
+
+@Serializable
+data class TastingComparisonDto(
+    @SerialName("base_tasting_id") val baseTastingId: String,
+    @SerialName("target_tasting_id") val targetTastingId: String,
+    @SerialName("deltas") val deltas: Map<String, Int> = emptyMap(),
+)
+
+@Serializable
+data class RecipeCompareDto(
+    @SerialName("base") val base: RecipeRefDto,
+    @SerialName("target") val target: RecipeRefDto,
+    @SerialName("variable_diffs") val variableDiffs: List<VariableDiffDto> = emptyList(),
+    @SerialName("tasting_comparison") val tastingComparison: TastingComparisonDto? = null,
+    @SerialName("notes") val notes: List<String> = emptyList(),
+)
+
+@Serializable
+data class RecipeCreateRequestDto(
+    @SerialName("base_plan_version") val basePlanVersion: Int,
+    @SerialName("demo") val demo: Boolean = false,
+)
+
+@Serializable
+data class TastingRequestDto(
+    @SerialName("sourness") val sourness: Int,
+    @SerialName("sweetness") val sweetness: Int,
+    @SerialName("bitterness") val bitterness: Int,
+    @SerialName("body") val body: Int,
+    @SerialName("aroma") val aroma: Int,
+    @SerialName("aftertaste") val aftertaste: Int,
+    @SerialName("overall") val overall: Int,
+    @SerialName("notes") val notes: String = "",
+)
+
+@Serializable
+data class AdjustmentRequestDto(
+    @SerialName("base_version") val baseVersion: Int,
+    @SerialName("variable") val variable: String,
+    @SerialName("to_value") val toValue: JsonElement,
+    @SerialName("reason") val reason: String,
+    @SerialName("tasting_id") val tastingId: String? = null,
 )
 
 @Serializable

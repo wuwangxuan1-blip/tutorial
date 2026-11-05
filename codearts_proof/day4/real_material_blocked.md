@@ -13,3 +13,9 @@
 - 真实视觉反馈明确识别截图为“2 人份 30 分钟西红柿鸡蛋面实践计划”的步骤卡页面，并指出“本次没有提交任何咖啡杯取景照片或视频帧”。
 - 因此上述走查**不是真实拍摄验收**；真实咖啡照片/真实短片反馈仍为 **BLOCKED**，解阻条件不变。
 - 未用截图或合成素材冒充真实拍摄结果。
+## 2026-11-05 第三方实拍补验（第三方链路通过，用户自拍仍 BLOCKED）
+
+- 使用 Wikimedia CC0 照片 `Coffee cup seen from above.jpg` 与 CC BY-SA 4.0 短片 `A man pours Arabic coffee.ogv`（Sarah Canbel）通过真实后端/真实视觉模型各跑一次反馈。
+- 照片实际输出 `unclear`（主体、构图、可见光线均被描述；无口味/安全推断）；短片主反馈 `unclear`，4/4 证据帧与模型输入逐字节一致；倒咖啡短片提交到“手机环绕拍咖啡 8 秒”步骤 3，模型实际返回 `not_met`，明确指出去咖啡动作而非环绕。
+- 因此 **第三方公开授权实拍链路已通过**；但 **用户自拍“环绕咖啡 8 秒”素材仍缺失，用户自拍环绕反馈仍 BLOCKED**。
+- 详细来源、许可、SHA-256、处理与输出见 `codearts_proof/day5/third_party_assets.json`、`codearts_proof/day5/third_party/README.md`、`real_feedback.json`。素材未用于微调/批量训练，未冒充用户自拍。

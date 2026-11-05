@@ -1,5 +1,6 @@
 package com.tutorialcoach.app.data
 
+import com.tutorialcoach.app.domain.CameraMoveValidator
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -99,6 +100,94 @@ class DtoTest {
         assertEquals("step_1", plan.steps.first().id)
         assertEquals(300, plan.steps.first().durationS)
         assertEquals(listOf("番茄切块"), plan.steps.first().completionCriteria)
+    }
+
+    @Test
+    fun cameraMoveVisualAidParsesAndValidates() {
+        val payload = """
+            {
+              "id": "plan_cam",
+              "session_id": "sess_cam",
+              "version": 1,
+              "domain": "photography",
+              "title": "环绕拍咖啡",
+              "summary": "",
+              "assumptions": [],
+              "preparation": [{"id": "prep_1", "text": "摆好咖啡杯", "optional": false}],
+              "steps": [
+                {
+                  "id": "step_1",
+                  "order": 1,
+                  "phase": "execute",
+                  "title": "环绕",
+                  "instruction": "绕杯一周。",
+                  "duration_s": 8,
+                  "completion_criteria": ["主体在画面内"],
+                  "visual_aid": {
+                    "type": "camera_move",
+                    "camera_move": {
+                      "id": "cam_1",
+                      "shot_type": "orbit_cw",
+                      "motion_type": "camera_move",
+                      "technique": "handheld",
+                      "subject_anchor": {"x": 0.5, "y": 0.5, "label": "咖啡杯"},
+                      "position_path": {
+                        "space": "normalized_top_down",
+                        "start": {"x": 0.3, "y": 0.7},
+                        "end": {"x": 0.7, "y": 0.3},
+                        "control": null,
+                        "arc": "cw"
+                      },
+                      "orientation_path": null,
+                      "zoom": null,
+                      "duration_s": 8,
+                      "easing": "ease_in_out",
+                      "aspect_ratio": "9:16",
+                      "notes": [],
+                      "limitations": ["2D 俯视示意，不代表真实焦距。"]
+                    }
+                  }
+                }
+              ],
+              "total_estimated_min": 15,
+              "safety_notes": [],
+              "reference_ids": [],
+              "created_at": "2026-11-05T00:00:00Z"
+            }
+        """.trimIndent()
+
+        val plan = json.decodeFromString(PlanDto.serializer(), payload).toDomain()
+        val camera = plan.steps.first().cameraMove
+        assertEquals("camera_move", plan.steps.first().visualAidType)
+        assertEquals("orbit_cw", camera?.shotType)
+        assertTrue(CameraMoveValidator.validate(camera!!).isEmpty())
+    }
+
+    @Test
+    fun recipeDtoParsesVariablesAndSteps() {
+        val payload = """
+            {
+              "id": "recipe_01",
+              "session_id": "sess_01",
+              "version": 1,
+              "name": "V60 手冲",
+              "brewer": "V60",
+              "method": "pour_over",
+              "servings": 1,
+              "variables": {"dose_g": 15, "water_g": 225, "ratio": 15.0, "water_temp_c": 92, "grind_setting": "中细", "brew_time_s": 150},
+              "ingredients": [{"name": "咖啡豆", "amount": 15, "unit": "g"}],
+              "steps": [{"id": "rst_1", "order": 1, "instruction": "闷蒸 30 秒", "duration_s": 30, "target": "粉层湿润"}],
+              "source_plan_version": 1,
+              "created_at": "2026-11-05T00:00:00Z"
+            }
+        """.trimIndent()
+
+        val recipe = json.decodeFromString(RecipeDto.serializer(), payload).toDomain()
+        assertEquals(15.0, recipe.variables.doseG!!, 0.001)
+        assertEquals(225.0, recipe.variables.waterG!!, 0.001)
+        assertEquals(92.0, recipe.variables.waterTempC!!, 0.001)
+        assertEquals("中细", recipe.variables.grindSetting)
+        assertEquals(1, recipe.steps.size)
     }
 
     @Test
