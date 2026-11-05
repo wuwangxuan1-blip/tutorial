@@ -1,11 +1,11 @@
 服务端测试（D4）
 命令：.venv/Scripts/python.exe -m pytest -o addopts=""
-结果：88 passed，0 failed，0 errors
+结果：90 passed，0 failed，0 errors
 
 分套件（本轮相关）：
 - test_media: 4（格式/大小/解码、视频时长/大小/解码、删除引用）
-- test_feedback: 5（图片证据、证据缺失/错误媒体/图片帧字段、视频时间戳与运动、运动失败、数量/混用/版本/视觉不可用）
+- test_feedback: 7（图片证据、证据缺失/错误媒体/图片帧字段、视频时间戳与运动、运动失败、数量/混用/版本/视觉不可用；新增分析期间保存进度、分析期间应用修订）
 - test_plan_photography: 3（visual_aid=null、合法 CameraMoveSpec、非法丢弃并提示）
 - 既有 D3 与契约回归全部保留通过。
 
-覆盖：JPEG/PNG/WebP、10 MiB、1–4 图/1 视频、31 秒视频拒绝、视频解码失败、HEIC 415、媒体引用删除 409、证据必须属于本次媒体、视频 frame_index/timestamp 校验、motion_metrics null + limitation、audio_analyzed=false、反馈不自动完成步骤、视觉不可用不生成反馈。
+覆盖：JPEG/PNG/WebP、10 MiB、1–4 图/1 视频、31 秒视频拒绝、视频解码失败、HEIC 415、媒体引用删除 409、证据必须属于本次媒体、视频 frame_index/timestamp 校验、motion_metrics null + limitation、audio_analyzed=false、反馈不自动完成步骤、视觉不可用不生成反馈；反馈写入加会话锁、重读最新会话并只合并证据等级，计划版本变化返回 409 且不写 Feedback。

@@ -41,6 +41,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.tutorialcoach.app.di.AppContainer
 import com.tutorialcoach.app.domain.DomainFeedback
+import com.tutorialcoach.app.domain.DomainObservationEvidence
 import com.tutorialcoach.app.platform.MediaPreparer
 import com.tutorialcoach.app.ui.components.ErrorBanner
 import java.io.File
@@ -260,7 +261,7 @@ private fun FeedbackCard(
                     "图片证据"
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    EvidenceThumbnail(state, evidence.mediaId, Modifier.size(72.dp))
+                    EvidenceThumbnail(state, evidence, Modifier.size(72.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(observation.text, style = MaterialTheme.typography.bodyMedium)
                         Text("$label · 把握：${certaintyLabel(observation.certainty)}", style = MaterialTheme.typography.bodySmall)
@@ -300,18 +301,29 @@ private fun FeedbackCard(
 }
 
 @Composable
-private fun EvidenceThumbnail(state: MediaUiState, mediaId: String, modifier: Modifier = Modifier) {
-    val file = remember(state.uploaded, state.images, state.video, mediaId) {
-        state.images.forEachIndexed { index, image ->
-            if (state.uploaded["image_$index"]?.id == mediaId) return@remember image.file
+private fun EvidenceThumbnail(
+    state: MediaUiState,
+    evidence: DomainObservationEvidence,
+    modifier: Modifier = Modifier,
+) {
+    val file = remember(state.uploaded, state.images, state.video, state.evidenceFrames, evidence) {
+        if (evidence.kind == "video_frame") {
+            state.evidenceFrameFile(evidence.mediaId, evidence.frameIndex, evidence.timestampS)
+        } else {
+            state.images.forEachIndexed { index, image ->
+                if (state.uploaded["image_$index"]?.id == evidence.mediaId) return@remember image.file
+            }
+            null
         }
-        if (state.uploaded["video"]?.id == mediaId) state.video?.thumbnail
-        else null
     }
     if (file != null) {
         LocalImage(file, modifier)
     } else {
-        Text("媒体 $mediaId", style = MaterialTheme.typography.bodySmall)
+        Text(
+            if (evidence.kind == "video_frame") "证据帧不可用" else "媒体 ${evidence.mediaId}",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = modifier,
+        )
     }
 }
 

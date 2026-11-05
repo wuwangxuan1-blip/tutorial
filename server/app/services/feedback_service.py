@@ -279,25 +279,60 @@ class FeedbackService:
             "revision_id": None,
             "created_at": _now(),
         }
-        await self.store.save_feedback(feedback)
-        if analysis.observations:
-            await self._mark_model_observed(session, step["id"])
+        await self._persist_feedback(
+            feedback,
+            plan_version=plan["version"],
+            step_id=step["id"],
+            mark_observed=bool(analysis.observations),
+        )
         return feedback
 
-    async def _mark_model_observed(
+    async def _persist_feedback(
         self,
-        session: dict[str, Any],
+        feedback: dict[str, Any],
+        *,
+        plan_version: int,
         step_id: str,
+        mark_observed: bool,
     ) -> None:
-        progress = dict(session.get("progress") or {})
-        evidence_levels = dict(progress.get("evidence_levels") or {})
-        if evidence_levels.get(step_id) != "measured":
-            evidence_levels[step_id] = "model_observed"
-        progress["evidence_levels"] = evidence_levels
-        progress["updated_at"] = _now()
-        session["progress"] = progress
-        session["updated_at"] = _now()
-        await self.store.save_session(session)
+        session_id = feedback["session_id"]
+        async with self.store.lock(self.store.session_rel(session_id)):
+            fresh = await self.store.load_session(session_id)
+            if not fresh:
+                raise not_found("会话不存在。")
+            if fresh["status"] in (
+                SessionStatus.completed.value,
+                SessionStatus.abandoned.value,
+            ):
+                raise ApiError(409, "SESSION_NOT_EDITABLE", "会话已结束，不能写入反馈。")
+            current_version = fresh.get("current_plan_version")
+            if current_version != plan_version:
+                raise ApiError(
+                    409,
+                    "VERSION_CONFLICT",
+                    "计划版本已变化，反馈结果未写入，请刷新后重试。",
+                    details={"current_plan_version": current_version},
+                )
+            current_plan = await self.store.load_plan(session_id, plan_version)
+            if not current_plan or step_id not in {
+                step["id"] for step in current_plan["steps"]
+            }:
+                raise invalid_request(
+                    "步骤不属于当前计划。",
+                    {"field": "step_id", "reason": "unknown_step"},
+                )
+            if mark_observed:
+                progress = dict(fresh.get("progress") or {})
+                evidence_levels = dict(progress.get("evidence_levels") or {})
+                if evidence_levels.get(step_id) != "measured":
+                    evidence_levels[step_id] = "model_observed"
+                progress["evidence_levels"] = evidence_levels
+                progress["updated_at"] = _now()
+                fresh["progress"] = progress
+                fresh["updated_at"] = _now()
+            await self.store.save_feedback(feedback)
+            if mark_observed:
+                await self.store.save_session(fresh)
 
     async def get(self, feedback_id: str) -> dict[str, Any]:
         feedback = await self.store.load_feedback(feedback_id)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from app.errors import ApiError
 from app.services import feedback_service as feedback_module
 from test_media import image_bytes, upload, video_bytes
@@ -254,3 +256,149 @@ async def test_feedback_request_validation_and_vision_unsupported(client, monkey
     assert job["status"] == "failed"
     assert job["error"]["error"]["code"] == "VISION_UNSUPPORTED"
     assert (await client.get(f"/v1/sessions/{session['id']}/feedback")).json()["items"] == []
+
+
+async def test_feedback_analysis_keeps_progress_saved_while_model_runs(
+    client,
+    monkeypatch,
+):
+    session, _ = await setup_plan(client, monkeypatch)
+    media = (await upload(client, image_bytes(), "image/jpeg", "photo.jpg", "image")).json()
+    started = asyncio.Event()
+    release = asyncio.Event()
+    fake = fake_vision(media["id"])
+
+    async def hanging_chat(
+        system_prompt,
+        user_prompt,
+        model=None,
+        timeout_s=None,
+        vision_images=None,
+    ):
+        started.set()
+        await release.wait()
+        return await fake(system_prompt, user_prompt, model, timeout_s, vision_images)
+
+    monkeypatch.setattr(client.app.state.model_client, "chat_json", hanging_chat)
+    response = await client.post(
+        f"/v1/sessions/{session['id']}/feedback-jobs",
+        json={
+            "step_id": "step_1",
+            "plan_version": 1,
+            "media_ids": [media["id"]],
+        },
+    )
+    assert response.status_code == 202, response.text
+    await asyncio.wait_for(started.wait(), timeout=5)
+
+    timer = {
+        "step_id": "step_1",
+        "state": "running",
+        "duration_s": 300,
+        "remaining_s": 300,
+        "anchor_elapsed_ms": 1000,
+        "saved_at_epoch_ms": 1793789100000,
+        "updated_at": "2026-11-04T08:05:00Z",
+    }
+    patched = await client.patch(
+        f"/v1/sessions/{session['id']}/progress",
+        json={
+            "base_plan_version": 1,
+            "current_step_id": "step_1",
+            "step_statuses": {"step_1": "in_progress"},
+            "timer": timer,
+        },
+    )
+    assert patched.status_code == 200, patched.text
+
+    release.set()
+    job = await wait_job(client, response.json()["id"])
+    assert job["status"] == "succeeded", job
+
+    fresh = (await client.get(f"/v1/sessions/{session['id']}")).json()
+    progress = fresh["progress"]
+    assert fresh["current_plan_version"] == 1
+    assert fresh["status"] == "in_progress"
+    assert progress["current_step_id"] == "step_1"
+    assert progress["step_statuses"] == {"step_1": "in_progress"}
+    assert progress["timer"] == timer
+    assert progress["evidence_levels"]["step_1"] == "model_observed"
+
+
+async def test_feedback_analysis_does_not_write_after_revision_changes_plan(
+    client,
+    monkeypatch,
+):
+    session, _ = await setup_plan(client, monkeypatch)
+    media = (await upload(client, image_bytes(), "image/jpeg", "photo.jpg", "image")).json()
+    started = asyncio.Event()
+    release = asyncio.Event()
+    fake = fake_vision(media["id"])
+    calls = {"count": 0}
+
+    async def chat(
+        system_prompt,
+        user_prompt,
+        model=None,
+        timeout_s=None,
+        vision_images=None,
+    ):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            started.set()
+            await release.wait()
+            return await fake(system_prompt, user_prompt, model, timeout_s, vision_images)
+        return {
+            "changes": [
+                {
+                    "op": "update",
+                    "step_id": "step_2",
+                    "after": {"duration_s": 90},
+                    "reason": "缩短炒制时间。",
+                }
+            ]
+        }
+
+    monkeypatch.setattr(client.app.state.model_client, "chat_json", chat)
+    feedback_response = await client.post(
+        f"/v1/sessions/{session['id']}/feedback-jobs",
+        json={
+            "step_id": "step_1",
+            "plan_version": 1,
+            "media_ids": [media["id"]],
+        },
+    )
+    assert feedback_response.status_code == 202, feedback_response.text
+    await asyncio.wait_for(started.wait(), timeout=5)
+
+    revision_response = await client.post(
+        f"/v1/sessions/{session['id']}/revision-jobs",
+        json={
+            "feedback_id": None,
+            "base_plan_version": 1,
+            "request_reason": "缩短炒制时间。",
+        },
+    )
+    assert revision_response.status_code == 202, revision_response.text
+    revision_job = await wait_job(client, revision_response.json()["id"])
+    assert revision_job["status"] == "succeeded", revision_job
+    revision_id = revision_job["result"]["revision_id"]
+    applied = await client.post(
+        f"/v1/sessions/{session['id']}/revisions/{revision_id}/apply",
+        json={"base_plan_version": 1},
+    )
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["plan"]["version"] == 2
+
+    release.set()
+    feedback_job = await wait_job(client, feedback_response.json()["id"])
+    assert feedback_job["status"] == "failed"
+    assert feedback_job["error"]["error"]["code"] == "VERSION_CONFLICT"
+    assert feedback_job["error"]["error"]["details"]["current_plan_version"] == 2
+
+    fresh = (await client.get(f"/v1/sessions/{session['id']}")).json()
+    assert fresh["current_plan_version"] == 2
+    assert fresh["progress"]["step_statuses"] == {}
+    assert fresh["progress"]["evidence_levels"]["step_1"] == "media_submitted"
+    assert (await client.get(f"/v1/sessions/{session['id']}/feedback")).json()["items"] == []
+    assert await client.app.state.store.list_feedback(session["id"]) == []

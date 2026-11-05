@@ -12,6 +12,8 @@ import com.tutorialcoach.app.data.SessionActions
 import com.tutorialcoach.app.domain.DomainAnswer
 import com.tutorialcoach.app.domain.DomainFeedback
 import com.tutorialcoach.app.domain.DomainImpact
+import com.tutorialcoach.app.domain.DomainObservation
+import com.tutorialcoach.app.domain.DomainObservationEvidence
 import com.tutorialcoach.app.domain.DomainPlan
 import com.tutorialcoach.app.domain.DomainProgress
 import com.tutorialcoach.app.domain.DomainRevision
@@ -32,6 +34,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -88,10 +93,10 @@ class MediaViewModelTest {
         currentPlanVersion = 1,
     )
 
-    private fun media(id: String) = MediaDto(
+    private fun media(id: String, kind: String = "image") = MediaDto(
         id = id,
-        kind = "image",
-        mime = "image/jpeg",
+        kind = kind,
+        mime = if (kind == "video") "video/mp4" else "image/jpeg",
         sizeBytes = 100,
         width = 100,
         height = 100,
@@ -137,6 +142,33 @@ class MediaViewModelTest {
         createdAt = "2026-11-05T00:00:00Z",
     )
 
+    private fun videoFeedback() = feedback().copy(
+        mediaIds = listOf("media_1"),
+        observations = listOf(
+            DomainObservation(
+                text = "第 0 秒画面可见主体。",
+                evidence = DomainObservationEvidence(
+                    mediaId = "media_1",
+                    kind = "video_frame",
+                    frameIndex = 0,
+                    timestampS = 0.0,
+                ),
+                certainty = "high",
+            ),
+            DomainObservation(
+                text = "第 2 秒画面可见主体。",
+                evidence = DomainObservationEvidence(
+                    mediaId = "media_1",
+                    kind = "video_frame",
+                    frameIndex = 2,
+                    timestampS = 2.0,
+                ),
+                certainty = "high",
+            ),
+        ),
+        sampledFrameTimestampsS = listOf(0.0, 1.0, 2.0),
+    )
+
     private inner class FakeSessions : SessionActions {
         private val _session = MutableStateFlow<DomainSession?>(session())
         override val session: StateFlow<DomainSession?> = _session
@@ -170,6 +202,7 @@ class MediaViewModelTest {
         var failUpload = false
         var job: JobDto = successJob("fb_1")
         var uploadCalls = 0
+        var feedbackResult: DomainFeedback = feedback()
 
         override suspend fun uploadMedia(
             file: File,
@@ -180,7 +213,7 @@ class MediaViewModelTest {
             uploadCalls += 1
             if (failUpload) throw ApiException("MEDIA_DECODE_FAILED", "upload failed")
             onProgress(1f)
-            return media("media_1")
+            return media("media_1", kind)
         }
 
         override suspend fun createFeedbackJob(
@@ -190,19 +223,43 @@ class MediaViewModelTest {
         ): JobDto = job
 
         override suspend fun getJob(jobId: String): JobDto = job
-        override suspend fun getFeedback(feedbackId: String): DomainFeedback = feedback()
+        override suspend fun getFeedback(feedbackId: String): DomainFeedback = feedbackResult
         override suspend fun listFeedback(sessionId: String, stepId: String?): List<DomainFeedback> =
             listOf(feedback())
     }
 
     private inner class FakeLoader : MediaLoader {
+        val frameRequests = mutableListOf<Double>()
+        var failFrameExtraction = false
+
         override fun prepareImage(uri: String): PreparedImage {
             val file = File.createTempFile("media_test_", ".jpg")
             file.writeBytes(ByteArray(100))
             return PreparedImage(uri, file, 100, 100)
         }
 
-        override fun prepareVideo(uri: String): PreparedVideo = throw UnsupportedOperationException()
+        override fun prepareVideo(uri: String): PreparedVideo {
+            val file = File.createTempFile("media_video_", ".mp4")
+            file.writeBytes(ByteArray(64))
+            val thumbnail = File.createTempFile("media_thumb_", ".jpg")
+            thumbnail.writeBytes(ByteArray(8))
+            return PreparedVideo(
+                uri = uri,
+                file = file,
+                durationMs = 2000L,
+                sizeBytes = file.length(),
+                thumbnail = thumbnail,
+                mime = "video/mp4",
+            )
+        }
+
+        override fun extractEvidenceFrame(videoFile: File, timestampS: Double): File? {
+            frameRequests += timestampS
+            if (failFrameExtraction) return null
+            val file = File.createTempFile("media_frame_", ".jpg")
+            file.writeBytes(ByteArray(4) { timestampS.toInt().toByte() })
+            return file
+        }
     }
 
     @Test
@@ -242,5 +299,46 @@ class MediaViewModelTest {
 
         assertTrue(viewModel.state.value.error?.contains("模型视觉不可用") == true)
         assertEquals(null, viewModel.state.value.feedback)
+    }
+
+    @Test
+    fun videoEvidenceFramesFollowEachObservationTimestamp() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        gateway.feedbackResult = videoFeedback()
+        val loader = FakeLoader()
+        val viewModel = MediaViewModel(FakeSessions(), gateway, loader, dispatcher)
+        viewModel.setVideo("content://video/1")
+        viewModel.setPrivacyAccepted(true)
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(listOf(0.0, 2.0), loader.frameRequests)
+        val state = viewModel.state.value
+        val first = state.evidenceFrameFile("media_1", 0, 0.0)
+        val second = state.evidenceFrameFile("media_1", 2, 2.0)
+        assertNotNull(first)
+        assertNotNull(second)
+        assertNotEquals(first!!.absolutePath, second!!.absolutePath)
+        assertNull(state.evidenceFrameFile("media_1", 1, 1.0))
+    }
+
+    @Test
+    fun missingEvidenceFrameIsUnavailableWithoutVideoThumbnailFallback() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        gateway.feedbackResult = videoFeedback()
+        val loader = FakeLoader().apply { failFrameExtraction = true }
+        val viewModel = MediaViewModel(FakeSessions(), gateway, loader, dispatcher)
+        viewModel.setVideo("content://video/1")
+        viewModel.setPrivacyAccepted(true)
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertNotNull(state.video?.thumbnail)
+        assertTrue(state.evidenceFrames.isEmpty())
+        assertNull(state.evidenceFrameFile("media_1", 0, 0.0))
+        assertNull(state.evidenceFrameFile("media_1", 2, 2.0))
     }
 }

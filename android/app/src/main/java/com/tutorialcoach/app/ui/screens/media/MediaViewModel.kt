@@ -17,12 +17,15 @@ import com.tutorialcoach.app.platform.PreparedVideo
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class MediaUiState(
     val images: List<PreparedImage> = emptyList(),
@@ -34,10 +37,22 @@ data class MediaUiState(
     val submitting: Boolean = false,
     val uploaded: Map<String, MediaDto> = emptyMap(),
     val feedback: DomainFeedback? = null,
+    val evidenceFrames: Map<String, File> = emptyMap(),
     val error: String? = null,
     val retryable: Boolean = false,
     val message: String? = null,
 )
+
+fun evidenceFrameKey(mediaId: String, frameIndex: Int?, timestampS: Double?): String? {
+    if (frameIndex == null || timestampS == null) return null
+    return "$mediaId|$frameIndex|$timestampS"
+}
+
+fun MediaUiState.evidenceFrameFile(
+    mediaId: String,
+    frameIndex: Int?,
+    timestampS: Double?,
+): File? = evidenceFrameKey(mediaId, frameIndex, timestampS)?.let { evidenceFrames[it] }
 
 private data class UploadItem(
     val key: String,
@@ -50,6 +65,7 @@ class MediaViewModel(
     private val sessionActions: SessionActions,
     private val feedbackGateway: FeedbackGateway,
     private val loader: MediaLoader,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val _state = MutableStateFlow(MediaUiState())
     val state: StateFlow<MediaUiState> = _state.asStateFlow()
@@ -72,12 +88,14 @@ class MediaViewModel(
                     throw MediaValidationException(it)
                 }
             }
+            deleteEvidenceFrames()
             _state.update {
                 it.copy(
                     images = (it.images + prepared).take(MediaLimits.MAX_IMAGES),
                     video = null,
                     uploaded = emptyMap(),
                     feedback = null,
+                    evidenceFrames = emptyMap(),
                     error = null,
                     message = null,
                 )
@@ -92,12 +110,14 @@ class MediaViewModel(
     fun setVideo(uri: String) {
         try {
             val prepared = loader.prepareVideo(uri)
+            deleteEvidenceFrames()
             _state.update {
                 it.copy(
                     video = prepared,
                     images = emptyList(),
                     uploaded = emptyMap(),
                     feedback = null,
+                    evidenceFrames = emptyMap(),
                     error = null,
                     message = null,
                 )
@@ -111,11 +131,13 @@ class MediaViewModel(
 
     fun removeImage(image: PreparedImage) {
         image.file.delete()
+        deleteEvidenceFrames()
         _state.update {
             it.copy(
                 images = it.images - image,
                 uploaded = emptyMap(),
                 feedback = null,
+                evidenceFrames = emptyMap(),
             )
         }
     }
@@ -124,12 +146,14 @@ class MediaViewModel(
         _state.value.images.forEach { it.file.delete() }
         _state.value.video?.file?.delete()
         _state.value.video?.thumbnail?.delete()
+        deleteEvidenceFrames()
         _state.update {
             it.copy(
                 images = emptyList(),
                 video = null,
                 uploaded = emptyMap(),
                 feedback = null,
+                evidenceFrames = emptyMap(),
                 error = null,
             )
         }
@@ -258,13 +282,38 @@ class MediaViewModel(
         }
         val feedbackId = finished.result?.feedbackId ?: error("反馈结果缺少 feedback_id")
         val feedback = feedbackGateway.getFeedback(feedbackId)
+        val evidenceFrames = loadEvidenceFrames(feedback)
         _state.update {
             it.copy(
                 submitting = false,
                 feedback = feedback,
+                evidenceFrames = evidenceFrames,
                 message = "反馈已生成；媒体证据与局限见下方。",
             )
         }
+    }
+
+    private suspend fun loadEvidenceFrames(feedback: DomainFeedback): Map<String, File> {
+        val video = _state.value.video ?: return emptyMap()
+        val videoMediaId = _state.value.uploaded["video"]?.id ?: return emptyMap()
+        return withContext(ioDispatcher) {
+            feedback.observations.mapNotNull { observation ->
+                val evidence = observation.evidence
+                if (evidence.kind != "video_frame" || evidence.mediaId != videoMediaId) {
+                    return@mapNotNull null
+                }
+                val timestamp = evidence.timestampS ?: return@mapNotNull null
+                val key = evidenceFrameKey(evidence.mediaId, evidence.frameIndex, timestamp)
+                    ?: return@mapNotNull null
+                val frame = loader.extractEvidenceFrame(video.file, timestamp)
+                    ?: return@mapNotNull null
+                key to frame
+            }.toMap()
+        }
+    }
+
+    private fun deleteEvidenceFrames() {
+        _state.value.evidenceFrames.values.forEach { it.delete() }
     }
 
     private suspend fun waitForJob(job: JobDto): JobDto {
@@ -299,6 +348,7 @@ class MediaViewModel(
         _state.value.images.forEach { it.file.delete() }
         _state.value.video?.file?.delete()
         _state.value.video?.thumbnail?.delete()
+        deleteEvidenceFrames()
         super.onCleared()
     }
 }

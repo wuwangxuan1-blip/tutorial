@@ -256,3 +256,13 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 - 视频运动指标对真实拍摄的准确性未验证；合成视频只证明方法可运行。
 - Canvas 运镜播放、咖啡配方属 D5；反馈驱动修订未在 D4 Android 页面接入。
 - 音频始终不分析；HEIC 在 API 26/27 设备上的转换能力未验证。
+## 14. D4 复审修复（2026-11-05）
+
+基线：`ba1eb52`（D4 功能/证据提交 `d532ce0`）。本轮只修以下两项，不进入 D5。
+
+| 问题 | 修复 | 回归测试 |
+|---|---|---|
+| P1 反馈分析结束写回旧会话快照，覆盖分析期间保存的进度/计时或修订 | `feedback_service._persist_feedback` 在会话锁内重读最新会话，核对状态、计划版本与步骤；版本变化返回 409 `VERSION_CONFLICT` 且不写 Feedback；只合并 `evidence_levels[step_id]`，保留最新 `current_step_id`/`step_statuses`/`timer` | `test_feedback_analysis_keeps_progress_saved_while_model_runs`、`test_feedback_analysis_does_not_write_after_revision_changes_plan` |
+| P2 视频观察缩略图复用视频开头预览 | 新增 `MediaLoader.extractEvidenceFrame`（`MediaMetadataRetriever` 按 timestamp 取帧）；`MediaViewModel` 按 `mediaId|frameIndex|timestampS` 生成证据帧；反馈页视频帧缺失显示“证据帧不可用”，不回退开头缩略图 | `videoEvidenceFramesFollowEachObservationTimestamp`、`missingEvidenceFrameIsUnavailableWithoutVideoThumbnailFallback` |
+
+本轮实测：服务端 **90 passed / 0 failed**；安卓 **43 tests / 0 failures**（`MediaViewModelTest` 4 项）；`assembleDebug` BUILD SUCCESSFUL；APK 10,798,800 字节；`git diff --check` 通过；密钥扫描 262 文件、0 匹配、clean。真实拍摄图片/短片反馈仍为 **BLOCKED**（真机走查用的相册截图不是咖啡拍摄素材）。

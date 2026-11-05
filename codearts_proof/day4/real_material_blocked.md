@@ -7,3 +7,9 @@
   - 真实视觉探针：`vision_probe.json`（文本/JSON/视觉 ok，橙色识别正确）。
   - 真实视觉 + 合成素材技术反馈：`technical_synthetic_feedback.json`（图片与 8 秒合成短片；模型明确指出是合成素材，评估 `not_verified`）。
 - 解阻条件：提供 1 张真实拍摄照片（JPEG/PNG/WebP，≤10 MiB）与 1 段真实短片（MP4/MOV，≤30 秒、≤100 MiB），再分别提交反馈并保存脱敏结果。设备端还需真机走查 Photo Picker 与上传/反馈页。
+## 2026-11-05 真机技术走查更新（仍 BLOCKED）
+
+- 真机走查使用设备相册中的**界面截图**（来源 `codearts_proof/day1/device_step.png`，本地副本 `work/device_d4/tech_photo.png`）与 8 秒合成 testsrc 短片，仅用于验证 Photo Picker、图片压缩、上传、反馈页与真实视觉链路。
+- 真实视觉反馈明确识别截图为“2 人份 30 分钟西红柿鸡蛋面实践计划”的步骤卡页面，并指出“本次没有提交任何咖啡杯取景照片或视频帧”。
+- 因此上述走查**不是真实拍摄验收**；真实咖啡照片/真实短片反馈仍为 **BLOCKED**，解阻条件不变。
+- 未用截图或合成素材冒充真实拍摄结果。

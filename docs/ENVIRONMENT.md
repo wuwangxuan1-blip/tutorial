@@ -169,3 +169,14 @@
 | APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,783,309 字节 |
 | 真实图片/短片反馈 | **BLOCKED**：缺用户真实拍摄素材；未用截图或合成素材冒充真实拍摄 |
 | 未覆盖 | 设备端 Photo Picker/上传/反馈页未走查；真实素材反馈、HEIC 在 API 26/27 的转换未验证 |
+## 14. D4 复审修复实测（2026-11-05）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **90 passed**（D4 基线 88 + 反馈会话锁/版本冲突 2 项） |
+| Android 测试 | **43 tests / 0 failures**（`MediaViewModelTest` 4 项；新增视频证据帧时间戳与缺失不回退 2 项） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,798,800 字节（复审修复后重构建） |
+| `git diff --check` | 通过（exit 0） |
+| 密钥扫描 | 261 文件、0 匹配、`clean=true` |
+| 真实素材 | 仍 **BLOCKED**：真机技术走查使用界面截图，不是咖啡拍摄；真实图片/短片反馈未验收 |
+| 未覆盖 | 真机视频证据帧 UI 未复测（JVM 覆盖提取映射与无回退）；Canvas/配方属 D5 |

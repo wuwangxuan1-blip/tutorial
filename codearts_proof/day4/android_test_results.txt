@@ -1,6 +1,6 @@
 Android JVM 测试（D4）
-命令：gradlew.bat --no-daemon --console=plain :app:testDebugUnitTest
-结果：BUILD SUCCESSFUL；41 tests，0 failures，0 errors
+命令：gradlew.bat --no-daemon --console=plain :app:testDebugUnitTest --rerun-tasks
+结果：BUILD SUCCESSFUL；43 tests，0 failures，0 errors
 
 分套件：
 - ContractExamplesTest: 6
@@ -10,8 +10,8 @@ Android JVM 测试（D4）
 - MediaLimitsTest: 2（图片 10 MiB；视频 30 秒/100 MiB）
 - PlanValidatorTest: 4
 - TimerEngineTest: 3
-- MediaViewModelTest: 2（上传失败无假反馈 + 重试；视觉不可用明确报错）
+- MediaViewModelTest: 4（上传失败无假反馈 + 重试；视觉不可用明确报错；视频证据帧按两个不同时间戳提取；证据帧缺失不回退视频开头缩略图）
 - PlanViewModelTest: 3
 - StepViewModelTest: 11
 
-D4 新增覆盖：图片/视频限制；上传失败保留可重试状态且不生成反馈；重试成功；VISION_UNSUPPORTED 显示“模型视觉不可用”且反馈为空。
+D4 复审修复新增覆盖：同一视频两个不同 timestamp/frame_index 的观察分别取帧且文件不同；提取失败时“证据帧不可用”，不得用视频开头预览图冒充。
