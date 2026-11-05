@@ -1,6 +1,6 @@
 # 实现状态
 
-> 最后更新：2026-11-05（P0/D1 + P1/D2 完成；P2/P3 复审修复已实现并完成真机复核，等待复审）
+> 最后更新：2026-11-05（P0/D1、P1/D2、P2/P3；P2/D3 实现与真机验证完成，D3 复审三项缺陷已修复，等待复审）
 > 状态取值：未开始 / 进行中 / PASS / BLOCKED。PASS 只表示有本文件“证据”列指向的真实命令输出、日志或截图；未执行的项目不得写 PASS。
 
 ## 1. 需求到阶段映射
@@ -124,3 +124,70 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 - 后续修复（2026-11-05）：限流冷却改为单调时钟截止时间（生产 `SystemClock.elapsedRealtime()`，测试注入时钟）；剩余秒数按“截止时间 − 当前时间”向上取整，`isBlocked()` 直接比较截止时间，刷新协程只负责显示，设备休眠/调度延迟不再延长实际冷却。新增 `RateLimitGateTest` 2 项；安卓本轮 **23 passed**（0 失败：原 21 项 + `RateLimitGateTest` 2 项），`assembleDebug` 成功，APK 10,445,372 字节。
 
 仍未验证（不得当作已通过）：真实 DeepSeek 恰好触发 429 并返回 `retry_after_s`、真实模型一次返回 10 条假设、旋转/切后台/进程被杀恢复、中文输入法直接输入目标、截图 AI 视觉检查。详细记录见 `codearts_proof/day2/review_fix_device.md`。
+## 9. P2/D3 实现（2026-11-05）
+
+基线：`ab3fbfa`。本轮只实现 D3，不进入 D4。
+
+### 服务端
+
+| 能力 | 状态 | 说明 |
+|---|---|---|
+| `PATCH /v1/sessions/{id}/progress` | **PASS** | 合并更新；`ready→in_progress`；完成写 `self_reported`；非法状态转移拒绝；`base_plan_version` 冲突 409；计时器 anchor/step 校验 |
+| pause / resume / complete / abandon | **PASS** | 暂停后进度写入返回 409 `SESSION_PAUSED`；完成只记 `user_reported`，不自动把剩余步骤标 done |
+| `PATCH /v1/sessions/{id}/conditions` | **PASS** | 省略保持、null 清空非关键、空字符串 422、关键字段 null 原子失败；返回 `requires_regeneration`/`requires_revision` |
+| `POST /plan-jobs` 计划锁定 | **PASS** | 有任意进度/当前步骤/计时器 → 409 `PLAN_LOCKED`；Job 写盘前二次检查版本与进度 |
+| `POST /ask` | **PASS** | 步骤上下文、版本校验、45s 模型/60s 端点超时、坏输出 502、超时 504 |
+| revision-jobs / apply / reject | **PASS** | 条件驱动修订；只改未完成步骤；涉及 done/skipped → 409 `STEP_LOCKED`；应用版本 +1、旧版本保留；拒绝幂等保护 |
+| 软件领域计划 | **PASS** | `plan_software.txt`、软件澄清、备份/操作/完成检查；命令仅文本，不自动执行 |
+
+服务端测试 **71 passed**（D3 新增 23 项：progress 5、conditions 7、revisions 5、ask 3、plan_software 3）。
+
+### Android
+
+| 能力 | 状态 | 说明 |
+|---|---|---|
+| 步骤卡前进/后退/完成/跳过 | **PASS** | 下一页/上一步同步 `current_step_id`；完成写 done + self_reported；跳过写 skipped |
+| 计时/暂停/恢复 | **PASS** | `TimerEngine` 使用单调时钟锚点；剩余秒数不为负；暂停/恢复保持剩余时间 |
+| 本地恢复/杀进程恢复 | **PASS** | `LocalStore` 保存会话/步骤/计时；App 启动调用 `restore()`；真机 force-stop 后恢复计划 v2、第 2 步与运行中计时 |
+| 设备重启锚点确认 | 实现，JVM 验证 | 锚点失效时暂停并显示“继续/重置”确认；本轮未重启真机 |
+| 提问面板 | **PASS** | 步骤上下文、回答/引用/局限；真机真实模型回答通过 |
+| 条件修改页 | **PASS** | 条件 PATCH、impact 展示、有进度时引导修订 |
+| 修订提案 | **PASS** | 列表、前后差异、应用/拒绝；真机真实模型一次应用、一次拒绝 |
+| 软件领域端到端 | **PASS** | 真机真实模型 5 步计划，含备份与完成检查 |
+| 离线/错误横幅 | **PASS（基础）** | 暂停写入、网络失败等显示明确错误 |
+
+安卓测试 **28 passed**（D3 新增 TimerEngine 3、StepViewModel 2）；`assembleDebug` 成功；APK `android/app/build/outputs/apk/debug/app-debug.apk`，10,614,533 字节。
+
+### 真机验证（2026-11-05）
+
+- 设备 realme GT6 / RMX3800 / Android 16，adb `eeffd16b`；APK 安装 Success。
+- 软件主线：真实 DeepSeek 生成 5 步计划（v1），含备份、复制、按日期重命名、核对、保留备份。
+- 步骤：1/5 → 2/5 → 1/5；计时 5:00 → 4:56 → 暂停 → 继续 4:43；完成第 1 步后服务端记录 `step_1=done` + `self_reported`。
+- 提问：第 2 步真实模型回答通过。
+- 暂停/恢复：暂停后保存进度返回 409 `SESSION_PAUSED`，恢复后可继续。
+- 条件修改：notes PATCH → `requires_revision=true`；真实模型生成修订（step_2/3/4），应用后计划 v2，`step_1` 内容与进度保持不变；第二个修订拒绝成功。
+- 杀进程恢复：force-stop 重启后恢复计划 v2、第 2 步、计时 4:10。
+- 服务端检查：同一会话 `POST /plan-jobs`（base=2）→ 409 `PLAN_LOCKED`。
+- 真实烹饪回归（服务端 API，非设备 UI）：5 步番茄鸡蛋面，通用过敏提示存在。
+
+详情：`codearts_proof/day3/device_verification.md`、`api_checks.md`、`server_pytest_summary.txt`、`android_test_results.txt`。
+
+### 未验证 / 边界
+
+- 设备重启后的计时确认弹窗：未重启设备；JVM `TimerEngineTest` 覆盖锚点失效。
+- 旋转恢复：尝试修改设备旋转设置被权限拒绝，未执行。
+- 中文输入法直接输入目标：设备自动化仅 ASCII。
+- 截图 AI 视觉检查：结论来自 UI 层级文本与服务端 JSON/日志。
+- 真实 DeepSeek 429 与一次 10 条假设：仍为 P2/P3 轮测试模型替身，记录在 `day2`。
+- 媒体反馈、运镜、配方、参考教程属 D4+。
+
+
+## 10. D3 复审修复（2026-11-05）
+
+| 问题 | 修复 | 回归测试 |
+|---|---|---|
+| P1 修订可能写入无效计划 | `RevisionService.apply` 在任何写盘前构建完整候选计划并用 `PlanOut` 校验；失败返回 422 `INVALID_REQUEST` / `details.reason=revision_plan_invalid`，原计划、会话版本、进度和修订 `proposed` 状态均保留 | `test_revision_apply_rejects_remove_below_minimum`（3 步删 1）、`test_revision_apply_rejects_add_above_maximum`（15 步加 1）、`test_revision_apply_rejects_combined_removes_below_minimum`（组合删 2）；失败后 GET /plan 仍为原版本 |
+| P2 补做/跳过前一步时覆盖下一步状态 | `completeStep()`/`skipStep()` 将当前步状态、自动前进、计时器变更合并为一次 PATCH；下一步仅在缺失/`not_started` 时标记 `in_progress`，已有 `done/skipped` 与证据保持不变；PATCH 失败时界面不提前前进 | `StepViewModelTest`：下一步已完成、下一步已跳过、PATCH 失败不前进；当前步仍写 `self_reported` |
+| P3 重置已结束计时器后不刷新 | `resetTimer()` 成功后调用 `ensureTicker()`；`confirmTimerReset()` 复用 resetTimer；`ensureTicker()` 用 `ticker.isActive` 保证同一时刻只有一个刷新协程 | `StepViewModelTest`：计时自然结束→重置→推进时钟剩余秒数下降；无效锚点确认重置→推进时钟剩余秒数下降 |
+
+本轮实测：服务端 **74 passed**；安卓 **33 passed / 0 failed**（StepViewModelTest 7 项）；`assembleDebug` BUILD SUCCESSFUL；APK 10,576,503 字节；`git diff --check` 通过；密钥扫描 223 文件、0 匹配、`clean=true`。真机本轮未重跑，待 Codex 复审后验证这三个修复路径。

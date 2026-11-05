@@ -200,3 +200,81 @@ class CreatePlanJobRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     base_plan_version: int | None = None
+
+class ProgressPatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    base_plan_version: int
+    current_step_id: str | None = None
+    step_statuses: dict[str, StepStatus] | None = None
+    evidence_levels: dict[str, EvidenceLevel] | None = None
+    timer: Timer | None = None
+
+
+class ProgressResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    progress: Progress
+    session: SessionOut
+
+
+class ConditionsPatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    base_plan_version: int | None = None
+    conditions: Conditions
+
+
+class ConditionImpact(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    requires_regeneration: bool
+    requires_revision: bool
+    changed_fields: list[str]
+    message: str
+
+
+class ConditionsPatchResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session: SessionOut
+    impact: ConditionImpact
+
+
+class AskRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(min_length=1, max_length=500)
+    step_id: str | None = None
+    plan_version: int | None = None
+
+
+class AskResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    question: str
+    answer: str = Field(min_length=1, max_length=4000)
+    citations: list[str] = Field(default_factory=list, max_length=10)
+    limitations: list[str] = Field(default_factory=list, max_length=10)
+    created_at: str
+
+
+class CompleteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rating: int | None = Field(default=None, ge=1, le=5)
+    notes: str = Field(default="", max_length=1000)
+    photo_media_ids: list[str] = Field(default_factory=list, max_length=4)
+
+
+class AbandonRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(default="", max_length=500)
+
+class CompleteResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session: SessionOut
+    outcome: dict[str, Any]

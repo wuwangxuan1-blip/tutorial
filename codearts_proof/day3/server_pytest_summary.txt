@@ -1,0 +1,21 @@
+服务端测试（D3 收尾）
+命令：.venv/Scripts/python.exe -m pytest -o addopts=""
+结果：74 passed，0 failed，0 errors
+
+分套件：
+- test_contract_examples: 8
+- test_health: 3
+- test_idempotency: 5
+- test_model_client_errors: 8
+- test_plan_assumptions: 3
+- test_plan_flow: 6
+- test_plan_repair: 6
+- test_sessions: 9
+- test_progress: 5（D3 新增）
+- test_conditions: 7（D3 新增）
+- test_revisions: 8（D3 新增 5 + 复审回归 3）
+- test_ask: 3（D3 新增）
+- test_plan_software: 3（D3 新增）
+
+D3 新增覆盖：self_reported、暂停写入 409 SESSION_PAUSED、版本冲突、步骤状态锁定、计时器 anchor 校验、完成不自动标记其余步骤、放弃、条件省略/null/空串/关键字段 null、impact requires_regeneration/requires_revision、PLAN_LOCKED、修订应用保留 done/skipped、锁定步骤修订失败、拒绝与重复应用、版本冲突、无变更、提问成功/版本冲突/未知步骤/坏输出/超时、软件澄清与软件计划、软件计划备份与不自动执行。
+D3 复审新增回归（revisions）：3 步删 1、15 步加 1、组合删 2；失败均返回 422 INVALID_REQUEST，原计划/版本/进度/修订 proposed 保持不变。

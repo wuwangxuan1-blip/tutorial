@@ -10,15 +10,18 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .api import health, jobs, sessions
+from .api import ask, health, jobs, progress, revisions, sessions
 from .config import Settings, load_settings
 from .errors import ApiError, error_body
 from .ids import new_id
 from .logging_config import setup_logging
 from .models.job import JobOut
+from .services.ask_service import AskService
 from .services.job_service import JobService
 from .services.model_client import ModelClient
 from .services.plan_service import PlanService
+from .services.progress_service import ProgressService
+from .services.revision_service import RevisionService
 from .services.store import JsonStore
 
 logger = logging.getLogger("tutorial_coach.api")
@@ -30,7 +33,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     store = JsonStore(app_settings.data_dir)
     model_client = ModelClient(app_settings)
     plan_service = PlanService(app_settings, model_client)
-    job_service = JobService(app_settings, store, plan_service)
+    progress_service = ProgressService(store)
+    ask_service = AskService(app_settings, model_client, store)
+    revision_service = RevisionService(app_settings, model_client, store)
+    job_service = JobService(app_settings, store, plan_service, revision_service)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -44,6 +50,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.store = store
     app.state.model_client = model_client
     app.state.plan_service = plan_service
+    app.state.progress_service = progress_service
+    app.state.ask_service = ask_service
+    app.state.revision_service = revision_service
     app.state.job_service = job_service
 
     @app.middleware("http")
@@ -129,6 +138,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router, prefix="/v1")
     app.include_router(sessions.router, prefix="/v1")
+    app.include_router(progress.router, prefix="/v1")
+    app.include_router(ask.router, prefix="/v1")
+    app.include_router(revisions.router, prefix="/v1")
     app.include_router(jobs.router, prefix="/v1")
     return app
 

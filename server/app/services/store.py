@@ -13,7 +13,7 @@ from ..errors import ApiError
 class JsonStore:
     def __init__(self, data_dir: Path) -> None:
         self.data_dir = Path(data_dir)
-        for name in ("sessions", "plans", "jobs", "idempotency", "logs"):
+        for name in ("sessions", "plans", "jobs", "idempotency", "revisions", "logs"):
             (self.data_dir / name).mkdir(parents=True, exist_ok=True)
         self._locks: dict[str, asyncio.Lock] = {}
 
@@ -62,6 +62,34 @@ class JsonStore:
 
     def job_rel(self, job_id: str) -> str:
         return f"jobs/{job_id}.json"
+
+    def revision_rel(self, session_id: str, revision_id: str) -> str:
+        return f"revisions/{session_id}/{revision_id}.json"
+
+    def revisions_dir_rel(self, session_id: str) -> str:
+        return f"revisions/{session_id}"
+
+    async def load_revision(self, session_id: str, revision_id: str) -> dict[str, Any] | None:
+        return await self.read_json(self.revision_rel(session_id, revision_id))
+
+    async def save_revision(self, payload: dict[str, Any]) -> None:
+        await self.write_json(
+            self.revision_rel(payload["session_id"], payload["id"]),
+            payload,
+        )
+
+    async def list_revisions(self, session_id: str) -> list[dict[str, Any]]:
+        directory = self.data_dir / self.revisions_dir_rel(session_id)
+        if not directory.exists():
+            return []
+        items: list[dict[str, Any]] = []
+        for path in directory.glob("*.json"):
+            try:
+                items.append(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ApiError(500, "INTERNAL_ERROR", "数据文件损坏，请联系维护者。") from exc
+        items.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+        return items
 
     async def load_session(self, session_id: str) -> dict[str, Any] | None:
         return await self.read_json(self.session_rel(session_id))

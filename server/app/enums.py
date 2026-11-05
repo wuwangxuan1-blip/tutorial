@@ -71,3 +71,9 @@ class TimerState(str, Enum):
     running = "running"
     paused = "paused"
     finished = "finished"
+
+class RevisionStatus(str, Enum):
+    proposed = "proposed"
+    applied = "applied"
+    rejected = "rejected"
+    superseded = "superseded"

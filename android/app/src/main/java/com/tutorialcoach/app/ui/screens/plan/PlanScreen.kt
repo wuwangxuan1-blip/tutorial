@@ -14,6 +14,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,6 +37,8 @@ import com.tutorialcoach.app.ui.components.ErrorBanner
 fun PlanScreen(
     container: AppContainer,
     onOpenStep: () -> Unit,
+    onOpenConditions: () -> Unit,
+    onOpenRevision: () -> Unit,
     onBack: () -> Unit,
 ) {
     val currentSession by container.repository.session.collectAsStateWithLifecycle()
@@ -115,6 +118,24 @@ fun PlanScreen(
                 }
                 is PlanUiState.Ready -> {
                     PlanContent(plan = state.plan, onOpenStep = onOpenStep)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedButton(
+                            onClick = onOpenConditions,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                        ) {
+                            Text("修改条件")
+                        }
+                        OutlinedButton(
+                            onClick = onOpenRevision,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                        ) {
+                            Text("修订提案")
+                        }
+                    }
                 }
                 PlanUiState.Idle -> {
                     Text("条件已就绪，点击下方按钮生成计划。")
@@ -122,6 +143,14 @@ fun PlanScreen(
                         onClick = viewModel::generate,
                         enabled = cooldownSeconds == 0,
                     )
+                    OutlinedButton(
+                        onClick = onOpenConditions,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                    ) {
+                        Text("修改条件")
+                    }
                 }
             }
         }

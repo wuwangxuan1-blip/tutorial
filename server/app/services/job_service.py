@@ -10,6 +10,7 @@ from ..enums import JobStatus, JobType, SessionStatus
 from ..errors import ApiError, error_body
 from ..ids import new_id
 from .plan_service import PlanService
+from .revision_service import RevisionService
 from .store import JsonStore
 
 logger = logging.getLogger("tutorial_coach.jobs")
@@ -29,18 +30,26 @@ def _parse_iso(value: str) -> datetime:
 
 def has_progress(session: dict[str, Any]) -> bool:
     progress = session.get("progress") or {}
-    return bool(
-        progress.get("step_statuses")
-        or progress.get("current_step_id")
-        or progress.get("timer")
+    statuses = progress.get("step_statuses") or {}
+    if progress.get("current_step_id") or progress.get("timer"):
+        return True
+    return any(
+        status in ("in_progress", "done", "skipped") for status in statuses.values()
     )
 
 
 class JobService:
-    def __init__(self, settings: Settings, store: JsonStore, plan_service: PlanService) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        store: JsonStore,
+        plan_service: PlanService,
+        revision_service: RevisionService,
+    ) -> None:
         self.settings = settings
         self.store = store
         self.plan_service = plan_service
+        self.revision_service = revision_service
         self._tasks: dict[str, asyncio.Task[None]] = {}
 
     def active_count(self) -> int:
@@ -116,8 +125,12 @@ class JobService:
                 session = await self.store.load_session(job["session_id"])
                 if not session:
                     raise ApiError(404, "NOT_FOUND", "会话不存在。")
-                if session["domain"] != "cooking":
-                    raise ApiError(422, "DOMAIN_MISMATCH", "本阶段仅启用烹饪领域的计划生成。")
+                if session["domain"] not in ("cooking", "software"):
+                    raise ApiError(
+                        422,
+                        "DOMAIN_MISMATCH",
+                        "本阶段仅启用烹饪与软件领域的计划生成。",
+                    )
                 if session["status"] == SessionStatus.clarifying.value:
                     raise ApiError(422, "INVALID_REQUEST", "请先完成澄清问题。")
                 if session["status"] in (
@@ -148,7 +161,7 @@ class JobService:
                         details={"current_plan_version": current_version},
                     )
                 next_version = (current_version or 0) + 1
-                plan = await self.plan_service.generate_cooking_plan(session, next_version)
+                plan = await self.plan_service.generate_plan(session, next_version)
                 await self._set_job(job_id, progress=90, stage="validating")
                 async with self.store.lock(self.store.session_rel(session["id"])):
                     fresh = await self.store.load_session(session["id"])
@@ -202,6 +215,115 @@ class JobService:
                 job_id,
                 request_id,
                 ApiError(500, "INTERNAL_ERROR", "生成计划时发生内部错误。", retryable=True),
+            )
+
+    async def create_revision_job(
+        self,
+        session: dict[str, Any],
+        base_plan_version: int,
+        request_reason: str,
+    ) -> dict[str, Any]:
+        if self.active_count() >= self.settings.queue_max:
+            raise ApiError(503, "JOB_QUEUE_FULL", "任务队列已满，请稍后重试。", retryable=True)
+        now = _now_dt()
+        job = {
+            "id": new_id("job"),
+            "type": JobType.plan_revision.value,
+            "status": JobStatus.queued.value,
+            "progress": 0,
+            "stage": "queued",
+            "session_id": session["id"],
+            "created_at": _iso(now),
+            "updated_at": _iso(now),
+            "expires_at": _iso(now + timedelta(hours=24)),
+            "result": None,
+            "error": None,
+            "_base_plan_version": base_plan_version,
+            "_request_reason": request_reason,
+        }
+        await self.store.save_job(job)
+        task = asyncio.create_task(self._run_revision_job(job["id"]))
+        self._tasks[job["id"]] = task
+        task.add_done_callback(lambda _: self._tasks.pop(job["id"], None))
+        return job
+
+    async def _run_revision_job(self, job_id: str) -> None:
+        job = await self.store.load_job(job_id)
+        if not job:
+            return
+        request_id = new_id("request")
+        try:
+            await self._set_job(
+                job_id,
+                status=JobStatus.running.value,
+                progress=10,
+                stage="analyzing",
+            )
+            async with asyncio.timeout(self.settings.job_timeout_s):
+                session = await self.store.load_session(job["session_id"])
+                if not session:
+                    raise ApiError(404, "NOT_FOUND", "会话不存在。")
+                if session["status"] in (
+                    SessionStatus.completed.value,
+                    SessionStatus.abandoned.value,
+                ):
+                    raise ApiError(409, "SESSION_NOT_EDITABLE", "会话已结束，不能生成修订。")
+                base = job.get("_base_plan_version")
+                if session.get("current_plan_version") != base:
+                    raise ApiError(
+                        409,
+                        "VERSION_CONFLICT",
+                        "计划版本已变化，请刷新后重试。",
+                        details={"current_plan_version": session.get("current_plan_version")},
+                    )
+                plan = await self.store.load_plan(session["id"], base)
+                if not plan:
+                    raise ApiError(404, "NOT_FOUND", "当前计划不存在。")
+                await self._set_job(job_id, progress=60, stage="validating")
+                revision = await self.revision_service.generate(
+                    session,
+                    plan,
+                    job.get("_request_reason") or "根据条件调整未完成步骤。",
+                )
+            if revision is None:
+                await self._set_job(
+                    job_id,
+                    status=JobStatus.succeeded.value,
+                    progress=100,
+                    stage="no_change",
+                    result={"revision_id": None},
+                    error=None,
+                )
+            else:
+                await self._set_job(
+                    job_id,
+                    status=JobStatus.succeeded.value,
+                    progress=100,
+                    stage="done",
+                    result={"revision_id": revision["id"]},
+                    error=None,
+                )
+            logger.info(
+                "revision_job_succeeded",
+                extra={"job_id": job_id, "session_id": session["id"], "status": "succeeded"},
+            )
+        except asyncio.TimeoutError:
+            await self._fail(
+                job_id,
+                request_id,
+                ApiError(504, "MODEL_TIMEOUT", "生成修订超时，请重试。", retryable=True),
+            )
+        except ApiError as exc:
+            await self._fail(job_id, request_id, exc)
+        except Exception:
+            logger.exception(
+                "revision_job_unexpected_error",
+                extra={"job_id": job_id, "error_code": "INTERNAL_ERROR"},
+            )
+            await self._fail(
+                job_id,
+                request_id,
+                ApiError(500, "INTERNAL_ERROR", "生成修订时发生内部错误。", retryable=True),
             )
 
     async def _fail(self, job_id: str, request_id: str, exc: ApiError) -> None:

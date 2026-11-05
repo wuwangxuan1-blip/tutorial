@@ -16,7 +16,10 @@ from ..models.job import JobOut
 from ..models.plan import PlanOut
 from ..models.session import (
     AnswerSubmission,
+    ConditionImpact,
     Conditions,
+    ConditionsPatchRequest,
+    ConditionsPatchResponse,
     CreatePlanJobRequest,
     CreateSessionRequest,
     KEY_CONDITIONS,
@@ -227,6 +230,98 @@ async def submit_answers(request: Request, session_id: str, payload: AnswerSubmi
     return session_out(session)
 
 
+@router.patch("/sessions/{session_id}/conditions", response_model=ConditionsPatchResponse)
+async def patch_conditions(
+    request: Request,
+    session_id: str,
+    payload: ConditionsPatchRequest,
+) -> ConditionsPatchResponse:
+    store = request.app.state.store
+    async with store.lock(store.session_rel(session_id)):
+        session = await store.load_session(session_id)
+        if not session:
+            raise not_found("会话不存在。")
+        if session["status"] in (
+            SessionStatus.completed.value,
+            SessionStatus.abandoned.value,
+        ):
+            raise ApiError(409, "SESSION_NOT_EDITABLE", "会话已结束，不能修改条件。")
+        current_version = session.get("current_plan_version")
+        if current_version is not None:
+            if payload.base_plan_version is None:
+                raise ApiError(
+                    409,
+                    "VERSION_CONFLICT",
+                    "已有计划时必须提供 base_plan_version。",
+                    details={"current_plan_version": current_version},
+                )
+            if payload.base_plan_version != current_version:
+                raise ApiError(
+                    409,
+                    "VERSION_CONFLICT",
+                    "计划版本已变化，请刷新后重试。",
+                    details={"current_plan_version": current_version},
+                )
+        provided = payload.conditions.model_dump(exclude_unset=True)
+        if not provided:
+            raise invalid_request(
+                "conditions 至少提供一个字段。",
+                {"field": "conditions", "reason": "empty_conditions"},
+            )
+        for field, value in provided.items():
+            if field in KEY_CONDITIONS and value is None:
+                raise invalid_request(
+                    f"{field} 是关键条件，不能清空；请提供新的数值或新建会话。",
+                    {"field": field, "reason": "key_condition_null"},
+                )
+        conditions = dict(session.get("conditions") or {})
+        changed_fields: list[str] = []
+        for field, value in provided.items():
+            if value is None:
+                if field in conditions:
+                    conditions.pop(field, None)
+                    changed_fields.append(field)
+            elif conditions.get(field) != value:
+                conditions[field] = value
+                changed_fields.append(field)
+        if changed_fields:
+            try:
+                conditions = Conditions.model_validate(conditions).model_dump(exclude_none=True)
+            except Exception as exc:
+                raise invalid_request("条件值未通过校验。") from exc
+        if session["status"] == SessionStatus.clarifying.value:
+            round_no = int(session.get("clarify_round") or 0)
+            questions = build_questions(Domain(session["domain"]), conditions, round_no)
+            session["questions"] = [question.model_dump(mode="json") for question in questions]
+            session["status"] = (
+                SessionStatus.ready.value if not questions else SessionStatus.clarifying.value
+            )
+        session["conditions"] = conditions
+        session["updated_at"] = _now()
+        locked = has_progress(session)
+        has_plan = current_version is not None
+        requires_regeneration = has_plan and not locked
+        requires_revision = has_plan and locked
+        if requires_revision:
+            message = (
+                "已有步骤进度，不能全量重新生成。请用条件修订调整未完成步骤，或新建会话。"
+            )
+        elif requires_regeneration:
+            message = "当前计划尚未开始，可全量重新生成或新建会话。"
+        else:
+            message = "条件已更新。"
+        await store.save_session(session)
+    return ConditionsPatchResponse(
+        session=session_out(session),
+        impact=ConditionImpact(
+            requires_regeneration=requires_regeneration,
+            requires_revision=requires_revision,
+            changed_fields=changed_fields,
+            message=message,
+        ),
+    )
+
+
 @router.post("/sessions/{session_id}/plan-jobs", response_model=JobOut, status_code=202)
 async def create_plan_job(
     request: Request,
@@ -270,11 +365,11 @@ async def create_plan_job(
             session = await store.load_session(session_id)
             if not session:
                 raise not_found("会话不存在。")
-            if session["domain"] != Domain.cooking.value:
+            if session["domain"] not in (Domain.cooking.value, Domain.software.value):
                 raise ApiError(
                     422,
                     "DOMAIN_MISMATCH",
-                    "本阶段仅启用烹饪领域的计划生成；其它领域将在后续阶段开放。",
+                    "本阶段仅启用烹饪与软件领域的计划生成；其它领域将在后续阶段开放。",
                 )
             if session["status"] == SessionStatus.clarifying.value:
                 raise invalid_request("请先完成澄清问题。", {"reason": "clarification_incomplete"})

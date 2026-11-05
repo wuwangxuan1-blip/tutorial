@@ -125,7 +125,7 @@ fun HomeScreen(
             }
 
             Text(
-                text = "当前阶段（P1/D2）开放烹饪领域的真实模型计划；其它领域可创建会话和澄清，计划生成在后续阶段开放。",
+                text = "当前阶段（P2/D3）开放烹饪与软件领域的真实模型计划；其它领域可创建会话和澄清，计划生成在后续阶段开放。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

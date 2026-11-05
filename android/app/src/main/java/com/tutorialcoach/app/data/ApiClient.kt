@@ -5,8 +5,16 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -43,6 +51,9 @@ class ApiClient(
     private val pollClient = client.newBuilder()
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
+    private val askClient = client.newBuilder()
+        .readTimeout(75, TimeUnit.SECONDS)
+        .build()
 
     suspend fun health(): HealthDto = getJson("/v1/health", HealthDto.serializer())
 
@@ -57,6 +68,11 @@ class ApiClient(
             idempotencyKey = UUID.randomUUID().toString(),
         )
     }
+
+    suspend fun getSession(sessionId: String): SessionDto = getJson(
+        path = "/v1/sessions/$sessionId",
+        serializer = SessionDto.serializer(),
+    )
 
     suspend fun submitAnswers(sessionId: String, answers: List<AnswerDto>): SessionDto {
         val body = json.encodeToString(
@@ -99,9 +115,177 @@ class ApiClient(
         serializer = PlanDto.serializer(),
     )
 
+    suspend fun updateProgress(sessionId: String, update: ProgressUpdate): ProgressResponseDto {
+        val body = buildJsonObject {
+            put("base_plan_version", update.basePlanVersion)
+            if (update.includeCurrentStep) {
+                put(
+                    "current_step_id",
+                    update.currentStepId?.let { JsonPrimitive(it) } ?: JsonNull,
+                )
+            }
+            update.stepStatuses?.let { statuses ->
+                put("step_statuses", buildJsonObject {
+                    statuses.forEach { (stepId, status) -> put(stepId, JsonPrimitive(status)) }
+                })
+            }
+            update.evidenceLevels?.let { levels ->
+                put("evidence_levels", buildJsonObject {
+                    levels.forEach { (stepId, level) -> put(stepId, JsonPrimitive(level)) }
+                })
+            }
+            if (update.includeTimer) {
+                put(
+                    "timer",
+                    update.timer?.let {
+                        json.encodeToJsonElement(TimerDto.serializer(), it)
+                    } ?: JsonNull,
+                )
+            }
+        }
+        return patchJson(
+            path = "/v1/sessions/$sessionId/progress",
+            body = body.toString(),
+            serializer = ProgressResponseDto.serializer(),
+        )
+    }
+
+    suspend fun pauseSession(sessionId: String): SessionDto = postJson(
+        path = "/v1/sessions/$sessionId/pause",
+        body = "{}",
+        serializer = SessionDto.serializer(),
+        idempotencyKey = UUID.randomUUID().toString(),
+    )
+
+    suspend fun resumeSession(sessionId: String): SessionDto = postJson(
+        path = "/v1/sessions/$sessionId/resume",
+        body = "{}",
+        serializer = SessionDto.serializer(),
+        idempotencyKey = UUID.randomUUID().toString(),
+    )
+
+    suspend fun completeSession(
+        sessionId: String,
+        rating: Int?,
+        notes: String,
+    ): CompleteResponseDto {
+        val body = json.encodeToString(
+            CompleteRequestDto.serializer(),
+            CompleteRequestDto(rating, notes),
+        )
+        return postJson(
+            path = "/v1/sessions/$sessionId/complete",
+            body = body,
+            serializer = CompleteResponseDto.serializer(),
+            idempotencyKey = UUID.randomUUID().toString(),
+        )
+    }
+
+    suspend fun ask(
+        sessionId: String,
+        question: String,
+        stepId: String,
+        planVersion: Int,
+    ): AskResponseDto {
+        val body = json.encodeToString(
+            AskRequestDto.serializer(),
+            AskRequestDto(question, stepId, planVersion),
+        )
+        return postJson(
+            path = "/v1/sessions/$sessionId/ask",
+            body = body,
+            serializer = AskResponseDto.serializer(),
+            idempotencyKey = UUID.randomUUID().toString(),
+            readClient = askClient,
+        )
+    }
+
+    suspend fun patchConditions(
+        sessionId: String,
+        basePlanVersion: Int?,
+        conditions: Map<String, JsonElement?>,
+    ): ConditionsPatchResponseDto {
+        val body = buildJsonObject {
+            if (basePlanVersion != null) {
+                put("base_plan_version", basePlanVersion)
+            }
+            put("conditions", buildJsonObject {
+                conditions.forEach { (field, value) ->
+                    put(field, value ?: JsonNull)
+                }
+            })
+        }
+        return patchJson(
+            path = "/v1/sessions/$sessionId/conditions",
+            body = body.toString(),
+            serializer = ConditionsPatchResponseDto.serializer(),
+        )
+    }
+
+    suspend fun createRevisionJob(
+        sessionId: String,
+        basePlanVersion: Int,
+        requestReason: String,
+        idempotencyKey: String,
+    ): JobDto {
+        val body = json.encodeToString(
+            RevisionJobRequestDto.serializer(),
+            RevisionJobRequestDto(
+                feedbackId = null,
+                basePlanVersion = basePlanVersion,
+                requestReason = requestReason,
+            ),
+        )
+        return postJson(
+            path = "/v1/sessions/$sessionId/revision-jobs",
+            body = body,
+            serializer = JobDto.serializer(),
+            idempotencyKey = idempotencyKey,
+        )
+    }
+
+    suspend fun listRevisions(sessionId: String): List<RevisionDto> = getJson(
+        path = "/v1/sessions/$sessionId/revisions",
+        serializer = ListSerializer(RevisionDto.serializer()),
+    )
+
+    suspend fun applyRevision(
+        sessionId: String,
+        revisionId: String,
+        basePlanVersion: Int,
+    ): RevisionApplyResponseDto {
+        val body = json.encodeToString(
+            RevisionApplyRequestDto.serializer(),
+            RevisionApplyRequestDto(basePlanVersion),
+        )
+        return postJson(
+            path = "/v1/sessions/$sessionId/revisions/$revisionId/apply",
+            body = body,
+            serializer = RevisionApplyResponseDto.serializer(),
+            idempotencyKey = UUID.randomUUID().toString(),
+        )
+    }
+
+    suspend fun rejectRevision(
+        sessionId: String,
+        revisionId: String,
+        reason: String,
+    ): RevisionDto {
+        val body = json.encodeToString(
+            RevisionRejectRequestDto.serializer(),
+            RevisionRejectRequestDto(reason),
+        )
+        return postJson(
+            path = "/v1/sessions/$sessionId/revisions/$revisionId/reject",
+            body = body,
+            serializer = RevisionDto.serializer(),
+            idempotencyKey = UUID.randomUUID().toString(),
+        )
+    }
+
     private suspend fun <T> getJson(
         path: String,
-        serializer: kotlinx.serialization.DeserializationStrategy<T>,
+        serializer: DeserializationStrategy<T>,
         readClient: OkHttpClient = client,
     ): T = withContext(Dispatchers.IO) {
         val request = Request.Builder()
@@ -115,8 +299,9 @@ class ApiClient(
     private suspend fun <T> postJson(
         path: String,
         body: String,
-        serializer: kotlinx.serialization.DeserializationStrategy<T>,
+        serializer: DeserializationStrategy<T>,
         idempotencyKey: String? = null,
+        readClient: OkHttpClient = client,
     ): T = withContext(Dispatchers.IO) {
         val builder = Request.Builder()
             .url("$baseUrl$path")
@@ -125,13 +310,30 @@ class ApiClient(
         if (idempotencyKey != null) {
             builder.header("Idempotency-Key", idempotencyKey)
         }
-        execute(builder.build(), client, serializer)
+        execute(builder.build(), readClient, serializer)
+    }
+
+    private suspend fun <T> patchJson(
+        path: String,
+        body: String,
+        serializer: DeserializationStrategy<T>,
+        idempotencyKey: String? = null,
+        readClient: OkHttpClient = client,
+    ): T = withContext(Dispatchers.IO) {
+        val builder = Request.Builder()
+            .url("$baseUrl$path")
+            .header("Accept", "application/json")
+            .patch(body.toRequestBody(contentType))
+        if (idempotencyKey != null) {
+            builder.header("Idempotency-Key", idempotencyKey)
+        }
+        execute(builder.build(), readClient, serializer)
     }
 
     private fun <T> execute(
         request: Request,
         readClient: OkHttpClient,
-        serializer: kotlinx.serialization.DeserializationStrategy<T>,
+        serializer: DeserializationStrategy<T>,
     ): T {
         val response: Response = try {
             readClient.newCall(request).execute()
