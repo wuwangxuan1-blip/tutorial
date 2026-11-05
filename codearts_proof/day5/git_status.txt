@@ -1,18 +1,14 @@
-# D5 Git 状态（2026-11-05 复审修复轮）
+# D5 Git 状态（2026-11-06 配方复审再修轮）
 
-- 基线：`fb05fde`（D4 已通过 Codex 复审）。
-- D5 实现 + 补验 + 三项复审修复提交：`189c1e613cf588f3ff47ec7efda97ddf5ffec621`
-  - `fix: align D5 recipe parameters and camera easing`
-- 推送：`git push origin main` 成功，`fb05fde..189c1e6  main -> main`；`git ls-remote origin main` 核验远端为 `189c1e6`。
-- 未强推。
-- 提交前密钥扫描：**295 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
-- 本轮实测：
-  - 服务端 `pytest -o addopts=""`：**111 passed / 0 failed**；
-  - Android `:app:testDebugUnitTest --rerun-tasks`：**55 tests / 0 failures**；
-  - `:app:assembleDebug`：BUILD SUCCESSFUL；APK **10,896,532 字节**。
+- 基线：`b47ba94`（D5 上一轮复审修复通过）。
+- 本轮修复提交：`4e08391628851bf5e2638c419349e372363cac76`（`fix: update recipe steps semantically and validate inputs`）
+- 复审证据提交：`f9dddfda0bcfa77608c424aa890d150c1227f7b0`（`docs: add D5 recipe review fix evidence`）
+- 提交前密钥扫描：**297 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
+- 实测：服务端 **114 passed / 0 failed**；Android **55 tests / 0 failures**；`:app:assembleDebug` BUILD SUCCESSFUL；APK **10,822,322 字节**。
 - 验收状态分列：
-  - 第三方公开授权实拍链路：**通过**（照片/短片真实反馈；倒咖啡反例 `not_met`；证据帧 9/9 字节一致）；
+  - 第三方公开授权实拍链路：**通过**（照片/短片 `unclear`；倒咖啡反例 `not_met`；证据帧 9/9 字节一致）；
   - 用户自拍环绕验收：**BLOCKED**（无用户自拍环绕素材）；
   - 真机配方 92→90/历史对比：**BLOCKED**（v1 与用户评分已保存；调整/对比未完成）；
-  - 真机断网/超时重试：**BLOCKED**（未取得“错误→恢复→重试成功”证据）；
-  - 真机 Canvas easing/拖动时间轴：未复测，由 JVM 回归覆盖。
+  - 真机断网/超时重试：**BLOCKED**（未取得错误→恢复→重试成功证据）；
+  - 真机 Canvas easing/拖动：未复测，由 JVM 覆盖。
+- 推送：待执行 `git push origin main`；完成后回写最终远端 SHA。
