@@ -99,8 +99,9 @@
 | P0 提交 | `bcd3cc9 feat: implement D1 P0 vertical slice with real model probes` |
 | 状态文档提交 | `4798f2f docs: record D1 git push and verification status` |
 | 第三轮修复提交 | `f405461 fix(android): fix P0 regression test and restore standard Gradle wrapper` |
-| 推送 | **PASS**：`ab6996a..bcd3cc9`、`bcd3cc9..4798f2f`、`4798f2f..f405461`；未强推 |
-| 本地/远程一致性 | 推送后 `git status -sb` 显示 `## main...origin/main`；远程 main 指向 `f405461`（随后仅文档提交） |
+| 真机验证提交 | `8a6365d docs: add P0 real-device verification evidence` |
+| 推送 | **PASS**：`ab6996a..bcd3cc9`、`bcd3cc9..4798f2f`、`4798f2f..f405461`、`2c168db..8a6365d`；未强推 |
+| 本地/远程一致性 | 推送后 `git status -sb` 显示 `## main...origin/main`；远程 main 指向 `8a6365d`（随后仅文档提交） |
 
 ## 9. 构建与安装状态
 

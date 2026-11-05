@@ -5,9 +5,12 @@ p0_feature_subject: feat: implement D1 P0 vertical slice with real model probes
 status_docs_commit: 4798f2f00c3ee1747e06cd16660fe90e5ff07510
 round3_fix_commit: f405461b60d17ca80c9e5065b0fd47acf2bd4425
 round3_fix_subject: fix(android): fix P0 regression test and restore standard Gradle wrapper
+device_verification_commit: 8a6365d6adccd140f748b39b8ae3b96261dbbb5a
+device_verification_subject: docs: add P0 real-device verification evidence
 first_push: PASS (ab6996a..bcd3cc9 main -> main)
 second_push: PASS (bcd3cc9..4798f2f main -> main)
 third_push: PASS (4798f2f..f405461 main -> main)
+fourth_push: PASS (2c168db..8a6365d main -> main)
 force_push: false
-remote_main_after_third_push: f405461b60d17ca80c9e5065b0fd47acf2bd4425
+remote_main_after_fourth_push: 8a6365d6adccd140f748b39b8ae3b96261dbbb5a
 note: This evidence file is committed in a follow-up docs-only commit; the final HEAD is recorded in the P0 stage report.
