@@ -1,0 +1,3 @@
+List of devices attached
+eeffd16b               device product:RMX3800 model:RMX3800 device:RE5C4FL1 transport_id:2
+

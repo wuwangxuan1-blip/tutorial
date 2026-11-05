@@ -1,0 +1,23 @@
+# codearts_proof/day2 索引（P1/D2）
+
+| 文件 | 内容 |
+|---|---|
+| `contract_validation.md` | 共享契约样例双端验证与契约观察 |
+| `error_paths.md` | 无 Key/限流/超时/非法 JSON/结构失败/拒绝/幂等/恢复测试矩阵 |
+| `vertical_flow.json` | 真实模型两轮澄清→计划摘要（5 步、3 条假设、stage=done） |
+| `vertical_flow.log` | 真实流程脱敏日志 |
+| `plan_cooking_real.json` | 真实模型计划完整 JSON |
+| `health.json` | 流程开始时 `/v1/health` |
+| `server_pytest.log` | 服务端 44 项测试结果 |
+| `android_test.log` | 安卓单测输出 |
+| `android_test_results.txt` | 安卓 19 项测试分套件统计 |
+| `android_build.log` | debug APK 构建输出 |
+| `android_apk_info.txt` | APK 大小、包名、版本、SDK 核验 |
+| `device_verification.md` | 真机两轮澄清、含假设计划、步骤卡记录 |
+| `device_status.txt` | adb 设备状态 |
+| `device_server_full.log` | 真机流程对应服务端脱敏日志 |
+| `device_plan_cooking.json` | 真机最新计划 JSON |
+| `device_*.xml` | UI 层级证据（本地保留，不提交） |
+| `device_step.png` | 步骤卡截图（本地保留，不提交） |
+
+未包含：API Key、`.env`、个人媒体、运行数据。真实模型调用与测试替身分开记录。

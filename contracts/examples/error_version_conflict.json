@@ -1,0 +1,12 @@
+{
+  "error": {
+    "code": "VERSION_CONFLICT",
+    "message": "计划版本已变化，请刷新后重试。",
+    "retryable": false,
+    "retry_after_s": null,
+    "request_id": "req_01J9Z9K1AA",
+    "details": {
+      "current_plan_version": 2
+    }
+  }
+}

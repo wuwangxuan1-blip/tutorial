@@ -40,45 +40,47 @@ class PlanService:
         conditions = dict(session.get("conditions") or {})
         user_prompt = build_cooking_user_prompt(session["goal"], conditions, session["domain"])
         system_prompt = load_system_prompt("cooking")
-        raw = await self.model_client.chat_json(system_prompt, user_prompt)
-        draft = await self._validate_or_repair(raw, system_prompt, user_prompt, conditions)
+        draft = await self._generate_draft(system_prompt, user_prompt)
         return self._build_plan(session, draft, version, conditions)
 
-    async def _validate_or_repair(
-        self,
-        raw: dict[str, Any],
-        system_prompt: str,
-        user_prompt: str,
-        conditions: dict[str, Any],
-    ) -> PlanDraft:
+    async def _generate_draft(self, system_prompt: str, user_prompt: str) -> PlanDraft:
+        repair_summary: str | None = None
         try:
+            raw = await self.model_client.chat_json(system_prompt, user_prompt)
             return PlanDraft.model_validate(raw)
         except ValidationError as first_error:
-            summary = _summarize_validation_error(first_error)
+            repair_summary = _summarize_validation_error(first_error)
+        except ApiError as first_error:
+            if first_error.code != "MODEL_BAD_OUTPUT":
+                raise
+            reason = (first_error.details or {}).get("reason")
+            if reason not in {"invalid_json", "empty_content"}:
+                raise
+            repair_summary = f"模型输出未通过 JSON 解析（{reason}）"
+        logger.warning(
+            "model_plan_validation_failed",
+            extra={"error_code": "MODEL_BAD_OUTPUT", "status": "repair"},
+        )
+        repaired = await self.model_client.chat_json(
+            system_prompt,
+            build_repair_prompt(user_prompt, repair_summary or "输出不符合契约"),
+        )
+        try:
+            return PlanDraft.model_validate(repaired)
+        except ValidationError as second_error:
             logger.warning(
-                "model_plan_validation_failed",
-                extra={"error_code": "MODEL_BAD_OUTPUT", "status": "repair"},
+                "model_plan_repair_failed",
+                extra={
+                    "error_code": "MODEL_BAD_OUTPUT",
+                    "status": "failed",
+                },
             )
-            repaired = await self.model_client.chat_json(
-                system_prompt,
-                build_repair_prompt(user_prompt, summary),
-            )
-            try:
-                return PlanDraft.model_validate(repaired)
-            except ValidationError as second_error:
-                logger.warning(
-                    "model_plan_repair_failed",
-                    extra={
-                        "error_code": "MODEL_BAD_OUTPUT",
-                        "status": "failed",
-                    },
-                )
-                raise ApiError(
-                    502,
-                    "MODEL_BAD_OUTPUT",
-                    "模型返回的计划格式异常，已重试一次仍失败。",
-                    retryable=True,
-                ) from second_error
+            raise ApiError(
+                502,
+                "MODEL_BAD_OUTPUT",
+                "模型返回的计划格式异常，已重试一次仍失败。",
+                retryable=True,
+            ) from second_error
 
     def _build_plan(
         self,
@@ -117,6 +119,14 @@ class PlanService:
                 note = f"未提供 {name}，按常见情况假设。"
                 if note not in assumptions:
                     assumptions.append(note)
+        optional_assumptions = {
+            "allergies": "未提供过敏信息，无法核对番茄、鸡蛋、面条及相关调味料的过敏原。",
+            "available_equipment": "未提供器具清单，按常见汤锅、炒锅、刀和砧板假设。",
+            "oven_available": "未提供烤箱可用性，按以灶具为主的方案假设。",
+        }
+        for name, note in optional_assumptions.items():
+            if conditions.get(name) is None and note not in assumptions:
+                assumptions.append(note)
         safety_notes = list(draft.safety_notes)
         if not any("生熟" in note for note in safety_notes):
             safety_notes.append("生熟食材分开；处理生鸡蛋后洗手。")

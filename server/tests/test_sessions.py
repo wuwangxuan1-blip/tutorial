@@ -155,3 +155,87 @@ async def test_none_text_answer_normalizes_to_empty_array(client):
     )
     assert answered.status_code == 200, answered.text
     assert answered.json()["conditions"]["allergies"] == []
+
+async def test_two_round_clarification_allows_skipping_optional_questions(client):
+    created = await client.post(
+        "/v1/sessions",
+        json={"domain": "cooking", "goal": "2 人份番茄鸡蛋面"},
+    )
+    session = created.json()
+    first_fields = {item["field"]: item for item in session["questions"]}
+    assert set(first_fields) == {
+        "skill_level",
+        "time_budget_min",
+        "people",
+        "servings",
+        "stove_type",
+    }
+
+    first_answers = [
+        {"question_id": first_fields["skill_level"]["id"], "value": "beginner"},
+        {"question_id": first_fields["time_budget_min"]["id"], "value": 30},
+    ]
+    first_response = await client.post(
+        f"/v1/sessions/{session['id']}/answers",
+        json={"answers": first_answers},
+    )
+    assert first_response.status_code == 200
+    session = first_response.json()
+    assert session["status"] == "clarifying"
+    assert 3 <= len(session["questions"]) <= 5
+    second_fields = {item["field"]: item for item in session["questions"]}
+    assert {"people", "servings", "stove_type"} <= set(second_fields)
+
+    second_answers = [
+        {"question_id": second_fields["people"]["id"], "value": 2},
+        {"question_id": second_fields["servings"]["id"], "value": 2},
+        {"question_id": second_fields["stove_type"]["id"], "value": "gas"},
+    ]
+    second_response = await client.post(
+        f"/v1/sessions/{session['id']}/answers",
+        json={"answers": second_answers},
+    )
+    assert second_response.status_code == 200
+    final = second_response.json()
+    assert final["status"] == "ready"
+    assert final["questions"] == []
+    assert final["conditions"]["skill_level"] == "beginner"
+    assert final["conditions"]["time_budget_min"] == 30
+    assert final["conditions"]["people"] == 2
+    assert final["conditions"]["servings"] == 2
+    assert final["conditions"]["stove_type"] == "gas"
+    assert "oven_available" not in final["conditions"]
+    assert "allergies" not in final["conditions"]
+
+
+async def test_optional_question_can_be_skipped_when_key_fields_suffice(client):
+    created = await client.post(
+        "/v1/sessions",
+        json={
+            "domain": "cooking",
+            "goal": "2 人份番茄鸡蛋面",
+            "conditions": {
+                "skill_level": "beginner",
+                "time_budget_min": 30,
+                "people": 2,
+                "servings": 2,
+            },
+        },
+    )
+    session = created.json()
+    fields = {item["field"]: item for item in session["questions"]}
+    assert {"stove_type", "oven_available", "allergies", "available_equipment"} <= set(fields)
+    answered = await client.post(
+        f"/v1/sessions/{session['id']}/answers",
+        json={
+            "answers": [
+                {"question_id": fields["stove_type"]["id"], "value": "gas"},
+            ]
+        },
+    )
+    assert answered.status_code == 200
+    final = answered.json()
+    assert final["status"] == "ready"
+    assert final["questions"] == []
+    assert "oven_available" not in final["conditions"]
+    assert "allergies" not in final["conditions"]

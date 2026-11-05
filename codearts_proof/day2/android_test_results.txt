@@ -1,0 +1,6 @@
+<testsuite name="com.tutorialcoach.app.data.ContractExamplesTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-05T07:18:21" hostname="LAPTOP-P2VQCC8P" time="0.146">
+<testsuite name="com.tutorialcoach.app.data.DtoTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-05T07:18:21" hostname="LAPTOP-P2VQCC8P" time="0.004">
+<testsuite name="com.tutorialcoach.app.domain.ErrorMapperTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-05T07:18:21" hostname="LAPTOP-P2VQCC8P" time="0.005">
+<testsuite name="com.tutorialcoach.app.domain.PlanValidatorTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-05T07:18:21" hostname="LAPTOP-P2VQCC8P" time="0.004">
+<testsuite name="com.tutorialcoach.app.ui.screens.plan.PlanViewModelTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-05T07:18:21" hostname="LAPTOP-P2VQCC8P" time="0.121">
+total=19 failures=0 errors=0 skipped=0

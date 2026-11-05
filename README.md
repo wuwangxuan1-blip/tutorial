@@ -5,14 +5,15 @@
 
 用户输入目标，应用结合现有材料、设备和经验提供步骤指导，并接收图片或短片反馈。覆盖烹饪烘焙、摄影与相机运镜、软件技能、咖啡饮品。
 
-当前状态（P0/D1）：Kotlin + Jetpack Compose Android、FastAPI 服务端、真实 DeepSeek 文本/图片/JSON 探针、烹饪“目标→澄清→计划→步骤卡”垂直流程已实现；服务端 21 项测试、安卓 12 项 JVM 测试通过，debug APK 已构建。真机（realme GT6）安装、主流程、诊断、跨会话隔离、断网恢复已验证；旋转/切后台/进程恢复尚未验证。P0 主流程完成，等待 Codex 复审。
+当前状态（P1/D2）：共享契约样例与双端解析、烹饪两轮澄清/可选跳过、真实模型计划、异常与恢复、真机复测已完成；服务端 44 项测试、安卓 19 项 JVM 测试通过，debug APK 已构建（约 11 MB）。真机（realme GT6）完成两轮澄清、含假设计划、步骤卡；旋转/切后台/进程恢复等健壮性未验证。D2 完成，等待 Codex 复审。
 
 - 项目入口：[PROJECT_PLAN.md](PROJECT_PLAN.md)
 - 文档索引：[docs/README.md](docs/README.md)
 - 实现状态：[docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)
 - 环境实测：[docs/ENVIRONMENT.md](docs/ENVIRONMENT.md)
 - 码道任务：[docs/CODEARTS_PROMPTS.md](docs/CODEARTS_PROMPTS.md)
-- 证据目录：[codearts_proof/day1/](codearts_proof/day1/)
+- 证据目录：[codearts_proof/day1/](codearts_proof/day1/)、[codearts_proof/day2/](codearts_proof/day2/)
+- 契约样例：[contracts/examples/](contracts/examples/)
 
 ## 环境要求
 

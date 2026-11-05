@@ -14,11 +14,27 @@ from ..logging_config import redact
 
 _FENCE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
 logger = logging.getLogger("tutorial_coach.model")
+_REFUSAL_MARKERS = (
+    "content policy",
+    "content_filter",
+    "content filter",
+    "safety policy",
+    "refus",
+    "violat",
+    "敏感",
+    "违规",
+    "风险内容",
+)
 
 
 class ModelClient:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
         self.settings = settings
+        self.transport = transport
 
     async def chat_json(
         self,
@@ -48,7 +64,10 @@ class ModelClient:
         }
         started = time.perf_counter()
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=10.0)) as client:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout, connect=10.0),
+                transport=self.transport,
+            ) as client:
                 response = await client.post(
                     f"{self.settings.base_url}/chat/completions",
                     json=payload,
@@ -85,6 +104,25 @@ class ModelClient:
                 retry_after_s=int(retry_after) if retry_after and retry_after.isdigit() else None,
             )
         if response.status_code >= 400:
+            upstream_text = response.text[:1000].lower()
+            if response.status_code in (400, 403, 422) and any(
+                marker in upstream_text for marker in _REFUSAL_MARKERS
+            ):
+                logger.warning(
+                    "model_call_failed",
+                    extra={
+                        "model": selected_model,
+                        "duration_ms": elapsed_ms,
+                        "status": response.status_code,
+                        "error_code": "MODEL_REFUSED",
+                    },
+                )
+                raise ApiError(
+                    422,
+                    "MODEL_REFUSED",
+                    "模型拒绝处理该请求，请修改内容后重试。",
+                    details={"upstream_status": response.status_code},
+                )
             logger.warning(
                 "model_call_failed",
                 extra={
@@ -99,7 +137,7 @@ class ModelClient:
                 "MODEL_BAD_OUTPUT",
                 "模型返回错误，请重试。",
                 retryable=True,
-                details={"upstream_status": response.status_code},
+                details={"upstream_status": response.status_code, "reason": "upstream_error"},
             )
         try:
             body = response.json()
@@ -113,8 +151,14 @@ class ModelClient:
                 "model_call_failed",
                 extra={"model": selected_model, "duration_ms": elapsed_ms, "error_code": "MODEL_BAD_OUTPUT"},
             )
-            raise ApiError(502, "MODEL_BAD_OUTPUT", "模型响应结构异常。") from exc
+            raise ApiError(502, "MODEL_BAD_OUTPUT", "模型响应结构异常。", details={"reason": "bad_structure"}) from exc
         usage = body.get("usage") or {}
+        if finish_reason == "content_filter":
+            logger.warning(
+                "model_call_failed",
+                extra={"model": selected_model, "duration_ms": elapsed_ms, "error_code": "MODEL_REFUSED"},
+            )
+            raise ApiError(422, "MODEL_REFUSED", "模型拒绝处理该请求，请修改内容后重试。")
         if finish_reason == "length":
             logger.warning(
                 "model_call_failed",
@@ -135,6 +179,7 @@ class ModelClient:
                     "completion_tokens": usage.get("completion_tokens"),
                     "content_chars": len(content),
                     "reasoning_chars": len(reasoning_content),
+                    "reason": "length",
                 },
             )
         if not content.strip():
@@ -156,6 +201,7 @@ class ModelClient:
                     "finish_reason": finish_reason,
                     "content_chars": 0,
                     "reasoning_chars": len(reasoning_content),
+                    "reason": "empty_content",
                 },
             )
         text = content.strip()
@@ -169,7 +215,12 @@ class ModelClient:
                 "model_call_failed",
                 extra={"model": selected_model, "duration_ms": elapsed_ms, "error_code": "MODEL_BAD_OUTPUT"},
             )
-            raise ApiError(502, "MODEL_BAD_OUTPUT", "模型未返回可解析的 JSON。") from exc
+            raise ApiError(
+                502,
+                "MODEL_BAD_OUTPUT",
+                "模型未返回可解析的 JSON。",
+                details={"reason": "invalid_json"},
+            ) from exc
         tokens = usage.get("total_tokens")
         logger.info(
             "model_call_succeeded",

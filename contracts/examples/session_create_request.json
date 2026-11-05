@@ -1,0 +1,10 @@
+{
+  "domain": "cooking",
+  "goal": "2 人份番茄鸡蛋面，30 分钟内完成",
+  "reference_ids": [],
+  "conditions": {
+    "skill_level": "beginner",
+    "time_budget_min": 30,
+    "people": 2
+  }
+}

@@ -56,7 +56,7 @@ class Preparation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    text: str
+    text: str = Field(min_length=1, max_length=500)
     optional: bool = False
 
 
@@ -66,17 +66,17 @@ class Step(BaseModel):
     id: str
     order: int = Field(ge=1, le=15)
     phase: Phase
-    title: str
-    instruction: str
-    why: str
-    duration_s: int
-    completion_criteria: list[str]
-    safety: list[str]
-    common_mistakes: list[str]
+    title: str = Field(min_length=1, max_length=100)
+    instruction: str = Field(min_length=1, max_length=2000)
+    why: str = Field(default="", max_length=1000)
+    duration_s: int = Field(ge=0, le=7200)
+    completion_criteria: list[str] = Field(min_length=1, max_length=5)
+    safety: list[str] = Field(default_factory=list, max_length=5)
+    common_mistakes: list[str] = Field(default_factory=list, max_length=5)
     timer: StepTimer | None = None
     visual_aid: dict[str, Any] | None = None
-    evidence_hint: str
-    media_prompt: str
+    evidence_hint: str = Field(default="", max_length=300)
+    media_prompt: str = Field(default="", max_length=300)
 
 
 class PlanOut(BaseModel):
@@ -86,12 +86,12 @@ class PlanOut(BaseModel):
     session_id: str
     version: int = Field(ge=1)
     domain: Domain
-    title: str
-    summary: str
-    assumptions: list[str]
-    preparation: list[Preparation]
-    steps: list[Step]
-    total_estimated_min: int
-    safety_notes: list[str]
+    title: str = Field(min_length=1, max_length=120)
+    summary: str = Field(default="", max_length=1000)
+    assumptions: list[str] = Field(default_factory=list, max_length=10)
+    preparation: list[Preparation] = Field(min_length=1, max_length=20)
+    steps: list[Step] = Field(min_length=3, max_length=15)
+    total_estimated_min: int = Field(ge=5, le=480)
+    safety_notes: list[str] = Field(default_factory=list, max_length=10)
     reference_ids: list[str] = Field(default_factory=list)
     created_at: str

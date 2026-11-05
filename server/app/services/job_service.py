@@ -180,7 +180,7 @@ class JobService:
                 job_id,
                 status=JobStatus.succeeded.value,
                 progress=100,
-                stage="succeeded",
+                stage="done",
                 result={"plan_id": plan["id"], "plan_version": next_version},
                 error=None,
             )

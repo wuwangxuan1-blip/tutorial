@@ -103,6 +103,8 @@ async def test_invalid_then_valid_repair_returns_plan(tmp_path):
     assert plan["version"] == 1
     assert len(plan["steps"]) == 3
     assert all(step["completion_criteria"] for step in plan["steps"])
+    assert any("过敏" in item for item in plan["assumptions"])
+    assert any("器具" in item for item in plan["assumptions"])
 
 
 async def test_two_invalid_drafts_fail_after_exactly_one_repair(tmp_path):
@@ -122,3 +124,47 @@ async def test_repair_timeout_is_propagated(tmp_path):
         await service.generate_cooking_plan(session_payload(), 1)
     assert fake.calls == 2
     assert error.value.code == "MODEL_TIMEOUT"
+
+async def test_invalid_json_then_valid_repair_succeeds(tmp_path):
+    service, fake = make_service(
+        tmp_path,
+        [
+            ApiError(
+                502,
+                "MODEL_BAD_OUTPUT",
+                "模型未返回可解析的 JSON。",
+                retryable=True,
+                details={"reason": "invalid_json"},
+            ),
+            VALID_DRAFT,
+        ],
+    )
+    plan = await service.generate_cooking_plan(session_payload(), 1)
+    assert fake.calls == 2
+    assert len(plan["steps"]) == 3
+
+
+async def test_invalid_json_twice_fails_after_exactly_one_repair(tmp_path):
+    error = ApiError(
+        502,
+        "MODEL_BAD_OUTPUT",
+        "模型未返回可解析的 JSON。",
+        retryable=True,
+        details={"reason": "invalid_json"},
+    )
+    service, fake = make_service(tmp_path, [error, error])
+    with pytest.raises(ApiError) as caught:
+        await service.generate_cooking_plan(session_payload(), 1)
+    assert fake.calls == 2
+    assert caught.value.code == "MODEL_BAD_OUTPUT"
+
+
+async def test_model_refusal_is_not_repaired(tmp_path):
+    service, fake = make_service(
+        tmp_path,
+        [ApiError(422, "MODEL_REFUSED", "模型拒绝处理该请求。")],
+    )
+    with pytest.raises(ApiError) as caught:
+        await service.generate_cooking_plan(session_payload(), 1)
+    assert fake.calls == 1
+    assert caught.value.code == "MODEL_REFUSED"

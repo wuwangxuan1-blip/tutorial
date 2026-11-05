@@ -15,6 +15,7 @@ object ErrorMapper {
                 if (seconds != null) "模型繁忙，请 $seconds 秒后重试。" else "模型繁忙，请稍后重试。"
             }
             "MODEL_TIMEOUT" -> "模型请求超时，请重试。"
+            "MODEL_REFUSED" -> "模型拒绝处理该请求，请修改内容后重试。"
             "MODEL_BAD_OUTPUT" -> "模型返回格式异常，已重试一次仍失败，请重试或缩短输入。"
             "PLAN_LOCKED" -> "已有步骤进度，不能全量重新生成。"
             "VERSION_CONFLICT" -> "计划版本已变化，请刷新后重试。"

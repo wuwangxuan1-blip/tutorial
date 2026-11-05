@@ -1,0 +1,52 @@
+[
+  {
+    "id": "q_servings",
+    "field": "servings",
+    "prompt": "需要做几人份？",
+    "kind": "number",
+    "required": true,
+    "options": [],
+    "unit": "份",
+    "help": "请填 1–20。"
+  },
+  {
+    "id": "q_stove_type",
+    "field": "stove_type",
+    "prompt": "你使用什么灶具？",
+    "kind": "single_choice",
+    "required": true,
+    "options": ["gas", "induction", "electric", "none"],
+    "unit": null,
+    "help": "用于估算火力和时间。"
+  },
+  {
+    "id": "q_oven_available",
+    "field": "oven_available",
+    "prompt": "有可用的烤箱吗？",
+    "kind": "boolean",
+    "required": false,
+    "options": [],
+    "unit": null,
+    "help": "没有也可以生成灶具方案。"
+  },
+  {
+    "id": "q_allergies",
+    "field": "allergies",
+    "prompt": "有哪些过敏或忌口？",
+    "kind": "text",
+    "required": false,
+    "options": [],
+    "unit": null,
+    "help": "没有可填“无”。"
+  },
+  {
+    "id": "q_equipment",
+    "field": "available_equipment",
+    "prompt": "手边有哪些主要器具？",
+    "kind": "text",
+    "required": false,
+    "options": [],
+    "unit": null,
+    "help": "例如炒锅、汤锅、刀、砧板。"
+  }
+]

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
+from app.errors import ApiError
+
 FULL_COOKING = {
     "skill_level": "beginner",
     "time_budget_min": 30,
@@ -140,3 +142,54 @@ async def test_plan_job_rejects_non_cooking_domain(client):
     )
     assert job_response.status_code == 422
     assert job_response.json()["error"]["code"] == "DOMAIN_MISMATCH"
+
+async def test_plan_job_surfaces_rate_limit_error(client, monkeypatch):
+    async def fake_chat_json(system_prompt, user_prompt, model=None, timeout_s=None):
+        raise ApiError(
+            429,
+            "MODEL_RATE_LIMITED",
+            "模型限流，请稍后重试。",
+            retryable=True,
+            retry_after_s=3,
+        )
+
+    monkeypatch.setattr(client.app.state.model_client, "chat_json", fake_chat_json)
+    created = await client.post(
+        "/v1/sessions",
+        json={"domain": "cooking", "goal": "2 人份番茄鸡蛋面", "conditions": FULL_COOKING},
+    )
+    session = created.json()
+    response = await client.post(
+        f"/v1/sessions/{session['id']}/plan-jobs",
+        json={"base_plan_version": None},
+    )
+    assert response.status_code == 202
+    job = await wait_job(client, response.json()["id"])
+    assert job["status"] == "failed"
+    assert job["error"]["error"]["code"] == "MODEL_RATE_LIMITED"
+    assert job["error"]["error"]["retryable"] is True
+    assert job["error"]["error"]["retry_after_s"] == 3
+
+
+async def test_plan_job_structural_failure_after_one_repair(client, monkeypatch):
+    calls = {"count": 0}
+
+    async def fake_chat_json(system_prompt, user_prompt, model=None, timeout_s=None):
+        calls["count"] += 1
+        return {"title": "invalid plan"}
+
+    monkeypatch.setattr(client.app.state.model_client, "chat_json", fake_chat_json)
+    created = await client.post(
+        "/v1/sessions",
+        json={"domain": "cooking", "goal": "2 人份番茄鸡蛋面", "conditions": FULL_COOKING},
+    )
+    session = created.json()
+    response = await client.post(
+        f"/v1/sessions/{session['id']}/plan-jobs",
+        json={"base_plan_version": None},
+    )
+    assert response.status_code == 202
+    job = await wait_job(client, response.json()["id"])
+    assert job["status"] == "failed"
+    assert job["error"]["error"]["code"] == "MODEL_BAD_OUTPUT"
+    assert calls["count"] == 2

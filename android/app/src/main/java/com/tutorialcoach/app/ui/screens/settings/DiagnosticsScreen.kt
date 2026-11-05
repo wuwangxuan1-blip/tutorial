@@ -116,7 +116,7 @@ fun DiagnosticsScreen(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Text(
-                            "P0 只开放烹饪计划生成。",
+                            "P1/D2 开放烹饪计划生成；其余领域后续阶段开放。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

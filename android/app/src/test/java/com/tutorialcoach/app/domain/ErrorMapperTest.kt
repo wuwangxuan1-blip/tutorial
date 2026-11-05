@@ -40,4 +40,11 @@ class ErrorMapperTest {
         assertTrue(ErrorMapper.message(error).contains("不能全量重新生成"))
         assertFalse(ErrorMapper.isRetryable(error))
     }
+
+    @Test
+    fun modelRefusedIsNotRetryable() {
+        val error = ApiException("MODEL_REFUSED", "模型拒绝处理该请求。", retryable = false)
+        assertTrue(ErrorMapper.message(error).contains("模型拒绝处理"))
+        assertFalse(ErrorMapper.isRetryable(error))
+    }
 }

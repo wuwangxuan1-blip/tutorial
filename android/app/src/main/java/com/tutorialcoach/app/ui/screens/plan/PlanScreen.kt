@@ -228,6 +228,7 @@ private fun stageLabel(stage: String): String = when (stage) {
     "analyzing" -> "调用模型"
     "validating" -> "校验输出"
     "loading_plan" -> "获取计划"
+    "done" -> "完成"
     "succeeded" -> "完成"
     else -> stage
 }

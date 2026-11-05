@@ -49,7 +49,7 @@
 | 项目 venv | `server/.venv`，pip 24.3.1 |
 | 已安装 | fastapi 0.162.0、uvicorn 0.54.0、httpx 0.28.1、pydantic 2.14.2、python-dotenv 1.2.4、pytest 8.4.2、pytest-asyncio 0.25.3 |
 | 锁文件 | `server/requirements.txt`（pip freeze） |
-| 服务端测试 | `pytest -v`：**21 项 PASS**；见 `codearts_proof/day1/server_pytest.log` |
+| 服务端测试 | `pytest -v`（D2）：**44 项 PASS**；见 `codearts_proof/day2/server_pytest.log` |
 
 ## 5. ffmpeg
 
@@ -109,12 +109,12 @@
 |---|---|
 | `gradlew --version` | PASS（Gradle 8.9 + JVM 21.0.7） |
 | `:app:assembleDebug` | **PASS**：标准 Wrapper + JBR 21，`:app:assembleDebug --rerun-tasks` `BUILD SUCCESSFUL in 28s`（35 任务全部执行）；见 `android_build_round3.log` |
-| APK | `android/app/build/outputs/apk/debug/app-debug.apk`（约 10 MB，2026-11-05 01:01）；`aapt2` 核验包名/版本/SDK 通过 |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`（D2 约 11 MB，2026-11-05 13:21）；`aapt2` 核验包名/版本/SDK 通过 |
 | 设备安装/启动/截图 | **PASS（最小流程）**：`adb install -r` Success；冷启动成功；首页/澄清/真实计划/步骤卡/诊断页均验证；截图保存在本地未提交 |
 | 断网恢复 | **PASS**：停止服务端→首页“服务端：未连接”；重启→“服务端：正常” |
 | 真机跨会话隔离 | **PASS**：第二个会话计划页无上一会话计划残留 |
 | 未真机验证项 | 旋转、切后台、进程被杀恢复；中文目标输入；第二份计划真实生成 |
-| Android JVM 测试 | **PASS**：12 项，0 失败；`BUILD SUCCESSFUL in 15s`；含新增 `PlanViewModelTest`；见 `android_test_round3.log` |
+| Android JVM 测试 | **PASS（D2）**：19 项，0 失败；含 ContractExamplesTest 6、ErrorMapper 5、PlanViewModel 1；见 `codearts_proof/day2/android_test_results.txt` |
 | FastAPI `/v1/health` | PASS：200、`status=ok`、无 Key |
 | 模型探针 | PASS：文本/JSON/图片 |
 | 真实计划垂直流程 | PASS（服务端 + 真机 UI：5 步计划、步骤卡） |
@@ -127,3 +127,16 @@
 - 截图 `device_home.png`、`device_step.png` 仅在本地，未提交；无个人媒体入库。
 - `.env` 被 `.gitignore` 排除；不提交。
 - 运行数据 `server/data/` 已被忽略；证据只保留脱敏副本。
+## 11. P1/D2 阶段补充（2026-11-05）
+
+| 项 | 实测 |
+|---|---|
+| 契约样例 | `contracts/examples/` 7 个 JSON；服务端 `test_contract_examples.py` 8 项、安卓 `ContractExamplesTest` 6 项通过 |
+| 服务端测试 | 44 项通过（含模型错误、修复重试、两轮澄清、Job 失败/幂等） |
+| 安卓测试 | 19 项通过（0 失败） |
+| APK | D2 构建约 11 MB；`com.tutorialcoach.app` / 0.1.0 / minSdk 26 / targetSdk 35 |
+| 真实模型流程 | 中文目标“两人份番茄鸡蛋面，30 分钟内完成”：两轮澄清→5 步计划；33.509 s / 5315 tokens；3 条服务端补充假设；`stage=done` |
+| 真机 D2 | 真机完成两轮澄清、计划页（含 6 条假设、准备清单、安全提示）、步骤卡 1/5→2/5；设备端目标用 ASCII（adb 限制），模型输出中文 |
+| 真机模型调用 | 27.079 s / 4682 tokens（最新计划；`day2/device_server_full.log`） |
+| `gradlew` 模式 | `git ls-files -s android/gradlew` = `100755` |
+| 未覆盖 | 旋转/切后台/进程恢复、中文输入法、视觉截图检查、干净机器首次 Gradle/Maven 下载 |

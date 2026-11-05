@@ -1,0 +1,98 @@
+{
+  "id": "plan_01J9Z8M1AA",
+  "session_id": "sess_01J9Z8K6Q3",
+  "version": 1,
+  "domain": "cooking",
+  "title": "30 分钟番茄鸡蛋面（2 人份）",
+  "summary": "先烧水、备料，再炒蛋和番茄，最后煮面合并。",
+  "assumptions": [
+    "使用普通燃气灶和炒锅",
+    "有刀、砧板、汤锅",
+    "鸡蛋和番茄为常见大小"
+  ],
+  "preparation": [
+    {
+      "id": "prep_1",
+      "text": "番茄 2 个切块，鸡蛋 2 个打散，葱切末。",
+      "optional": false
+    },
+    {
+      "id": "prep_2",
+      "text": "汤锅加水，炒锅和锅铲放在灶旁。",
+      "optional": false
+    },
+    {
+      "id": "prep_3",
+      "text": "生熟砧板和碗盘分开摆放。",
+      "optional": false
+    }
+  ],
+  "steps": [
+    {
+      "id": "step_1",
+      "order": 1,
+      "phase": "prepare",
+      "title": "烧水并备料",
+      "instruction": "汤锅加水烧开；同时把番茄切块、鸡蛋打散。",
+      "why": "缩短总时间，避免煮面和炒料互相等待。",
+      "duration_s": 300,
+      "completion_criteria": [
+        "水明显沸腾",
+        "番茄切成约 2 cm 块",
+        "鸡蛋液无大块蛋清"
+      ],
+      "safety": ["热锅热水防烫", "生熟砧板分开"],
+      "common_mistakes": ["水未开就下面", "番茄切得过大不易出汁"],
+      "timer": {"suggested_s": 300, "auto_start": false},
+      "visual_aid": null,
+      "evidence_hint": "可拍一张备料全景，确认食材和器具齐全。",
+      "media_prompt": "需要我帮你检查备料是否齐全吗？"
+    },
+    {
+      "id": "step_2",
+      "order": 2,
+      "phase": "execute",
+      "title": "炒鸡蛋",
+      "instruction": "热锅下油，倒入蛋液，凝固后立刻盛出。",
+      "why": "先炒蛋可以保持嫩度，最后回锅不柴。",
+      "duration_s": 180,
+      "completion_criteria": [
+        "蛋液大部分凝固",
+        "表面仍有一点湿润",
+        "没有焦黑"
+      ],
+      "safety": ["油温高，避免水滴入锅"],
+      "common_mistakes": ["炒到全干", "火太大导致焦边"],
+      "timer": {"suggested_s": 180, "auto_start": false},
+      "visual_aid": null,
+      "evidence_hint": "可上传一张锅中鸡蛋照片。",
+      "media_prompt": "鸡蛋看起来偏干还是偏嫩？可拍照让我看看。"
+    },
+    {
+      "id": "step_3",
+      "order": 3,
+      "phase": "finish",
+      "title": "煮面并合并",
+      "instruction": "面条煮熟后沥干，与番茄鸡蛋翻拌均匀后关火。",
+      "why": "最后合并可以让面条吸收汤汁且不过度软烂。",
+      "duration_s": 240,
+      "completion_criteria": [
+        "面条无硬芯",
+        "汤汁均匀包裹面条"
+      ],
+      "safety": ["捞面时防烫", "关火后再盛出"],
+      "common_mistakes": ["面条煮过头", "汤汁太少导致拌不开"],
+      "timer": {"suggested_s": 240, "auto_start": false},
+      "visual_aid": null,
+      "evidence_hint": "可拍成品近景和面条断面。",
+      "media_prompt": "需要看看面条是否过软吗？"
+    }
+  ],
+  "total_estimated_min": 30,
+  "safety_notes": [
+    "生鸡蛋接触后洗手；生熟食材分开。",
+    "图片无法判断食物内部温度或食用安全；请用温度计或按食品安全规范确认。"
+  ],
+  "reference_ids": [],
+  "created_at": "2026-11-04T08:01:00Z"
+}

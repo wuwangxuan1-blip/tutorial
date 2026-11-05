@@ -1,0 +1,152 @@
+{
+  "id": "plan_01M6N2R5Z01SZPX43A0945E3VQ",
+  "session_id": "sess_01M6N2Q4C1GCN8KWAYGRXZVV3Z",
+  "version": 1,
+  "domain": "cooking",
+  "title": "两人份番茄鸡蛋面（30分钟内）",
+  "summary": "两人份番茄鸡蛋面，使用燃气灶和一口可炒可煮的锅，先炒蛋、再炒番茄煮面，最后回锅分装。总时长约25分钟，步骤强调生熟分开、洗手和防烫。",
+  "assumptions": [
+    "未提供过敏信息，无法核对番茄、鸡蛋、面条及相关调味料的过敏原。",
+    "未提供器具清单，按常见汤锅、炒锅、刀和砧板假设。",
+    "未提供烤箱可用性，按以灶具为主的方案假设。"
+  ],
+  "preparation": [
+    {
+      "id": "prep_1",
+      "text": "番茄洗净；鸡蛋打入碗中；面条、两个碗和碗筷放到灶台边。",
+      "optional": false
+    },
+    {
+      "id": "prep_2",
+      "text": "准备一口可炒可煮的锅、锅铲、刀、砧板和筷子。",
+      "optional": false
+    },
+    {
+      "id": "prep_3",
+      "text": "把少量食用油、盐和清水放在顺手处。",
+      "optional": false
+    }
+  ],
+  "steps": [
+    {
+      "id": "step_1",
+      "order": 1,
+      "phase": "prepare",
+      "title": "切番茄与搅蛋液",
+      "instruction": "番茄洗净后切成约2厘米小块；鸡蛋用筷子或打蛋器搅散，直到蛋液颜色均匀；把面条、碗筷和调味品排在灶台伸手可及处。",
+      "why": "提前切配和搅匀可缩短开火后的操作时间，避免手忙脚乱。",
+      "duration_s": 300,
+      "completion_criteria": [
+        "番茄切成约2厘米小块",
+        "蛋液颜色均匀，无明显大块蛋清",
+        "面条、碗筷和调味品在灶台伸手可及处"
+      ],
+      "safety": [
+        "处理生鸡蛋后立即洗手；生熟餐具分开。"
+      ],
+      "common_mistakes": [],
+      "timer": null,
+      "visual_aid": null,
+      "evidence_hint": "",
+      "media_prompt": ""
+    },
+    {
+      "id": "step_2",
+      "order": 2,
+      "phase": "execute",
+      "title": "先炒鸡蛋",
+      "instruction": "燃气灶开中小火，锅干后倒少量油，油面轻微晃动后倒入蛋液，用锅铲轻推散开；蛋液大部分凝固成块时立即盛出备用，锅中留少量油。",
+      "why": "先炒蛋可避免蛋在番茄汤中煮散，也方便控制炒蛋状态。",
+      "duration_s": 180,
+      "completion_criteria": [
+        "蛋液大部分凝固成块",
+        "锅内无大面积流动蛋液",
+        "鸡蛋已盛出，锅中留少量油"
+      ],
+      "safety": [
+        "热油可能溅出，放蛋液时贴近锅面；锅柄朝内。"
+      ],
+      "common_mistakes": [],
+      "timer": null,
+      "visual_aid": null,
+      "evidence_hint": "",
+      "media_prompt": ""
+    },
+    {
+      "id": "step_3",
+      "order": 3,
+      "phase": "execute",
+      "title": "炒番茄并加水烧开",
+      "instruction": "原锅保持中小火，加少量油，倒入番茄块翻炒并轻压出汁；番茄明显变软、锅底有红色汤汁后，加入约两碗水，转大火烧到水面明显沸腾。",
+      "why": "番茄先炒出汁再加水，汤底更有番茄味，也能让后续煮面有足够汤汁。",
+      "duration_s": 300,
+      "completion_criteria": [
+        "番茄块明显变软并出红色汤汁",
+        "加水后水面明显沸腾",
+        "汤底可没过即将加入的面条"
+      ],
+      "safety": [
+        "加水时沿锅边倒入，避免蒸汽和热水烫手。"
+      ],
+      "common_mistakes": [],
+      "timer": null,
+      "visual_aid": null,
+      "evidence_hint": "",
+      "media_prompt": ""
+    },
+    {
+      "id": "step_4",
+      "order": 4,
+      "phase": "execute",
+      "title": "下入面条并计时煮",
+      "instruction": "水沸腾后下入面条，用筷子轻轻拨散防粘；按面条包装建议时间计时，期间保持水面微沸，若水将溢出可调小火。",
+      "why": "面条散开受热更均匀，按包装时间操作对新手更稳妥。",
+      "duration_s": 360,
+      "completion_criteria": [
+        "面条全部浸入沸水中并散开",
+        "按包装建议时间计时结束",
+        "夹起面条柔软可弯"
+      ],
+      "safety": [
+        "下生面条时轻放，防止开水溅出；保持通风。"
+      ],
+      "common_mistakes": [],
+      "timer": null,
+      "visual_aid": null,
+      "evidence_hint": "",
+      "media_prompt": ""
+    },
+    {
+      "id": "step_5",
+      "order": 5,
+      "phase": "finish",
+      "title": "回锅混合并分装",
+      "instruction": "把先前炒好的鸡蛋倒回锅中，用筷子或锅铲轻推混合；关火，将面条、番茄和汤汁分装到两个碗中，鸡蛋尽量均匀分到两碗，稍放凉后食用。",
+      "why": "最后回锅可减少鸡蛋过老，分装能让两人份更均匀。",
+      "duration_s": 120,
+      "completion_criteria": [
+        "两碗均分到面条、番茄和鸡蛋",
+        "碗中不见大块未凝固蛋液",
+        "碗沿擦净，稍放凉后食用"
+      ],
+      "safety": [
+        "热汤热面防烫，分装时不要将碗放在灶台边缘。"
+      ],
+      "common_mistakes": [],
+      "timer": null,
+      "visual_aid": null,
+      "evidence_hint": "",
+      "media_prompt": ""
+    }
+  ],
+  "total_estimated_min": 25,
+  "safety_notes": [
+    "生熟分开：接触生鸡蛋、生面条的器具与成品餐具分开。",
+    "处理生食材后洗手，尤其是接触生鸡蛋后。",
+    "热油和开水都可能烫伤，倒水、下料和分装时动作放慢。",
+    "燃气灶使用时保持通风，人不离灶；锅柄朝内。",
+    "图片无法判断食物内部温度或食用安全；请用温度计或按食品安全规范确认。"
+  ],
+  "reference_ids": [],
+  "created_at": "2026-11-05T05:26:18Z"
+}
