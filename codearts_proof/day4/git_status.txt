@@ -1,10 +1,11 @@
-# D4 Git 状态（2026-11-05，复审修复轮）
+# D4 Git 状态（2026-11-05，证据帧修复轮）
 
 - D3 基线：`f5371c2`（已推送，远端 main 核验一致）。
 - D4 代码/测试/证据提交：`d532ce0`（feat: implement D4 media feedback and photography flow）。
 - D4 交付记录提交：`ba1eb52`（docs: record D4 commit and push status）。
-- D4 复审修复提交：`bdb3f181bf8436dfdddac5aca05d44799a738d94`（fix: guard feedback session writes and map video evidence frames）。
-- 推送：`git push origin main` 成功，`f5371c2..bdb3f18  main -> main`；`git ls-remote origin main` 核验远端为 `bdb3f18`。
+- D4 复审第二轮修复：`bdb3f18`（fix: guard feedback session writes and map video evidence frames），已推送。
+- D4 复审第三轮修复（证据帧以模型实际输入为准）：`0151468642b7df24f785645f217b1d8c783d1abc`（fix: serve exact model input frames for video evidence）。
+- 推送：`git push origin main` 成功，`40676b1..0151468  main -> main`；`git ls-remote origin main` 核验远端为 `0151468`。
 - 未强推；已提交与已推送均已核验。
-- 密钥扫描：262 个文本文件、0 匹配、`clean=true`（`secret_scan.json`）。
+- 密钥扫描：263 个文本文件、0 匹配、`clean=true`（`secret_scan.json`）。
 - 说明：本文件随后以独立文档提交记录；若该提交晚于上面 SHA，最终远端以该文档提交为准。
