@@ -1,5 +1,5 @@
 Android JVM 测试（D5）
-命令：gradlew.bat --no-daemon --console=plain :app:testDebugUnitTest --rerun-tasks
+命令：gradlew.bat :app:testDebugUnitTest --rerun-tasks --console=plain
 结果：BUILD SUCCESSFUL；55 tests，0 failures，0 errors
 
 分套件：

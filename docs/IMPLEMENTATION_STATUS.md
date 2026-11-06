@@ -326,3 +326,11 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 
 本轮实测：服务端 **116 passed / 0 failed**（配方测试 10 项）；Android **55 tests / 0 failures**；`:app:assembleDebug` BUILD SUCCESSFUL；APK **10,822,322 字节**；真实模型 V60 按计划解析总水量 225/ratio 1:15，92→90 链路通过。状态仍分列：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。
 推送核验（2026-11-06）：`git ls-remote origin main` 开工为 `1376a51`，本地领先 3 个提交（`bd1fe0c`、`f32f4e6`、`0e254a2`）；`git push origin main` 正常快进成功（`1376a51..0e254a2`，未强推），远端 `main = 0e254a2`；推送后复跑服务端 **116 passed / 0 failed**、Android **55 tests / 0 failures**、`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL、APK 10,822,322 字节、密钥扫描 298 文件 0 匹配、`git diff --check` 退出 0。未进入 D6。
+### 16.5 D5 配方解析优先级修复（2026-11-06）
+
+基线：`0e254a2`（本地 `864b211` 仅文档状态记录，不改代码）。只修两项，不进入 D6：
+
+1. **总水量来源与优先级**：解析改为分层——先取显式总量（`总注水/总水量/注水总量/总水/总量/总计/合计/最终注水/最终水量`），存在显式总量时忽略任何阶段注水量；无显式总量时仅接受唯一累计终值（`继续注水至/注水至/注水到/加水至/加到/累计注水`）；多个不同累计值、多个阶段注水量或仅闷蒸/局部用水量 → 422 `INVALID_REQUEST`（`water_total_ambiguous`，`details.source` 为 `explicit_total`/`terminal_pour`/`stage_amount`/`local_only`），不创建配方。「闷蒸 30 g → 注水至 100 g → 注水至 150 g → 总水量 225 g」得到 **225 g**；「闷蒸注水 30 g，继续注水至 225 g」回归保留。
+2. **总时长冒号与优先级**：显式 `总时长/总时间` 支持中英文冒号，先于任何单步用时；多个不同显式总时长 → 422 `brew_time_ambiguous`。调整总时长只改写显式总时长标签（`总时长/总时间/时长`），闷蒸等单步用时保持不变，旧版保留原值。
+
+API 回归覆盖创建时实际保存的 `variables`、`ingredients` 与 `steps`，以及调整后的新版本与旧版本。本轮实测：服务端 **120 passed / 0 failed**（配方测试 14 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL；APK **10,822,322 字节**。状态分列不变：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。

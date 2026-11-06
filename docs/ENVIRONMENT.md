@@ -239,3 +239,11 @@
 | APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节 |
 | 真实模型 | V60 计划解析总水量 225、ratio 1:15；92→90 v2/compare 通过 |
 | 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |
+### D5 配方解析优先级修复实测（2026-11-06）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **120 passed / 0 failed**（配方 14 项：显式总水量优先、无总量仅唯一终值、多阶段/局部 422、中英文冒号总时长优先、只改显式总时长） |
+| Android 测试 | **55 tests / 0 failures**（本轮未改 Android） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节 |
+| 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |

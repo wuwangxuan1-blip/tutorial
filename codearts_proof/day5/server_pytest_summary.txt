@@ -1,12 +1,10 @@
-服务端测试（D5）
+服务端测试（D5，配方解析优先级修复）
 命令：.venv/Scripts/python.exe -m pytest -o addopts=""
-结果：116 passed，0 failed，0 errors
+结果：120 passed，0 failed，0 errors
 
 本轮相关：
-- test_camera：14（合法 orbit/zoom/static；NaN、越界、缺路径、类型冲突、方向、缓动、时长、备注/局限）
-- test_recipe：10（计划参数/demo；总水量 vs 闷蒸/分段注水；总水量歧义 4xx；显式总时长优先；中文分钟时长步骤改写；225→240 派生粉水比；92→90；语义化步骤与同值变量；dose=0/非数字先校验；多变量/冲突/失败不写）
-- test_plan_photography：4（合法 spec 保留；缺失/非法 spec 结构化兜底；无环绕文字时明确缺失）
-- test_plan_flow：coffee 计划域已启用。
-- D4 回归保留：反馈并发进度、计划版本冲突、证据帧与模型输入逐字节一致。
+- test_recipe：14（在 10 项基础上新增：显式总水量优先于阶段注水、总水量前置、无总量多阶段终值 422、仅闷蒸局部量 422、中英文冒号总时长优先、多个显式总时长 422、调整只改总时长并保留闷蒸用时；API 回归校验 variables/ingredients/steps）
+- test_camera：14；test_plan_photography：4；其余 D4/D3 回归全部通过。
+- 「闷蒸注水 30 g，继续注水至 225 g」→ 225 g 回归保留。
 
 说明：真实计划/配方链路见 codearts_proof/day5/real_flow.json；口味字段由脚本作为用户输入测试值提交，不是真实用户品尝结论。

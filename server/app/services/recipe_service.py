@@ -128,11 +128,39 @@ class RecipeService:
         )
 
     def _parse_brew_time(self, text: str) -> int | None:
+        explicit: set[int] = set()
+        explicit_patterns = (
+            (
+                r"(?:总时长|总时间)\s*[:：]?\s*约?\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?",
+                "minutes",
+            ),
+            (r"(?:总时长|总时间)\s*[:：]?\s*约?\s*([0-9]+)\s*秒", "seconds"),
+        )
+        for pattern, kind in explicit_patterns:
+            for match in re.finditer(pattern, text):
+                if kind == "minutes":
+                    seconds = int(match.group(1)) * 60
+                    if match.group(2) is not None:
+                        seconds += int(match.group(2))
+                    explicit.add(seconds)
+                else:
+                    explicit.add(int(float(match.group(1))))
+        if len(explicit) > 1:
+            raise ApiError(
+                422,
+                "INVALID_REQUEST",
+                "计划中出现多个不同的总时长；未创建配方，请明确唯一总时长。",
+                details={
+                    "reason": "brew_time_ambiguous",
+                    "candidates": sorted(explicit),
+                },
+            )
+        if explicit:
+            return explicit.pop()
+
         patterns = (
-            (r"(?:总时长|总时间)\s*约?\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?", "minutes"),
-            (r"(?:总时长|总时间)\s*约?\s*([0-9]+)\s*秒", "seconds"),
-            (r"(?:时长|用时)\s*约?\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?", "minutes"),
-            (r"(?:时长|用时)\s*约?\s*([0-9]+)\s*秒", "seconds"),
+            (r"(?:时长|用时)\s*[:：]?\s*约?\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?", "minutes"),
+            (r"(?:时长|用时)\s*[:：]?\s*约?\s*([0-9]+)\s*秒", "seconds"),
             (r"约\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?", "minutes"),
             (r"约\s*([0-9]+)\s*秒", "seconds"),
             (r"([0-9]+)\s*分\s*([0-9]+)\s*秒", "minutes"),
@@ -152,33 +180,98 @@ class RecipeService:
         return None
 
     def _parse_water_total(self, text: str) -> float | None:
-        total = re.search(
-            r"(?:总注水|总水量|总水|累计注水|最终注水|总计|合计|继续注水至|继续注水到|注水至|注水到|加水至|加到)"
-            r"\s*[:：]?\s*(?:至|到)?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:g|克)",
-            text,
-        )
-        if total:
-            return float(total.group(1))
-        candidates = {
-            float(match.group(1))
-            for match in re.finditer(
-                r"(?:(?:闷蒸注水|继续注水|注水|水量)|(?<![用温洗预])水)"
-                r"\s*[:：]?\s*(?:至|到)?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:g|克)",
-                text,
-            )
+        explicit_labels = {
+            "总水量",
+            "总注水",
+            "注水总量",
+            "总水",
+            "总量",
+            "总计",
+            "合计",
+            "最终注水",
+            "最终水量",
         }
-        if len(candidates) == 1:
-            return candidates.pop()
-        if len(candidates) > 1:
-            raise ApiError(
+        terminal_labels = {
+            "继续注水至",
+            "继续注水到",
+            "注水至",
+            "注水到",
+            "加水至",
+            "加到",
+            "累计注水",
+            "累计水量",
+        }
+        local_labels = {
+            "闷蒸注水",
+            "闷蒸用水",
+            "闷蒸水量",
+            "闷蒸",
+            "洗滤纸用水",
+            "温杯用水",
+            "润洗用水",
+            "预热水",
+        }
+        mention_pattern = re.compile(
+            r"(?P<label>"
+            r"继续注水至|继续注水到|"
+            r"总水量|总注水|注水总量|总水|总量|总计|合计|最终注水|最终水量|"
+            r"闷蒸注水|闷蒸用水|闷蒸水量|闷蒸|洗滤纸用水|温杯用水|润洗用水|预热水|"
+            r"注水至|注水到|加水至|加到|累计注水|累计水量|"
+            r"注水|水量|(?<![用温洗预])水"
+            r")\s*[:：]?\s*(?:约\s*)?(?:至|到)?\s*"
+            r"(?P<value>[0-9]+(?:\.[0-9]+)?)\s*(?:g|克)"
+        )
+
+        explicit: set[float] = set()
+        terminal: set[float] = set()
+        mentions: list[tuple[str, float]] = []
+        for match in mention_pattern.finditer(text):
+            label = match.group("label")
+            value = float(match.group("value"))
+            if label in explicit_labels:
+                explicit.add(value)
+            elif label in terminal_labels:
+                terminal.add(value)
+            else:
+                mentions.append((label, value))
+
+        def ambiguous(values: set[float], source: str) -> ApiError:
+            return ApiError(
                 422,
                 "INVALID_REQUEST",
-                "计划中出现多个未标明总量的注水量，无法确定总水量；未创建配方，请明确总水量。",
+                "计划中出现多个不同的水量，无法确定总水量；未创建配方，请明确总水量。",
                 details={
                     "reason": "water_total_ambiguous",
-                    "candidates": sorted(candidates),
+                    "candidates": sorted(values),
+                    "source": source,
                 },
             )
+
+        if len(explicit) > 1:
+            raise ambiguous(explicit, "explicit_total")
+        if explicit:
+            return explicit.pop()
+        if len(terminal) > 1:
+            raise ambiguous(terminal, "terminal_pour")
+        if terminal:
+            return terminal.pop()
+        distinct = {value for _, value in mentions}
+        if len(distinct) > 1:
+            raise ambiguous(distinct, "stage_amount")
+        if len(distinct) == 1:
+            value = distinct.pop()
+            if all(label in local_labels for label, _ in mentions):
+                raise ApiError(
+                    422,
+                    "INVALID_REQUEST",
+                    "计划中只有闷蒸/局部用水量，无法确定总水量；未创建配方，请明确总水量。",
+                    details={
+                        "reason": "water_total_ambiguous",
+                        "candidates": sorted({value}),
+                        "source": "local_only",
+                    },
+                )
+            return value
         return None
 
     def _parse_plan_variables(self, plan: dict[str, Any]) -> dict[str, Any]:
@@ -388,7 +481,7 @@ class RecipeService:
             operations.append(
                 (
                     re.compile(
-                        rf"(?P<label>总时长|总时间|时长|用时)(?P<sep>\s*约?\s*){expression}"
+                        rf"(?P<label>总时长|总时间|时长)(?P<sep>\s*[:：]?\s*约?\s*){expression}"
                     ),
                     f"{_format_number(new_time)} 秒",
                     "time",

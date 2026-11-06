@@ -490,6 +490,20 @@ async def test_chinese_brew_time_variants(client):
     assert service._parse_brew_time("150 秒") == 150
     assert service._parse_brew_time("用时 30 秒。总时长 150 秒") == 150
     assert service._parse_brew_time("总时长 2 分 30 秒") == 150
+    assert service._parse_brew_time("总时长：150 秒，闷蒸用时 30 秒") == 150
+    assert service._parse_brew_time("闷蒸用时 30 秒，总时长：150 秒") == 150
+    assert service._parse_brew_time("总时长: 2 分 30 秒，闷蒸用时 30 秒") == 150
+    assert service._parse_brew_time("闷蒸用时 30 秒，总时长:150 秒") == 150
+
+
+async def test_water_total_parser_prefers_explicit_total(client):
+    service = client.app.state.recipe_service
+    assert (
+        service._parse_water_total("闷蒸 30 g，注水至 100 g，注水至 150 g，总水量 225 g")
+        == 225
+    )
+    assert service._parse_water_total("闷蒸注水 30 g，继续注水至 225 g") == 225
+    assert service._parse_water_total("水 225 g") == 225
 
 
 async def test_adjustment_validates_values_before_ratio_derivation(client, monkeypatch):
@@ -617,3 +631,148 @@ async def test_recipe_explicit_total_time_wins_and_adjustment_rewrites_chinese_d
     old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
     assert old["variables"]["brew_time_s"] == 150
     assert "总时长 2 分 30 秒" in old["steps"][0]["instruction"]
+
+async def test_explicit_water_total_beats_stage_pours(client, monkeypatch):
+    session, _ = await setup_coffee(
+        client,
+        monkeypatch,
+        plan=_controlled_plan(
+            "咖啡粉 15 g，闷蒸 30 g，注水至 100 g，注水至 150 g，"
+            "总水量 225 g，水温 92 °C，总时长 150 秒。"
+        ),
+    )
+    created = await client.post(
+        f"/v1/sessions/{session['id']}/recipes",
+        json={"base_plan_version": 1},
+    )
+    assert created.status_code == 201, created.text
+    recipe = created.json()
+    assert recipe["variables"]["dose_g"] == 15
+    assert recipe["variables"]["water_g"] == 225
+    assert recipe["variables"]["ratio"] == 15.0
+    assert recipe["variables"]["water_temp_c"] == 92
+    assert recipe["variables"]["brew_time_s"] == 150
+    water = next(item for item in recipe["ingredients"] if item["name"] == "水")
+    coffee = next(item for item in recipe["ingredients"] if item["name"] == "咖啡豆")
+    assert water["amount"] == 225
+    assert coffee["amount"] == 15
+    assert "总水量 225 g" in recipe["steps"][0]["instruction"]
+
+    total_first_session, _ = await setup_coffee(
+        client,
+        monkeypatch,
+        plan=_controlled_plan(
+            "咖啡粉 15 g，总水量 225 g，闷蒸 30 g，注水至 100 g，注水至 150 g，"
+            "水温 92 °C，总时长 150 秒。"
+        ),
+    )
+    total_first = await client.post(
+        f"/v1/sessions/{total_first_session['id']}/recipes",
+        json={"base_plan_version": 1},
+    )
+    assert total_first.status_code == 201, total_first.text
+    assert total_first.json()["variables"]["water_g"] == 225
+
+
+async def test_water_total_rejects_ambiguous_stages_without_explicit_total(
+    client,
+    monkeypatch,
+):
+    staged_session, _ = await setup_coffee(
+        client,
+        monkeypatch,
+        plan=_controlled_plan(
+            "咖啡粉 15 g，注水至 100 g，注水至 150 g，水温 92 °C，总时长 150 秒。"
+        ),
+    )
+    staged = await client.post(
+        f"/v1/sessions/{staged_session['id']}/recipes",
+        json={"base_plan_version": 1},
+    )
+    assert staged.status_code == 422
+    staged_error = staged.json()["error"]["details"]
+    assert staged_error["reason"] == "water_total_ambiguous"
+    assert staged_error["source"] == "terminal_pour"
+    assert (await client.get(f"/v1/sessions/{staged_session['id']}/recipes")).json() == []
+
+    local_session, _ = await setup_coffee(
+        client,
+        monkeypatch,
+        plan=_controlled_plan(
+            "咖啡粉 15 g，闷蒸 30 g，水温 92 °C，总时长 150 秒。"
+        ),
+    )
+    local = await client.post(
+        f"/v1/sessions/{local_session['id']}/recipes",
+        json={"base_plan_version": 1},
+    )
+    assert local.status_code == 422
+    local_error = local.json()["error"]["details"]
+    assert local_error["reason"] == "water_total_ambiguous"
+    assert local_error["source"] == "local_only"
+    assert (await client.get(f"/v1/sessions/{local_session['id']}/recipes")).json() == []
+
+
+async def test_colon_total_time_wins_and_only_total_is_rewritten(client, monkeypatch):
+    session, _ = await setup_coffee(
+        client,
+        monkeypatch,
+        plan=_controlled_plan(
+            "咖啡粉 15 g，水 225 g，水温 92 °C，总时长：150 秒，闷蒸用时 30 秒。"
+        ),
+    )
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    assert recipe["variables"]["brew_time_s"] == 150
+    instruction = recipe["steps"][0]["instruction"]
+    assert "总时长：150 秒" in instruction
+    assert "闷蒸用时 30 秒" in instruction
+
+    adjusted = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "brew_time_s",
+            "to_value": 180,
+            "reason": "只延长总时长。",
+        },
+    )
+    assert adjusted.status_code == 201, adjusted.text
+    v2 = adjusted.json()["recipe"]
+    assert v2["variables"]["brew_time_s"] == 180
+    assert v2["variables"]["dose_g"] == 15
+    assert v2["variables"]["water_g"] == 225
+    assert v2["variables"]["water_temp_c"] == 92
+    v2_instruction = v2["steps"][0]["instruction"]
+    assert "总时长：180 秒" in v2_instruction
+    assert "闷蒸用时 30 秒" in v2_instruction
+    assert "总时长：150 秒" not in v2_instruction
+    water = next(item for item in v2["ingredients"] if item["name"] == "水")
+    coffee = next(item for item in v2["ingredients"] if item["name"] == "咖啡豆")
+    assert water["amount"] == 225
+    assert coffee["amount"] == 15
+
+    old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert old["variables"]["brew_time_s"] == 150
+    assert "总时长：150 秒" in old["steps"][0]["instruction"]
+    assert "闷蒸用时 30 秒" in old["steps"][0]["instruction"]
+    assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]
+
+    ambiguous_session, _ = await setup_coffee(
+        client,
+        monkeypatch,
+        plan=_controlled_plan(
+            "咖啡粉 15 g，水 225 g，水温 92 °C，总时长 150 秒，备用总时长 180 秒。"
+        ),
+    )
+    ambiguous = await client.post(
+        f"/v1/sessions/{ambiguous_session['id']}/recipes",
+        json={"base_plan_version": 1},
+    )
+    assert ambiguous.status_code == 422
+    assert ambiguous.json()["error"]["details"]["reason"] == "brew_time_ambiguous"
+    assert (await client.get(f"/v1/sessions/{ambiguous_session['id']}/recipes")).json() == []

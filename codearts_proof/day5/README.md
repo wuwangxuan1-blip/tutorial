@@ -16,7 +16,8 @@
 | `review_fix_round4.md` | D5 三项复审修复：按计划参数/demo、派生粉水比与步骤同步、Canvas easing |
 | `review_fix_round5.md` | D5 复审再修：语义化步骤更新、中文时长解析、先校验后派生 |
 | `review_fix_round6.md` | D5 复审收尾：总水量 vs 闷蒸注水、总时长优先与中文分钟步骤改写 |
-| `server_pytest_summary.txt` | 后端 116 passed 测试摘要 |
+| `review_fix_round7.md` | D5 配方解析优先级：显式总水量优先于阶段注水、无总量仅唯一终值、中英文冒号总时长、调整只改总时长 |
+| `server_pytest_summary.txt` | 后端 120 passed 测试摘要 |
 | `android_test_results.txt` | Android 55 tests / 0 failures 分套件结果（含 easing 与 seek 回归） |
 | `android_apk_info.txt` | APK 路径、大小与构建结果 |
 | `device_verification.md` | 真机运镜、咖啡品尝/调整与断网重试记录、BLOCKED 项 |
@@ -31,4 +32,4 @@
 - **用户自拍环绕验收：BLOCKED**（无用户自拍环绕素材）。
 - **合成技术回归：另见 D4**，不与第三方实拍或用户自拍合并。
 - 真机咖啡：v1 与用户评分已通过 UI 保存（服务端 201）；92→90 调整与对比未在真机完成，断网重试未触发成功，均标 BLOCKED（工具权限拒绝，未重试/未伪造）。
-- D5 配方复审收尾已提交 `bd1fe0c`（证据 `f32f4e6`，状态记录 `0e254a2`）并成功推送 `1376a51..0e254a2`，远端 `main = 0e254a2`；密钥扫描 298 文件 0 匹配 clean；推送后复跑后端 116 passed、Android 55 tests、APK 10,822,322 字节。详见 `git_status.txt`。
+- D5 配方复审收尾已提交 `bd1fe0c`（证据 `f32f4e6`，状态记录 `0e254a2`）并成功推送 `1376a51..0e254a2`，远端 `main = 0e254a2`；密钥扫描 298 文件 0 匹配 clean；推送后复跑后端 116 passed、Android 55 tests、APK 10,822,322 字节。详见 `git_status.txt`。- D5 配方解析优先级修复（基线 `0e254a2`）：显式总水量优先于阶段注水（闷蒸 30→100→150 + 总水量 225 = 225 g）；无显式总量时仅接受唯一累计终值，多阶段/仅闷蒸局部量 422；总时长支持中英文冒号并优先于单步用时，调整只改总时长。服务端 120 passed、Android 55 tests、APK 10,822,322 字节；状态分列不变。详见 `review_fix_round7.md`、`git_status.txt`。
