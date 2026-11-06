@@ -18,4 +18,4 @@ Android JVM 测试（D5）
 - RecipeViewModelTest: 4（创建→品尝→单变量 v2→对比；409 刷新不覆盖最新版本；非法数值不调用网关；demo 选择透传）
 - StepViewModelTest: 11
 
-D4 回归保留：证据帧字节与模型输入一致、反馈写入不覆盖并发进度等既有用例全部通过。
+D4 回归保留：证据帧字节与模型输入一致、反馈写入不覆盖并发进度等既有用例全部通过。第 8 轮复跑（D5 配方创建/调整总量一致性）：BUILD SUCCESSFUL；55 tests，0 failures，0 errors；Android 未改代码。

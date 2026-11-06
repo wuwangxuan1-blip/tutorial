@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import re
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -38,6 +39,92 @@ _TASTING_DIMENSIONS = (
     "overall",
 )
 
+_WATER_EXPLICIT_LABELS = frozenset(
+    {
+        "总水量",
+        "总注水",
+        "注水总量",
+        "总水",
+        "总量",
+        "总计",
+        "合计",
+        "最终注水",
+        "最终水量",
+    }
+)
+_WATER_TERMINAL_LABELS = frozenset(
+    {
+        "继续注水至",
+        "继续注水到",
+        "注水至",
+        "注水到",
+        "加水至",
+        "加到",
+        "累计注水",
+        "累计水量",
+    }
+)
+_WATER_LOCAL_LABELS = frozenset(
+    {
+        "闷蒸注水",
+        "闷蒸用水",
+        "闷蒸水量",
+        "闷蒸",
+        "洗滤纸用水",
+        "温杯用水",
+        "润洗用水",
+        "预热水",
+    }
+)
+_WATER_GENERAL_LABELS = frozenset({"水", "水量"})
+_WATER_MENTION_PATTERN = re.compile(
+    r"(?P<label>"
+    r"继续注水至|继续注水到|"
+    r"总水量|总注水|注水总量|总水|总量|总计|合计|最终注水|最终水量|"
+    r"闷蒸注水|闷蒸用水|闷蒸水量|闷蒸|洗滤纸用水|温杯用水|润洗用水|预热水|"
+    r"注水至|注水到|加水至|加到|累计注水|累计水量|"
+    r"注水|水量|(?<![用温洗预])水"
+    r")\s*[:：]?\s*(?:约\s*)?(?:至|到)?\s*"
+    r"(?P<value>[0-9]+(?:\.[0-9]+)?)\s*(?:g|克)"
+)
+
+_TIME_EXPRESSION = (
+    r"(?P<expression>"
+    r"(?P<minutes>[0-9]+)\s*分(?:钟)?\s*(?P<part_seconds>[0-9]+)?\s*秒?"
+    r"|(?P<seconds>[0-9]+)\s*秒"
+    r")"
+)
+_TOTAL_TIME_PATTERN = re.compile(
+    r"(?P<label>总时长|总时间)\s*[:：]?\s*约?\s*" + _TIME_EXPRESSION
+)
+_STEP_TIME_PATTERN = re.compile(
+    r"(?P<label>(?<![置蒸步])(?:时长|用时))\s*[:：]?\s*约?\s*" + _TIME_EXPRESSION
+)
+_FALLBACK_TIME_PATTERNS = (
+    (r"约\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?", "minutes"),
+    (r"约\s*([0-9]+)\s*秒", "seconds"),
+    (r"([0-9]+)\s*分\s*([0-9]+)\s*秒", "minutes"),
+    (r"([0-9]+)\s*分(?:钟)?", "minutes"),
+    (r"([0-9]+)\s*秒", "seconds"),
+)
+
+
+@dataclass(frozen=True)
+class _WaterMention:
+    label: str
+    value: float
+    kind: str
+    value_start: int
+    value_end: int
+
+
+@dataclass(frozen=True)
+class _TimeMatch:
+    label: str
+    seconds: int
+    expression_start: int
+    expression_end: int
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -50,6 +137,17 @@ def _clean_text(value: Any, limit: int) -> str:
 def _format_number(value: Any) -> str:
     number = float(value)
     return str(int(number)) if number.is_integer() else str(number)
+
+
+def _match_seconds(match: re.Match[str]) -> int:
+    minutes = match.group("minutes")
+    if minutes is not None:
+        seconds = int(minutes) * 60
+        part = match.group("part_seconds")
+        if part is not None:
+            seconds += int(part)
+        return seconds
+    return int(float(match.group("seconds")))
 
 
 class RecipeService:
@@ -127,24 +225,19 @@ class RecipeService:
             ]
         )
 
+    def _time_matches(self, text: str, pattern: re.Pattern[str]) -> list[_TimeMatch]:
+        return [
+            _TimeMatch(
+                label=match.group("label"),
+                seconds=_match_seconds(match),
+                expression_start=match.start("expression"),
+                expression_end=match.end("expression"),
+            )
+            for match in pattern.finditer(text)
+        ]
+
     def _parse_brew_time(self, text: str) -> int | None:
-        explicit: set[int] = set()
-        explicit_patterns = (
-            (
-                r"(?:总时长|总时间)\s*[:：]?\s*约?\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?",
-                "minutes",
-            ),
-            (r"(?:总时长|总时间)\s*[:：]?\s*约?\s*([0-9]+)\s*秒", "seconds"),
-        )
-        for pattern, kind in explicit_patterns:
-            for match in re.finditer(pattern, text):
-                if kind == "minutes":
-                    seconds = int(match.group(1)) * 60
-                    if match.group(2) is not None:
-                        seconds += int(match.group(2))
-                    explicit.add(seconds)
-                else:
-                    explicit.add(int(float(match.group(1))))
+        explicit = {match.seconds for match in self._time_matches(text, _TOTAL_TIME_PATTERN)}
         if len(explicit) > 1:
             raise ApiError(
                 422,
@@ -157,17 +250,10 @@ class RecipeService:
             )
         if explicit:
             return explicit.pop()
-
-        patterns = (
-            (r"(?:时长|用时)\s*[:：]?\s*约?\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?", "minutes"),
-            (r"(?:时长|用时)\s*[:：]?\s*约?\s*([0-9]+)\s*秒", "seconds"),
-            (r"约\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?", "minutes"),
-            (r"约\s*([0-9]+)\s*秒", "seconds"),
-            (r"([0-9]+)\s*分\s*([0-9]+)\s*秒", "minutes"),
-            (r"([0-9]+)\s*分(?:钟)?", "minutes"),
-            (r"([0-9]+)\s*秒", "seconds"),
-        )
-        for pattern, kind in patterns:
+        step = self._time_matches(text, _STEP_TIME_PATTERN)
+        if step:
+            return step[0].seconds
+        for pattern, kind in _FALLBACK_TIME_PATTERNS:
             match = re.search(pattern, text)
             if not match:
                 continue
@@ -179,61 +265,38 @@ class RecipeService:
             return int(float(match.group(1)))
         return None
 
-    def _parse_water_total(self, text: str) -> float | None:
-        explicit_labels = {
-            "总水量",
-            "总注水",
-            "注水总量",
-            "总水",
-            "总量",
-            "总计",
-            "合计",
-            "最终注水",
-            "最终水量",
-        }
-        terminal_labels = {
-            "继续注水至",
-            "继续注水到",
-            "注水至",
-            "注水到",
-            "加水至",
-            "加到",
-            "累计注水",
-            "累计水量",
-        }
-        local_labels = {
-            "闷蒸注水",
-            "闷蒸用水",
-            "闷蒸水量",
-            "闷蒸",
-            "洗滤纸用水",
-            "温杯用水",
-            "润洗用水",
-            "预热水",
-        }
-        mention_pattern = re.compile(
-            r"(?P<label>"
-            r"继续注水至|继续注水到|"
-            r"总水量|总注水|注水总量|总水|总量|总计|合计|最终注水|最终水量|"
-            r"闷蒸注水|闷蒸用水|闷蒸水量|闷蒸|洗滤纸用水|温杯用水|润洗用水|预热水|"
-            r"注水至|注水到|加水至|加到|累计注水|累计水量|"
-            r"注水|水量|(?<![用温洗预])水"
-            r")\s*[:：]?\s*(?:约\s*)?(?:至|到)?\s*"
-            r"(?P<value>[0-9]+(?:\.[0-9]+)?)\s*(?:g|克)"
-        )
-
-        explicit: set[float] = set()
-        terminal: set[float] = set()
-        mentions: list[tuple[str, float]] = []
-        for match in mention_pattern.finditer(text):
+    def _water_mentions(self, text: str) -> list[_WaterMention]:
+        mentions: list[_WaterMention] = []
+        for match in _WATER_MENTION_PATTERN.finditer(text):
             label = match.group("label")
-            value = float(match.group("value"))
-            if label in explicit_labels:
-                explicit.add(value)
-            elif label in terminal_labels:
-                terminal.add(value)
+            if label in _WATER_EXPLICIT_LABELS:
+                kind = "explicit"
+            elif label in _WATER_TERMINAL_LABELS:
+                kind = "terminal"
+            elif label in _WATER_LOCAL_LABELS:
+                kind = "local"
             else:
-                mentions.append((label, value))
+                kind = "other"
+            mentions.append(
+                _WaterMention(
+                    label=label,
+                    value=float(match.group("value")),
+                    kind=kind,
+                    value_start=match.start("value"),
+                    value_end=match.end("value"),
+                )
+            )
+        return mentions
+
+    def _parse_water_total(self, text: str) -> float | None:
+        mentions = self._water_mentions(text)
+        explicit = {mention.value for mention in mentions if mention.kind == "explicit"}
+        terminal = {mention.value for mention in mentions if mention.kind == "terminal"}
+        stage = {
+            mention.value
+            for mention in mentions
+            if mention.kind in {"other", "local"}
+        }
 
         def ambiguous(values: set[float], source: str) -> ApiError:
             return ApiError(
@@ -255,12 +318,11 @@ class RecipeService:
             raise ambiguous(terminal, "terminal_pour")
         if terminal:
             return terminal.pop()
-        distinct = {value for _, value in mentions}
-        if len(distinct) > 1:
-            raise ambiguous(distinct, "stage_amount")
-        if len(distinct) == 1:
-            value = distinct.pop()
-            if all(label in local_labels for label, _ in mentions):
+        if len(stage) > 1:
+            raise ambiguous(stage, "stage_amount")
+        if len(stage) == 1:
+            value = stage.pop()
+            if all(mention.kind == "local" for mention in mentions):
                 raise ApiError(
                     422,
                     "INVALID_REQUEST",
@@ -273,6 +335,52 @@ class RecipeService:
                 )
             return value
         return None
+
+    def _water_total_spans(self, text: str, old_value: float) -> list[tuple[int, int]]:
+        mentions = self._water_mentions(text)
+        explicit = [mention for mention in mentions if mention.kind == "explicit"]
+        terminal = [mention for mention in mentions if mention.kind == "terminal"]
+        general = [
+            mention
+            for mention in mentions
+            if mention.kind == "other"
+            and mention.label in _WATER_GENERAL_LABELS
+            and mention.value == old_value
+        ]
+        selected: list[_WaterMention] = []
+        if explicit:
+            values = {mention.value for mention in explicit}
+            if len(values) != 1 or next(iter(values)) != old_value:
+                return []
+            selected = explicit
+        elif terminal:
+            values = {mention.value for mention in terminal}
+            if len(values) != 1 or next(iter(values)) != old_value:
+                return []
+            selected = terminal
+        return [
+            (mention.value_start, mention.value_end)
+            for mention in selected + general
+        ]
+
+    def _brew_time_spans(self, text: str, old_seconds: int) -> list[tuple[int, int]]:
+        explicit = self._time_matches(text, _TOTAL_TIME_PATTERN)
+        if explicit:
+            values = {match.seconds for match in explicit}
+            if len(values) != 1 or next(iter(values)) != old_seconds:
+                return []
+            return [(match.expression_start, match.expression_end) for match in explicit]
+        step = self._time_matches(text, _STEP_TIME_PATTERN)
+        values = {match.seconds for match in step}
+        if len(values) == 1 and next(iter(values)) == old_seconds:
+            return [(match.expression_start, match.expression_end) for match in step]
+        return []
+
+    @staticmethod
+    def _replace_spans(text: str, spans: list[tuple[int, int]], new_text: str) -> str:
+        for start, end in sorted(spans, reverse=True):
+            text = text[:start] + new_text + text[end:]
+        return text
 
     def _parse_plan_variables(self, plan: dict[str, Any]) -> dict[str, Any]:
         text = self._plan_text(plan)
@@ -428,27 +536,13 @@ class RecipeService:
                     "value",
                 )
             )
-        water_old = old_pattern("water_g")
-        if water_old:
-            water_new = _format_number(new_variables["water_g"])
-            operations.extend(
-                [
-                    (
-                        re.compile(
-                            rf"(?P<label>总注水|总水量|注水|水量){separator}{water_old}(?P<unit>\s*(?:g|克))"
-                        ),
-                        water_new,
-                        "value",
-                    ),
-                    (
-                        re.compile(
-                            rf"(?P<label>(?<![用温洗预])水){separator}{water_old}(?P<unit>\s*(?:g|克))"
-                        ),
-                        water_new,
-                        "value",
-                    ),
-                ]
-            )
+        water_old = old_variables.get("water_g")
+        water_new = new_variables.get("water_g")
+        water_changed = (
+            water_old is not None
+            and water_new is not None
+            and _format_number(water_old) != _format_number(water_new)
+        )
         temp_old = old_pattern("water_temp_c")
         if temp_old:
             operations.append(
@@ -462,31 +556,11 @@ class RecipeService:
             )
         old_time = old_variables.get("brew_time_s")
         new_time = new_variables.get("brew_time_s")
-        if old_time is not None and new_time is not None and old_time != new_time:
-            old_seconds = int(old_time)
-            minutes, part_seconds = divmod(old_seconds, 60)
-            alternatives = [rf"{old_seconds}\s*秒"]
-            if minutes:
-                if part_seconds:
-                    alternatives.insert(
-                        0,
-                        rf"{minutes}\s*分(?:钟)?\s*{part_seconds}\s*秒",
-                    )
-                else:
-                    alternatives.insert(
-                        0,
-                        rf"{minutes}\s*分(?:钟)?(?:\s*0\s*秒)?",
-                    )
-            expression = "(?:" + "|".join(alternatives) + ")"
-            operations.append(
-                (
-                    re.compile(
-                        rf"(?P<label>总时长|总时间|时长)(?P<sep>\s*[:：]?\s*约?\s*){expression}"
-                    ),
-                    f"{_format_number(new_time)} 秒",
-                    "time",
-                )
-            )
+        time_changed = (
+            old_time is not None
+            and new_time is not None
+            and int(old_time) != int(new_time)
+        )
         ratio_old = old_pattern("ratio")
         if ratio_old:
             operations.append(
@@ -508,8 +582,6 @@ class RecipeService:
                         + match.group("prefix")
                         + new_text
                     )
-                if kind == "time":
-                    return match.group("label") + match.group("sep") + new_text
                 return (
                     match.group("label")
                     + match.group("sep")
@@ -525,6 +597,18 @@ class RecipeService:
                 text = str(step.get(field) or "")
                 for pattern, new_text, kind in operations:
                     text = replace(text, pattern, new_text, kind)
+                if water_changed:
+                    text = self._replace_spans(
+                        text,
+                        self._water_total_spans(text, float(water_old)),
+                        _format_number(water_new),
+                    )
+                if time_changed:
+                    text = self._replace_spans(
+                        text,
+                        self._brew_time_spans(text, int(old_time)),
+                        f"{_format_number(new_time)} 秒",
+                    )
                 step[field] = text
         return updated
 
