@@ -1,12 +1,12 @@
-# D5 Git 状态（2026-11-06 连续调整目标身份保留轮，推送已完成）
+# D5 Git 状态（2026-11-06 总量来源身份持久化轮）
 
-- 开工核验：用户指定基线 `43b6e23`；实际本地从第 11 轮状态记录 `1ee5756` 继续（其已包含 `da1029b` 下限校验与 `43b6e23`/`1ee5756` 状态记录），远端 `main = 1ee5756`，工作区干净、`git diff --check` 退出 0。
-- 本轮修复提交：`7852c2e7aa2728eb36591889ae7cd59b0e219144`（`fix: preserve intermediate water target identity`）。
-- 实现：显式总量来源下只更新**最终目标** terminal（`继续注水至/最终注水` 或带“后停止/后结束”标记），中途 `注水至 X` 即使与当前总量同值也不改写；下限 422 校验保留。
-- 推送：`git push origin main` 成功，`1ee5756..7852c2e  main -> main`（正常快进，未强推）；`git ls-remote origin main` 与本地 `HEAD` 一致。
-- 密钥扫描：**305 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
-- 本轮实测：服务端 **129 passed / 0 failed**（配方测试 23 项）；Android **55 tests / 0 failures / 0 errors**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**；`git diff --check` 退出 0。
-- 回归：初始 `总水量 225 g，中途注水至 100 g，最后继续注水至 225 g 后停止`；改 90 g → 422 `intermediate_water_exceeds_total` 不写入；先改 100 g 再改 240 g → 最新版中途仍 100 g、最终停止条件与用料 240 g，v1/v2 历史按原值回查。
+- 开工核验：本地 `HEAD` = `a90c82ac7cf06bfda9ab75bafcbc33b66c678013`，工作区干净、`git diff --check` 退出 0；`git ls-remote origin main` 本环境间歇性 443 超时，远端最后已知 `main = a90c82a`（上一轮推送后核验值）。
+- 本轮修复提交：`11567f14027d5b1dccc913a2ea7c82c0c576b797`（`fix: persist recipe total source identity across versions`）。
+- 推送：`git push origin main` **成功**，输出 `a90c82a..11567f1  main -> main`（正常快进，未强推）；随后 `git ls-remote` 再次 443 超时，本地 `main...origin/main` 无领先/落后。
+- 实现：`Recipe.total_sources` 记录总水量来源身份（`step_index`/`field`/`label`/`kind`/`ordinal`/`role=declaration|final`）并跨版本保留；`继续注水至` 不再单独作为最终判据，只有创建时标记为 `final` 的位置随总量更新；中途 `继续注水至 100 g` 即使同值也保持，“等待 10 秒”不变；无 marks 或身份定位失败返回 422 `total_source_unconfirmed`，不写入。
+- 本轮实测：服务端 **131 passed / 0 failed**（配方测试 25 项）；Android **55 tests / 0 failures / 0 errors**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**；`git diff --check` 退出 0。
+- 密钥扫描：**306 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
+- 回归：原配方 `总水量 225 g / 闷蒸后继续注水至 100 g，等待 10 秒 / 注水至 225 g 后停止`；改 90 g → 422 `intermediate_water_exceeds_total` 不写入；先改 100 g 再改 240 g → 最新版总量/最终停止条件 240 g、中途仍 100 g、等待仍 10 秒；v1/v2 历史按原值回查；无 marks 的旧配方调整 → 422 `total_source_unconfirmed`。
 - 验收状态分列（不得合并）：
   - 第三方公开授权实拍链路：**通过**。
   - 用户自拍环绕验收：**BLOCKED**（无用户自拍环绕素材）。
@@ -14,4 +14,4 @@
   - 真机断网/超时重试：**BLOCKED**（未取得错误→恢复→重试成功证据）。
   - 真机 Canvas easing/拖动：未复测，由 JVM 覆盖。
 - 本轮未新增功能，未调整提示词，未进入 D6。
-- 本状态记录提交随后推送；最终远端 `main` 以 `git ls-remote` 为准。
+- 本状态记录提交随后推送；最终远端 `main` 以推送输出与 `git ls-remote origin main` 为准。
