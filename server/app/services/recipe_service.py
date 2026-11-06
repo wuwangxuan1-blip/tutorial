@@ -129,24 +129,56 @@ class RecipeService:
 
     def _parse_brew_time(self, text: str) -> int | None:
         patterns = (
-            r"(?:总时长|总时间|时长|用时)\s*约?\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?",
-            r"(?:总时长|总时间|时长|用时)\s*约?\s*([0-9]+)\s*秒",
-            r"约\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?",
-            r"约\s*([0-9]+)\s*秒",
-            r"([0-9]+)\s*分\s*([0-9]+)\s*秒",
-            r"([0-9]+)\s*分(?:钟)?",
-            r"([0-9]+)\s*秒",
+            (r"(?:总时长|总时间)\s*约?\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?", "minutes"),
+            (r"(?:总时长|总时间)\s*约?\s*([0-9]+)\s*秒", "seconds"),
+            (r"(?:时长|用时)\s*约?\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?", "minutes"),
+            (r"(?:时长|用时)\s*约?\s*([0-9]+)\s*秒", "seconds"),
+            (r"约\s*([0-9]+)\s*分(?:钟)?\s*([0-9]+)?\s*秒?", "minutes"),
+            (r"约\s*([0-9]+)\s*秒", "seconds"),
+            (r"([0-9]+)\s*分\s*([0-9]+)\s*秒", "minutes"),
+            (r"([0-9]+)\s*分(?:钟)?", "minutes"),
+            (r"([0-9]+)\s*秒", "seconds"),
         )
-        for pattern in patterns:
+        for pattern, kind in patterns:
             match = re.search(pattern, text)
             if not match:
                 continue
-            if "分" in match.group(0):
+            if kind == "minutes":
                 seconds = int(match.group(1)) * 60
                 if match.lastindex and match.lastindex >= 2 and match.group(2) is not None:
                     seconds += int(match.group(2))
                 return seconds
             return int(float(match.group(1)))
+        return None
+
+    def _parse_water_total(self, text: str) -> float | None:
+        total = re.search(
+            r"(?:总注水|总水量|总水|累计注水|最终注水|总计|合计|继续注水至|继续注水到|注水至|注水到|加水至|加到)"
+            r"\s*[:：]?\s*(?:至|到)?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:g|克)",
+            text,
+        )
+        if total:
+            return float(total.group(1))
+        candidates = {
+            float(match.group(1))
+            for match in re.finditer(
+                r"(?:(?:闷蒸注水|继续注水|注水|水量)|(?<![用温洗预])水)"
+                r"\s*[:：]?\s*(?:至|到)?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:g|克)",
+                text,
+            )
+        }
+        if len(candidates) == 1:
+            return candidates.pop()
+        if len(candidates) > 1:
+            raise ApiError(
+                422,
+                "INVALID_REQUEST",
+                "计划中出现多个未标明总量的注水量，无法确定总水量；未创建配方，请明确总水量。",
+                details={
+                    "reason": "water_total_ambiguous",
+                    "candidates": sorted(candidates),
+                },
+            )
         return None
 
     def _parse_plan_variables(self, plan: dict[str, Any]) -> dict[str, Any]:
@@ -155,41 +187,42 @@ class RecipeService:
             r"咖啡(?:粉|豆)?\s*[:：]?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:g|克)",
             text,
         )
-        water = re.search(
-            r"(?:总注水|总水量|注水|水量)\s*[:：]?\s*(?:至|到)?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:g|克)",
-            text,
-        )
-        if not water:
-            water = re.search(
-                r"(?<![用温洗预])水\s*[:：]?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:g|克)",
-                text,
-            )
+        water_g = self._parse_water_total(text)
         temp = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:°C|℃|度)", text)
         brew_time_s = self._parse_brew_time(text)
         grind = re.search(r"中细|中粗|细砂糖|粗砂糖|细|粗", text)
         if not grind:
             grind = re.search(r"(?:研磨|研磨度|磨豆|粗细)[^。；，,]{0,8}?(中)", text)
-        if not all((dose, water, temp)) or brew_time_s is None:
+        if not all((dose, temp)) or water_g is None or brew_time_s is None:
             raise ApiError(
                 422,
                 "INVALID_REQUEST",
-                "计划中没有用户已确认的完整配方参数；未创建配方，请确认粉量、水量、水温与时长，或明确选择演示配方。",
+                "计划中没有用户已确认的完整配方参数；未创建配方，请确认粉量、总水量、水温与时长，或明确选择演示配方。",
                 details={"reason": "recipe_parameters_missing"},
             )
         dose_g = float(dose.group(1))
-        water_g = float(water.group(1))
-        parsed = {
+        base_values = {
             "dose_g": dose_g,
             "water_g": water_g,
-            "ratio": round(water_g / dose_g, 2),
             "water_temp_c": float(temp.group(1)),
             "brew_time_s": brew_time_s,
         }
         if grind:
-            parsed["grind_setting"] = grind.group(0)
+            base_values["grind_setting"] = grind.group(0)
+        try:
+            RecipeVariables.model_validate(base_values)
+        except ValidationError as exc:
+            raise invalid_request(
+                "计划中的配方参数超出允许范围。",
+                {"reason": "recipe_parameters_invalid"},
+            ) from exc
+        parsed = {
+            **base_values,
+            "ratio": round(water_g / dose_g, 2),
+        }
         try:
             return RecipeVariables.model_validate(parsed).model_dump(exclude_none=True)
-        except (ValidationError, ZeroDivisionError) as exc:
+        except ValidationError as exc:
             raise invalid_request(
                 "计划中的配方参数超出允许范围。",
                 {"reason": "recipe_parameters_invalid"},
@@ -334,15 +367,31 @@ class RecipeService:
                     "value",
                 )
             )
-        time_old = old_pattern("brew_time_s")
-        if time_old:
+        old_time = old_variables.get("brew_time_s")
+        new_time = new_variables.get("brew_time_s")
+        if old_time is not None and new_time is not None and old_time != new_time:
+            old_seconds = int(old_time)
+            minutes, part_seconds = divmod(old_seconds, 60)
+            alternatives = [rf"{old_seconds}\s*秒"]
+            if minutes:
+                if part_seconds:
+                    alternatives.insert(
+                        0,
+                        rf"{minutes}\s*分(?:钟)?\s*{part_seconds}\s*秒",
+                    )
+                else:
+                    alternatives.insert(
+                        0,
+                        rf"{minutes}\s*分(?:钟)?(?:\s*0\s*秒)?",
+                    )
+            expression = "(?:" + "|".join(alternatives) + ")"
             operations.append(
                 (
                     re.compile(
-                        rf"(?P<label>总时长|总时间|时长|用时){separator}{time_old}(?P<unit>\s*(?:秒|s))"
+                        rf"(?P<label>总时长|总时间|时长|用时)(?P<sep>\s*约?\s*){expression}"
                     ),
-                    _format_number(new_variables["brew_time_s"]),
-                    "value",
+                    f"{_format_number(new_time)} 秒",
+                    "time",
                 )
             )
         ratio_old = old_pattern("ratio")
@@ -366,6 +415,8 @@ class RecipeService:
                         + match.group("prefix")
                         + new_text
                     )
+                if kind == "time":
+                    return match.group("label") + match.group("sep") + new_text
                 return (
                     match.group("label")
                     + match.group("sep")

@@ -1,10 +1,10 @@
 服务端测试（D5）
 命令：.venv/Scripts/python.exe -m pytest -o addopts=""
-结果：114 passed，0 failed，0 errors
+结果：116 passed，0 failed，0 errors
 
 本轮相关：
 - test_camera：14（合法 orbit/zoom/static；NaN、越界、缺路径、类型冲突、方向、缓动、时长、备注/局限）
-- test_recipe：8（计划参数/demo；225→240 派生粉水比；92→90；语义化步骤更新 15→16 g 且温杯用水 115 g 不变；不同变量同值；中文时长 3 分钟/2 分 30 秒/150 秒；dose=0 与非数字先校验；多变量/冲突/无变化/非法值失败不写入）
+- test_recipe：10（计划参数/demo；总水量 vs 闷蒸/分段注水；总水量歧义 4xx；显式总时长优先；中文分钟时长步骤改写；225→240 派生粉水比；92→90；语义化步骤与同值变量；dose=0/非数字先校验；多变量/冲突/失败不写）
 - test_plan_photography：4（合法 spec 保留；缺失/非法 spec 结构化兜底；无环绕文字时明确缺失）
 - test_plan_flow：coffee 计划域已启用。
 - D4 回归保留：反馈并发进度、计划版本冲突、证据帧与模型输入逐字节一致。

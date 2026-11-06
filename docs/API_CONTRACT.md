@@ -1314,7 +1314,8 @@ Adjustment：
 - 仅 `coffee`；从当前计划创建配方 v1；无计划/领域不符 → 422 `DOMAIN_MISMATCH`。
 - `demo=false`（默认）：必须从计划文本中解析用户已确认的咖啡粉量、水量、水温、总时长；缺失/越界 → 422 `INVALID_REQUEST`（`recipe_parameters_missing`/`recipe_parameters_invalid`），不得静默套用演示参数。
 - `demo=true`：仅用于用户明确选择的 V60 演示配方（15 g / 225 g / 92 °C / 150 秒）；当前计划已确认参数必须与演示值一致，否则 422 `INVALID_REQUEST`（`demo_parameters_mismatch`）且不创建配方。
-- 中文冲煮总时长解析支持 `约 3 分钟`→180 秒、`2 分 30 秒`→150 秒、`150 秒`→150 秒；不接受无单位裸数字。
+- 总水量必须区分闷蒸/分段注水与最终总量：优先识别 `总注水/总水量/累计/最终/总计/继续注水至/注水至/加水至` 等总量标识；如“闷蒸注水 30 g，继续注水至 225 g”取 **225 g**（粉量 15 g → ratio 1:15），闷蒸 30 g 不是总水量。只有单一未歧义水量时才采用该值；出现多个未标总量的注水量 → 422 `INVALID_REQUEST`（`water_total_ambiguous`），不得猜测或写入配方。
+- 显式总时长优先于单步用时：`用时 30 秒。总时长 150 秒` → 150 秒。中文总时长支持 `约 3 分钟`→180 秒、`2 分 30 秒`→150 秒、`150 秒`→150 秒；不接受无单位裸数字。
 - 201 Recipe；配方步骤与已确认参数保持一致。
 
 #### POST /v1/recipes/{id}/tastings
@@ -1350,6 +1351,7 @@ Adjustment：
 - 用户可编辑变量：`dose_g`、`water_g`、`water_temp_c`、`grind_setting`、`brew_time_s`、`milk_ml`、`ice_g`、`sweetener_g`。`ratio` 是派生变量，不可直接编辑；请求 `ratio` → 422 `INVALID_REQUEST`（reason=`derived_variable`）。
 - 粉水比派生规则：当配方同时有 `dose_g` 与 `water_g` 时，`ratio = round(water_g / dose_g, 2)`。只主动改水量（如 225→240 g）时，派生粉水比同步更新（15→16），**不计作第二个主动调整**。
 - 新版必须同步更新参数、用料与可执行步骤中的参数文本；步骤更新必须按变量语义定位（粉量标签、注水/水量、水温、总时长、粉水比），不得对所有数字做全局字符串替换。温杯/润洗用水等非配方水量不随 brew water 或粉量变化；不同变量恰好数值相同时也不得串改。旧版本保持原值只读。
+- 总时长调整须识别中文分钟表达并改写步骤：`总时长 2 分 30 秒` 从 150→180 秒后，新版参数与步骤说明均为 180 秒（步骤可规范化为“总时长 180 秒”），旧版仍保留 `2 分 30 秒`。
 - 输入校验先于粉水比派生：主动变量的类型/范围先校验。`dose_g=0`、非数字或其他非法值返回 422 `INVALID_REQUEST`（`reason=invalid_adjustment_value`），不得触发除零或写入新版本。
 - 只允许一个**主动**变量；`variable` 必须在 `variables` 中；`to_value` 类型/范围匹配；`base_version` 必须当前；否则 409/422。
 - 服务端按**实际主动参数差异**判断：0 个主动变化返回 422 `INVALID_REQUEST`（reason=`no_parameter_change`）；超过 1 个主动变化返回 422 `SINGLE_VARIABLE_REQUIRED`；失败不写新版本。

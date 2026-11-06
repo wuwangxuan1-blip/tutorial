@@ -230,3 +230,12 @@
 | APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节 |
 | 真实模型 | V60 计划解析 15/225/15/92/150 → 92→90 v2/compare 通过 |
 | 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |
+### D5 配方复审收尾实测（2026-11-06）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **116 passed / 0 failed**（配方测试 10 项：总水量歧义、闷蒸 vs 总水量、总时长优先、中文分钟步骤改写均覆盖） |
+| Android 测试 | **55 tests / 0 failures** |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节 |
+| 真实模型 | V60 计划解析总水量 225、ratio 1:15；92→90 v2/compare 通过 |
+| 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |

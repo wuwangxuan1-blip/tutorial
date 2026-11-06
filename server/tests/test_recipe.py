@@ -488,6 +488,8 @@ async def test_chinese_brew_time_variants(client):
     assert service._parse_brew_time("总时长约 3 分钟") == 180
     assert service._parse_brew_time("2 分 30 秒") == 150
     assert service._parse_brew_time("150 秒") == 150
+    assert service._parse_brew_time("用时 30 秒。总时长 150 秒") == 150
+    assert service._parse_brew_time("总时长 2 分 30 秒") == 150
 
 
 async def test_adjustment_validates_values_before_ratio_derivation(client, monkeypatch):
@@ -526,3 +528,92 @@ async def test_adjustment_validates_values_before_ratio_derivation(client, monke
     recipes = (await client.get(f"/v1/sessions/{session['id']}/recipes")).json()
     assert [item["version"] for item in recipes] == [1]
     assert (await client.get(f"/v1/recipes/{recipe['id']}")).json()["variables"]["dose_g"] == 15
+
+
+def _controlled_plan(instruction: str) -> dict:
+    plan = copy.deepcopy(COFFEE_PLAN)
+    plan["title"] = "V60 参数解析测试"
+    plan["summary"] = ""
+    plan["preparation"] = [{"text": "准备器具与滤纸。", "optional": False}]
+    plan["steps"][0]["instruction"] = instruction
+    plan["steps"][1]["instruction"] = "按计划继续操作。"
+    plan["steps"][2]["instruction"] = "完成后记录。"
+    for step in plan["steps"]:
+        step["completion_criteria"] = ["按说明完成"]
+    return plan
+
+
+async def test_recipe_water_total_uses_cumulative_water_and_rejects_ambiguous(client, monkeypatch):
+    session, _ = await setup_coffee(
+        client,
+        monkeypatch,
+        plan=_controlled_plan(
+            "咖啡粉 15 g，闷蒸注水 30 g，继续注水至 225 g，水温 92 °C，总时长 150 秒。"
+        ),
+    )
+    created = await client.post(
+        f"/v1/sessions/{session['id']}/recipes",
+        json={"base_plan_version": 1},
+    )
+    assert created.status_code == 201, created.text
+    recipe = created.json()
+    assert recipe["variables"]["dose_g"] == 15
+    assert recipe["variables"]["water_g"] == 225
+    assert recipe["variables"]["ratio"] == 15.0
+    water = next(item for item in recipe["ingredients"] if item["name"] == "水")
+    assert water["amount"] == 225
+
+    ambiguous_session, _ = await setup_coffee(
+        client,
+        monkeypatch,
+        plan=_controlled_plan(
+            "咖啡粉 15 g，闷蒸注水 30 g，再注水 90 g，水温 92 °C，总时长 150 秒。"
+        ),
+    )
+    ambiguous = await client.post(
+        f"/v1/sessions/{ambiguous_session['id']}/recipes",
+        json={"base_plan_version": 1},
+    )
+    assert ambiguous.status_code == 422
+    assert ambiguous.json()["error"]["details"]["reason"] == "water_total_ambiguous"
+    assert (await client.get(f"/v1/sessions/{ambiguous_session['id']}/recipes")).json() == []
+
+
+async def test_recipe_explicit_total_time_wins_and_adjustment_rewrites_chinese_duration(
+    client,
+    monkeypatch,
+):
+    session, _ = await setup_coffee(
+        client,
+        monkeypatch,
+        plan=_controlled_plan(
+            "咖啡粉 15 g，水 225 g，水温 92 °C，闷蒸 30 秒。总时长 2 分 30 秒。"
+        ),
+    )
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    assert recipe["variables"]["brew_time_s"] == 150
+    assert "总时长 2 分 30 秒" in recipe["steps"][0]["instruction"]
+
+    adjusted = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "brew_time_s",
+            "to_value": 180,
+            "reason": "延长总时长。",
+        },
+    )
+    assert adjusted.status_code == 201, adjusted.text
+    v2 = adjusted.json()["recipe"]
+    assert v2["variables"]["brew_time_s"] == 180
+    assert "总时长 180 秒" in v2["steps"][0]["instruction"]
+    assert "总时长 2 分 30 秒" not in v2["steps"][0]["instruction"]
+
+    old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert old["variables"]["brew_time_s"] == 150
+    assert "总时长 2 分 30 秒" in old["steps"][0]["instruction"]
