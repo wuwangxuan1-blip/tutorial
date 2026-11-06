@@ -255,3 +255,11 @@
 | Android 测试 | **55 tests / 0 failures**（本轮未改 Android） |
 | APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节 |
 | 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |
+### D5 配方调整总量来源定位实测（2026-11-06）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **125 passed / 0 failed**（配方 19 项：整份配方单次来源定位、`注水 225 g` 调整、跨步骤总时长/单步用时、无法定位 422） |
+| Android 测试 | **55 tests / 0 failures**（本轮未改 Android） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节 |
+| 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |

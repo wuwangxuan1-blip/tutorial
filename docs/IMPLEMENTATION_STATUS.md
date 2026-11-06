@@ -342,3 +342,12 @@ API 回归覆盖创建时实际保存的 `variables`、`ingredients` 与 `steps`
 2. **总时长**：创建优先显式 `总时长/总时间`（支持中英文冒号），调整复用同一显式匹配并按 expression span 只改该位置；`静置时长`/`闷蒸用时` 等单步时长不改。`总时长：150 秒，静置时长 150 秒` 改 180 秒后仅总时长为 180 秒，静置仍 150 秒。
 
 API 回归新增 2 项并保留总水量优先、冒号总时长、多段注水/局部量 422 等旧用例。本轮实测：服务端 **122 passed / 0 failed**（配方测试 16 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL；APK **10,822,322 字节**。状态分列不变：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。
+### 16.7 D5 配方调整总量来源定位（2026-11-06）
+
+基线：`ac538ef`。创建与调整共用同一个「整份配方来源定位器」：
+
+1. **总水量**：`_select_water_total` 同时服务创建与调整。调整时一次性扫描全部步骤字段，按显式总量 > 唯一累计终值 > 唯一普通水量声明的顺序确定来源，只更新该来源位置（及同值 `水/水量` 声明），不再逐字段猜测。`注水 225 g` 改 240 g 后 `water_g=240`、`ratio=16.0`、用料水 240 g、步骤 `注水 240 g`；旧版仍 225 g。
+2. **总时长**：调整时一次性收集显式 `总时长/总时间`，只更新该 expression span；不同步骤的 `萃取用时 150 秒` 等单步用时保持不变。`总时长：150 秒` 改 180 秒后仅总时长更新，单步 150 秒；旧版仍 150 秒。
+3. **旧配方保护**：步骤文本中找不到与当前参数值一致且唯一的来源时返回 422 `INVALID_REQUEST`（`total_source_unconfirmed`，`details.variable`），提示用户确认，失败不写入新版本。
+
+API 回归新增 3 项并保留上轮全部用例。本轮实测：服务端 **125 passed / 0 failed**（配方测试 19 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL；APK **10,822,322 字节**。状态分列不变：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。

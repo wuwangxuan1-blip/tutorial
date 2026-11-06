@@ -126,6 +126,14 @@ class _TimeMatch:
     expression_end: int
 
 
+@dataclass(frozen=True)
+class _LocatedSpan:
+    step_index: int
+    field: str
+    start: int
+    end: int
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -288,8 +296,10 @@ class RecipeService:
             )
         return mentions
 
-    def _parse_water_total(self, text: str) -> float | None:
-        mentions = self._water_mentions(text)
+    def _select_water_total(
+        self,
+        mentions: list[_WaterMention],
+    ) -> tuple[float, str] | None:
         explicit = {mention.value for mention in mentions if mention.kind == "explicit"}
         terminal = {mention.value for mention in mentions if mention.kind == "terminal"}
         stage = {
@@ -313,11 +323,11 @@ class RecipeService:
         if len(explicit) > 1:
             raise ambiguous(explicit, "explicit_total")
         if explicit:
-            return explicit.pop()
+            return explicit.pop(), "explicit"
         if len(terminal) > 1:
             raise ambiguous(terminal, "terminal_pour")
         if terminal:
-            return terminal.pop()
+            return terminal.pop(), "terminal"
         if len(stage) > 1:
             raise ambiguous(stage, "stage_amount")
         if len(stage) == 1:
@@ -333,48 +343,114 @@ class RecipeService:
                         "source": "local_only",
                     },
                 )
-            return value
+            return value, "other"
         return None
 
-    def _water_total_spans(self, text: str, old_value: float) -> list[tuple[int, int]]:
-        mentions = self._water_mentions(text)
-        explicit = [mention for mention in mentions if mention.kind == "explicit"]
-        terminal = [mention for mention in mentions if mention.kind == "terminal"]
-        general = [
-            mention
-            for mention in mentions
-            if mention.kind == "other"
-            and mention.label in _WATER_GENERAL_LABELS
-            and mention.value == old_value
-        ]
-        selected: list[_WaterMention] = []
-        if explicit:
-            values = {mention.value for mention in explicit}
-            if len(values) != 1 or next(iter(values)) != old_value:
-                return []
-            selected = explicit
-        elif terminal:
-            values = {mention.value for mention in terminal}
-            if len(values) != 1 or next(iter(values)) != old_value:
-                return []
-            selected = terminal
+    def _parse_water_total(self, text: str) -> float | None:
+        selected = self._select_water_total(self._water_mentions(text))
+        return None if selected is None else selected[0]
+
+    @staticmethod
+    def _total_source_unconfirmed(variable: str) -> ApiError:
+        label = "总水量" if variable == "water_g" else "总时长"
+        return ApiError(
+            422,
+            "INVALID_REQUEST",
+            f"无法安全确定该配方的{label}来源，请确认计划文本后再调整。",
+            details={"reason": "total_source_unconfirmed", "variable": variable},
+        )
+
+    def _locate_water_spans(
+        self,
+        steps: list[dict[str, Any]],
+        expected: float,
+    ) -> list[_LocatedSpan]:
+        located: list[tuple[int, str, _WaterMention]] = []
+        for index, step in enumerate(steps):
+            for field in ("instruction", "target"):
+                text = str(step.get(field) or "")
+                for mention in self._water_mentions(text):
+                    located.append((index, field, mention))
+        selected = self._select_water_total(
+            [mention for _, _, mention in located]
+        )
+        if selected is None or selected[0] != expected:
+            raise self._total_source_unconfirmed("water_g")
+        _, source_kind = selected
+        chosen: list[tuple[int, str, _WaterMention]] = []
+        for item in located:
+            mention = item[2]
+            if mention.value != expected:
+                continue
+            if mention.kind == source_kind:
+                chosen.append(item)
+            elif (
+                source_kind in {"explicit", "terminal"}
+                and mention.label in _WATER_GENERAL_LABELS
+            ):
+                chosen.append(item)
         return [
-            (mention.value_start, mention.value_end)
-            for mention in selected + general
+            _LocatedSpan(index, field, mention.value_start, mention.value_end)
+            for index, field, mention in chosen
         ]
 
-    def _brew_time_spans(self, text: str, old_seconds: int) -> list[tuple[int, int]]:
-        explicit = self._time_matches(text, _TOTAL_TIME_PATTERN)
-        if explicit:
-            values = {match.seconds for match in explicit}
-            if len(values) != 1 or next(iter(values)) != old_seconds:
-                return []
-            return [(match.expression_start, match.expression_end) for match in explicit]
-        step = self._time_matches(text, _STEP_TIME_PATTERN)
-        values = {match.seconds for match in step}
-        if len(values) == 1 and next(iter(values)) == old_seconds:
-            return [(match.expression_start, match.expression_end) for match in step]
-        return []
+    def _locate_time_spans(
+        self,
+        steps: list[dict[str, Any]],
+        expected: int,
+    ) -> list[_LocatedSpan]:
+        located: list[tuple[int, str, _TimeMatch]] = []
+        for index, step in enumerate(steps):
+            for field in ("instruction", "target"):
+                text = str(step.get(field) or "")
+                for match in self._time_matches(text, _TOTAL_TIME_PATTERN):
+                    located.append((index, field, match))
+        if located:
+            values = {match.seconds for _, _, match in located}
+            if len(values) != 1 or next(iter(values)) != expected:
+                raise self._total_source_unconfirmed("brew_time_s")
+            return [
+                _LocatedSpan(
+                    index,
+                    field,
+                    match.expression_start,
+                    match.expression_end,
+                )
+                for index, field, match in located
+            ]
+        step_times: list[tuple[int, str, _TimeMatch]] = []
+        for index, step in enumerate(steps):
+            for field in ("instruction", "target"):
+                text = str(step.get(field) or "")
+                for match in self._time_matches(text, _STEP_TIME_PATTERN):
+                    step_times.append((index, field, match))
+        values = {match.seconds for _, _, match in step_times}
+        if len(values) == 1 and next(iter(values)) == expected:
+            return [
+                _LocatedSpan(
+                    index,
+                    field,
+                    match.expression_start,
+                    match.expression_end,
+                )
+                for index, field, match in step_times
+            ]
+        raise self._total_source_unconfirmed("brew_time_s")
+
+    def _apply_located_spans(
+        self,
+        steps: list[dict[str, Any]],
+        spans: list[_LocatedSpan],
+        new_text: str,
+    ) -> None:
+        grouped: dict[tuple[int, str], list[tuple[int, int]]] = {}
+        for span in spans:
+            grouped.setdefault((span.step_index, span.field), []).append(
+                (span.start, span.end)
+            )
+        for (index, field), ranges in grouped.items():
+            text = str(steps[index].get(field) or "")
+            steps[index][field] = self._replace_spans(text, ranges, new_text)
 
     @staticmethod
     def _replace_spans(text: str, spans: list[tuple[int, int]], new_text: str) -> str:
@@ -597,19 +673,19 @@ class RecipeService:
                 text = str(step.get(field) or "")
                 for pattern, new_text, kind in operations:
                     text = replace(text, pattern, new_text, kind)
-                if water_changed:
-                    text = self._replace_spans(
-                        text,
-                        self._water_total_spans(text, float(water_old)),
-                        _format_number(water_new),
-                    )
-                if time_changed:
-                    text = self._replace_spans(
-                        text,
-                        self._brew_time_spans(text, int(old_time)),
-                        f"{_format_number(new_time)} 秒",
-                    )
                 step[field] = text
+        if water_changed:
+            self._apply_located_spans(
+                updated,
+                self._locate_water_spans(updated, float(water_old)),
+                _format_number(water_new),
+            )
+        if time_changed:
+            self._apply_located_spans(
+                updated,
+                self._locate_time_spans(updated, int(old_time)),
+                f"{_format_number(new_time)} 秒",
+            )
         return updated
 
     async def get(self, recipe_id: str) -> dict[str, Any]:

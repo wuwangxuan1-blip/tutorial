@@ -877,3 +877,125 @@ async def test_total_time_rewrite_keeps_rest_duration_and_step_time(client, monk
     assert "总时长：150 秒" in old["steps"][0]["instruction"]
     assert "静置时长 150 秒" in old["steps"][0]["instruction"]
     assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]
+
+async def test_inline_water_pour_source_is_located_once_for_adjustment(
+    client,
+    monkeypatch,
+):
+    session, _ = await setup_coffee(
+        client,
+        monkeypatch,
+        plan=_controlled_plan("咖啡粉 15 g，注水 225 g，水温 92 °C，总时长 150 秒。"),
+    )
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    assert recipe["variables"]["water_g"] == 225
+    assert recipe["variables"]["ratio"] == 15.0
+    assert "注水 225 g" in recipe["steps"][0]["instruction"]
+
+    adjusted = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 240,
+            "reason": "只调整总水量。",
+        },
+    )
+    assert adjusted.status_code == 201, adjusted.text
+    v2 = adjusted.json()["recipe"]
+    assert v2["variables"]["water_g"] == 240
+    assert v2["variables"]["dose_g"] == 15
+    assert v2["variables"]["ratio"] == 16.0
+    water = next(item for item in v2["ingredients"] if item["name"] == "水")
+    coffee = next(item for item in v2["ingredients"] if item["name"] == "咖啡豆")
+    assert water["amount"] == 240
+    assert coffee["amount"] == 15
+    assert "注水 240 g" in v2["steps"][0]["instruction"]
+    assert "225 g" not in v2["steps"][0]["instruction"]
+
+    old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert old["variables"]["water_g"] == 225
+    assert "注水 225 g" in old["steps"][0]["instruction"]
+    assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]
+
+
+async def test_total_time_source_is_located_across_steps(client, monkeypatch):
+    plan = _controlled_plan(
+        "咖啡粉 15 g，水 225 g，水温 92 °C，总时长：150 秒。"
+    )
+    plan["steps"][1]["instruction"] = "等待片刻；萃取用时 150 秒。"
+    session, _ = await setup_coffee(client, monkeypatch, plan=plan)
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    assert recipe["variables"]["brew_time_s"] == 150
+    assert "总时长：150 秒" in recipe["steps"][0]["instruction"]
+    assert "萃取用时 150 秒" in recipe["steps"][1]["instruction"]
+
+    adjusted = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "brew_time_s",
+            "to_value": 180,
+            "reason": "只调整总时长。",
+        },
+    )
+    assert adjusted.status_code == 201, adjusted.text
+    v2 = adjusted.json()["recipe"]
+    assert v2["variables"]["brew_time_s"] == 180
+    assert v2["variables"]["water_g"] == 225
+    assert "总时长：180 秒" in v2["steps"][0]["instruction"]
+    assert "萃取用时 150 秒" in v2["steps"][1]["instruction"]
+    assert "总时长：150 秒" not in v2["steps"][0]["instruction"]
+    water = next(item for item in v2["ingredients"] if item["name"] == "水")
+    coffee = next(item for item in v2["ingredients"] if item["name"] == "咖啡豆")
+    assert water["amount"] == 225
+    assert coffee["amount"] == 15
+
+    old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert old["variables"]["brew_time_s"] == 150
+    assert "总时长：150 秒" in old["steps"][0]["instruction"]
+    assert "萃取用时 150 秒" in old["steps"][1]["instruction"]
+    assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]
+
+
+async def test_adjustment_prompts_when_total_source_cannot_be_located(
+    client,
+    monkeypatch,
+):
+    plan = _controlled_plan("咖啡粉 15 g，水温 92 °C，总时长 150 秒。")
+    plan["summary"] = "总水量 225 g。"
+    session, _ = await setup_coffee(client, monkeypatch, plan=plan)
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    assert recipe["variables"]["water_g"] == 225
+
+    adjusted = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 240,
+            "reason": "只调整总水量。",
+        },
+    )
+    assert adjusted.status_code == 422
+    details = adjusted.json()["error"]["details"]
+    assert details["reason"] == "total_source_unconfirmed"
+    assert details["variable"] == "water_g"
+    recipes = (await client.get(f"/v1/sessions/{session['id']}/recipes")).json()
+    assert [item["version"] for item in recipes] == [1]
+    assert (await client.get(f"/v1/recipes/{recipe['id']}")).json()["variables"]["water_g"] == 225
