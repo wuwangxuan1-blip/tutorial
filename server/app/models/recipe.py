@@ -190,6 +190,7 @@ class AdjustmentRequest(BaseModel):
     variable: str | None = None
     to_value: Any | None = None
     variables: dict[str, Any] | None = None
+    water_source_confirmation: dict[str, Any] | None = None
     reason: str = Field(min_length=1, max_length=300)
     tasting_id: str | None = None
 

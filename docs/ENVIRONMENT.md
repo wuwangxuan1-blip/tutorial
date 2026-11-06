@@ -295,3 +295,11 @@
 | Android 测试 | **55 tests / 0 failures**（本轮未改 Android） |
 | APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节（`:app:assembleDebug --rerun-tasks`：BUILD SUCCESSFUL、35 tasks executed） |
 | 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |
+### D5 最后执行指令身份与旧配方恢复实测（2026-11-06）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **134 passed / 0 failed**（配方 28 项：结构判据同步最后指令、旧配方自动补齐 marks、同值歧义 422 + confirmation 后成功） |
+| Android 测试 | **55 tests / 0 failures**（本轮未改 Android） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节（`:app:assembleDebug --rerun-tasks`：BUILD SUCCESSFUL、35 tasks executed） |
+| 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |

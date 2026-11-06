@@ -386,3 +386,11 @@ API 回归新增 3 项（停止条件同步、摘要来源创建前确认、旧�
 - 回归：`总水量 225 g / 闷蒸后继续注水至 100 g，等待 10 秒 / 注水至 225 g 后停止`；改 90 g → 422；先改 100 g 再改 240 g → 最新版总量/最终 240 g、中途仍 100 g、等待仍 10 秒，v1/v2 历史按原值回查；无 marks 的旧配方 → 422。
 
 本轮实测：服务端 **131 passed / 0 failed**（配方测试 25 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**。状态分列不变；未进入 D6。
+### 16.12 D5 最后执行指令身份与旧配方恢复（2026-11-06）
+
+基线：`ad81680`。两项修复：
+
+1. **最后执行指令按结构判定**：不再靠追加停止词。若全部终值都与总量同值，则它们都是总量引用；若存在不同值的中途目标，则只把最后一个执行步骤中与总量同值的终值（且该步骤内这些终值全部为 `target` 或带“后停止/后结束/最后”标记）标为 final；无法确认时创建前 422。`总水量 225 g` + `分两次注水至 225 g，等滤杯滴完` 改 240 g 后，参数、用料与最后执行指令一致；旧版仍 225 g。
+2. **旧配方恢复**：缺少 `total_sources` 时，首次调整若能在步骤文本中唯一确认来源，则自动补齐 marks 并写入新版本；同值歧义返回 422 `total_source_unconfirmed`（`confirmation_required=true`、`confirm_field=water_source_confirmation`、`candidates`），客户端用 `water_source_confirmation.declaration/final` 指定候选 ID 后重试；确认后写入新版本，旧版本与历史保持原值。
+
+本轮实测：服务端 **134 passed / 0 failed**（配方测试 28 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**。状态分列不变；未进入 D6。
