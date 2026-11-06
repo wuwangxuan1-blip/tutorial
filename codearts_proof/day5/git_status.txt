@@ -1,11 +1,11 @@
-# D5 Git 状态（2026-11-06 配方解析优先级修复轮）
+# D5 Git 状态（2026-11-06 创建/调整总量一致性轮，推送已完成）
 
-- 开工核验（实际值）：`git ls-remote origin main` = `0e254a27238b6eae057d46a5b25f2cdaea296e3a`；本地 `HEAD` = `864b211`（上一轮状态记录，仅文档），`main...origin/main [ahead 1]`，落后 0；工作区干净；`git diff --check` 退出 0。
-- 本轮修复提交：`ae8e29b`（`fix: prefer explicit recipe total water and total time`），基于 `0e254a2` 的配方解析实现，未改 Android 代码。
-- 推送：`git push origin main` 连续 3 次失败（第 1 次 `Recv failure: Connection was reset`；第 2、3 次 `Failed to connect to github.com port 443 after ~21s`）；随后 `git ls-remote origin main` 同样 `Connection was reset`，远端本轮未能重新核验。
-  - **未推送成功；未强推；远端最后已知 SHA 为 `0e254a2`。**
-- 密钥扫描：**300 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
-- 本轮实测：服务端 **120 passed / 0 failed**（配方测试 14 项）；Android **55 tests / 0 failures / 0 errors**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**；`git diff --check` 退出 0。
+- 开工核验（实际值）：`git ls-remote origin main` = `0e254a27238b6eae057d46a5b25f2cdaea296e3a`；本地 `HEAD` = `991b4b6`，`main...origin/main [ahead 3]`（`864b211`、`ae8e29b`、`991b4b6`），落后 0；工作区干净；`git diff --check` 退出 0。
+- 本轮修复提交：`d9af9e41a3cd72b186427b3852e36d04c725b6f1`（`fix: align recipe creation and adjustment total sources`），基线 `991b4b6`。
+- 推送：`git push origin main` **成功**，输出 `0e254a2..d9af9e4  main -> main`（正常快进，未强推）；此前积压的 `864b211`、`ae8e29b`、`991b4b6` 一并推送。
+- 推送后核验：`git ls-remote origin main` = `d9af9e41a3cd72b186427b3852e36d04c725b6f1`，与本地 `HEAD` 一致；本地 `main...origin/main` 无领先/落后。
+- 密钥扫描：**301 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
+- 本轮实测：服务端 **122 passed / 0 failed**（配方测试 16 项）；Android **55 tests / 0 failures / 0 errors**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**；`git diff --check` 退出 0。
 - 验收状态分列（不得合并）：
   - 第三方公开授权实拍链路：**通过**。
   - 用户自拍环绕验收：**BLOCKED**（无用户自拍环绕素材）。
@@ -13,4 +13,4 @@
   - 真机断网/超时重试：**BLOCKED**（未取得错误→恢复→重试成功证据）。
   - 真机 Canvas easing/拖动：未复测，由 JVM 覆盖。
 - 本轮未新增功能，未调整提示词，未进入 D6。
-- 待网络恢复后执行 `git push origin main` 推送 `0e254a2..HEAD`（含 `864b211`、`ae8e29b` 与状态记录提交），并重新核验远端 SHA。
+- 本状态记录提交随后推送；推送完成后远端 `main` 应等于该提交，最终 SHA 以推送输出与 `git ls-remote origin main` 为准。
