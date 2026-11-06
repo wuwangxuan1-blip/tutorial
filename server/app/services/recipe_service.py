@@ -387,7 +387,9 @@ class RecipeService:
             if mention.kind == source_kind:
                 chosen.append(item)
             elif source_kind == "explicit" and mention.kind == "terminal":
-                chosen.append(item)
+                text = str(steps[item[0]].get(item[1]) or "")
+                if self._is_final_water_target(mention, text):
+                    chosen.append(item)
             elif (
                 source_kind in {"explicit", "terminal"}
                 and mention.label in _WATER_GENERAL_LABELS
@@ -397,6 +399,13 @@ class RecipeService:
             _LocatedSpan(index, field, mention.value_start, mention.value_end)
             for index, field, mention in chosen
         ]
+
+    @staticmethod
+    def _is_final_water_target(mention: _WaterMention, text: str) -> bool:
+        if mention.label in {"继续注水至", "继续注水到", "最终注水", "最终水量"}:
+            return True
+        tail = text[mention.value_end : mention.value_end + 8]
+        return any(marker in tail for marker in ("后停止", "即停止", "后结束"))
 
     def _locate_time_spans(
         self,

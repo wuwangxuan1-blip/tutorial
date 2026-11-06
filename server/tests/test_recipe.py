@@ -1131,3 +1131,72 @@ async def test_lowering_total_below_intermediate_pour_is_rejected(client, monkey
     old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
     assert old["variables"]["water_g"] == 225
     assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]
+
+async def test_sequential_water_adjustments_keep_intermediate_target(
+    client,
+    monkeypatch,
+):
+    plan = _controlled_plan(
+        "咖啡粉 15 g，总水量 225 g，中途注水至 100 g，"
+        "最后继续注水至 225 g 后停止，水温 92 °C，总时长 150 秒。"
+    )
+    plan["steps"][0]["completion_criteria"] = ["继续注水至 225 g 后停止"]
+    session, _ = await setup_coffee(client, monkeypatch, plan=plan)
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    assert recipe["variables"]["water_g"] == 225
+
+    first = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 100,
+            "reason": "先降到中途注水量。",
+        },
+    )
+    assert first.status_code == 201, first.text
+    v2 = first.json()["recipe"]
+    assert v2["variables"]["water_g"] == 100
+    assert v2["variables"]["ratio"] == 6.67
+    instruction_v2 = v2["steps"][0]["instruction"]
+    assert "总水量 100 g" in instruction_v2
+    assert "中途注水至 100 g" in instruction_v2
+    assert "继续注水至 100 g 后停止" in instruction_v2
+    assert "继续注水至 100 g 后停止" in v2["steps"][0]["target"]
+
+    second = await client.post(
+        f"/v1/recipes/{v2['id']}/adjustments",
+        json={
+            "base_version": 2,
+            "variable": "water_g",
+            "to_value": 240,
+            "reason": "再从 100 提高到 240。",
+        },
+    )
+    assert second.status_code == 201, second.text
+    v3 = second.json()["recipe"]
+    assert v3["variables"]["water_g"] == 240
+    assert v3["variables"]["ratio"] == 16.0
+    water = next(item for item in v3["ingredients"] if item["name"] == "水")
+    assert water["amount"] == 240
+    instruction_v3 = v3["steps"][0]["instruction"]
+    assert "总水量 240 g" in instruction_v3
+    assert "中途注水至 100 g" in instruction_v3
+    assert "继续注水至 240 g 后停止" in instruction_v3
+    assert "继续注水至 240 g 后停止" in v3["steps"][0]["target"]
+
+    history = (await client.get(f"/v1/recipes/{v3['id']}/history")).json()
+    assert [item["version"] for item in history] == [1, 2, 3]
+    v1 = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert v1["variables"]["water_g"] == 225
+    assert "中途注水至 100 g" in v1["steps"][0]["instruction"]
+    assert "继续注水至 225 g 后停止" in v1["steps"][0]["target"]
+    v2_get = (await client.get(f"/v1/recipes/{v2['id']}")).json()
+    assert v2_get["variables"]["water_g"] == 100
+    assert "中途注水至 100 g" in v2_get["steps"][0]["instruction"]
+    assert "继续注水至 100 g 后停止" in v2_get["steps"][0]["target"]

@@ -369,3 +369,10 @@ API 回归新增 3 项（停止条件同步、摘要来源创建前确认、旧�
 - 回归：中途 `注水至 100 g`、最终 `继续注水至 225 g 后停止`，总量改 90 g 被拒绝（v1 与历史不变）；改 240 g 成功，中途仍 100 g、最终停止条件为 240 g。摘要来源创建期 422 回归保留。
 
 本轮实测：服务端 **128 passed / 0 failed**（配方测试 22 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**。状态分列不变；未进入 D6。
+### 16.10 D5 连续调整的中途/最终目标身份保留（2026-11-06）
+
+基线：`43b6e23`。修复连续调整总水量时“仅凭数值相同就改写中途目标”的问题：
+
+- `_locate_water_spans` 在显式总量来源下，只把**最终目标** terminal 纳入更新：标签为 `继续注水至/继续注水到/最终注水/最终水量`，或值后紧跟“后停止/即停止/后结束”；`注水至 X` 等中途累计目标即使与当前总量同值也不改写。
+- 回归：初始 `总水量 225 g，中途注水至 100 g，最后继续注水至 225 g 后停止`；先改 100 g（v2 总量/最终 100、中途 100），再改 240 g（v3 总量/最终 240、中途仍 100）；v1/v2 历史按原值回查；改 90 g 仍 422 `intermediate_water_exceeds_total` 且不写入。
+- 本轮实测：服务端 **129 passed / 0 failed**（配方测试 23 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**。状态分列不变：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。
