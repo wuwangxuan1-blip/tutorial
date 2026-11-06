@@ -1,13 +1,11 @@
-# D5 Git 状态（2026-11-06 创建期来源固化轮，推送已完成）
+# D5 Git 状态（2026-11-06 总水量下限校验轮，推送未完成）
 
-- 开工核验（实际值）：`git ls-remote origin main` = `b7e923c80a189a12fd3846215d86ec73ae97c464`；本地 `HEAD` = `b7e923c`，`main...origin/main` 无领先/落后；工作区干净；`git diff --check` 退出 0。
-- 本轮修复提交：`0fa7ac9b8b5186790409eee4ead6ba19bd491491`（`fix: validate recipe total sources at creation`），基线 `b7e923c`。
-- 推送：`git push origin main` **成功**，输出 `b7e923c..0fa7ac9  main -> main`（正常快进，未强推）。
-- 推送后核验：`git ls-remote origin main` = `0fa7ac9b8b5186790409eee4ead6ba19bd491491`，与本地 `HEAD` 一致；本地 `main...origin/main` 无领先/落后。
-- 密钥扫描：**303 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
-- 本轮实测：服务端 **127 passed / 0 failed**（配方测试 21 项）；Android **55 tests / 0 failures / 0 errors**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed，重跑一次仍成功）；APK **10,822,322 字节**；`git diff --check` 退出 0。
-- 创建期来源校验：总水量/总时长只出现在标题/摘要时，创建前返回 422 `INVALID_REQUEST`（`total_source_unconfirmed`，`details.variable`），不创建不可调整的配方；旧数据仍保留明确 422 兜底。
-- 停止条件同步：`总水量 225 g` 与 `继续注水至 225 g 后停止` 同步改 240 g，中途 `注水至 100 g` 保持原值，旧版保持原值。
+- 开工核验：`git ls-remote origin main` 连续 443 连接超时，无法重新核验；远端最后已知 `main = f840d03ba66696ebbc5550e8754fe6372d8ddac6`（上一轮推送后核验值）。本地 `HEAD` = `f840d03`，工作区干净；`git diff --check` 退出 0。
+- 本轮修复提交：`da1029b`（`fix: reject water totals below intermediate pours`），基线 `f840d03`。
+- 推送：`git push origin main` 连续 3 次失败（均为 `Failed to connect to github.com port 443 after ~21s`），按规则停止重试；**未推送成功、未强推**。
+- 本轮实测：服务端 **128 passed / 0 failed**（配方测试 22 项）；Android **55 tests / 0 failures / 0 errors**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**；`git diff --check` 退出 0。
+- 密钥扫描：**304 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
+- 行为：总水量调整后、写入前校验保留的中途累计注水目标；新总量 90 g 低于中途 `注水至 100 g` 时返回 422 `intermediate_water_exceeds_total`（`details.water_g=90`、`intermediate_targets=[100]`），不创建新版本，旧版与历史保持 v1；改 240 g 成功，中途仍 100 g，最终停止条件与用量均为 240 g。摘要来源创建期 422 回归保留。
 - 验收状态分列（不得合并）：
   - 第三方公开授权实拍链路：**通过**。
   - 用户自拍环绕验收：**BLOCKED**（无用户自拍环绕素材）。
@@ -15,4 +13,4 @@
   - 真机断网/超时重试：**BLOCKED**（未取得错误→恢复→重试成功证据）。
   - 真机 Canvas easing/拖动：未复测，由 JVM 覆盖。
 - 本轮未新增功能，未调整提示词，未进入 D6。
-- 本状态记录提交随后推送；推送完成后远端 `main` 应等于该提交，最终 SHA 以推送输出与 `git ls-remote origin main` 为准。
+- 待网络恢复后执行 `git push origin main` 推送 `f840d03..HEAD`（含 `da1029b` 与本状态记录），并重新核验远端 SHA。
