@@ -187,6 +187,8 @@ class RecipeService:
             return existing[-1]
 
         variables = self._variables_from_plan(plan, use_demo=use_demo)
+        steps = self._steps_from_plan(plan)
+        self._ensure_adjustable_sources(steps, variables)
         recipe_id = new_id("recipe")
         recipe = {
             "id": recipe_id,
@@ -201,7 +203,7 @@ class RecipeService:
             "servings": 1,
             "variables": variables,
             "ingredients": self._ingredients(variables),
-            "steps": self._steps_from_plan(plan),
+            "steps": steps,
             "source_plan_version": plan["version"],
             "created_at": _now(),
         }
@@ -383,6 +385,8 @@ class RecipeService:
             if mention.value != expected:
                 continue
             if mention.kind == source_kind:
+                chosen.append(item)
+            elif source_kind == "explicit" and mention.kind == "terminal":
                 chosen.append(item)
             elif (
                 source_kind in {"explicit", "terminal"}
@@ -580,6 +584,34 @@ class RecipeService:
                 }
             )
         return steps
+
+    @staticmethod
+    def _source_unavailable(variable: str, label: str) -> ApiError:
+        return ApiError(
+            422,
+            "INVALID_REQUEST",
+            f"计划的{label}只出现在摘要或说明中，无法在可执行步骤中定位；"
+            f"请先在计划步骤中明确{label}后再创建配方。",
+            details={"reason": "total_source_unconfirmed", "variable": variable},
+        )
+
+    def _ensure_adjustable_sources(
+        self,
+        steps: list[dict[str, Any]],
+        variables: dict[str, Any],
+    ) -> None:
+        water_g = variables.get("water_g")
+        if water_g is not None:
+            try:
+                self._locate_water_spans(steps, float(water_g))
+            except ApiError as exc:
+                raise self._source_unavailable("water_g", "总水量") from exc
+        brew_time_s = variables.get("brew_time_s")
+        if brew_time_s is not None:
+            try:
+                self._locate_time_spans(steps, int(brew_time_s))
+            except ApiError as exc:
+                raise self._source_unavailable("brew_time_s", "总时长") from exc
 
     def _rewrite_steps(
         self,

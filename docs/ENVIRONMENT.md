@@ -263,3 +263,11 @@
 | Android 测试 | **55 tests / 0 failures**（本轮未改 Android） |
 | APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节 |
 | 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |
+### D5 创建期来源固化与停止条件同步实测（2026-11-06）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **127 passed / 0 failed**（配方 21 项：创建期来源校验、总量与最终停止条件同步、摘要来源创建前 422、旧数据兜底） |
+| Android 测试 | **55 tests / 0 failures**（本轮未改 Android） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节（`:app:assembleDebug --rerun-tasks` 重跑：BUILD SUCCESSFUL、35 tasks executed） |
+| 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import copy
 
+import pytest
+
+from app.errors import ApiError
 from test_progress import setup_plan
 
 COFFEE_CONDITIONS = {"skill_level": "beginner", "brewer": "V60"}
@@ -968,12 +971,12 @@ async def test_total_time_source_is_located_across_steps(client, monkeypatch):
     assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]
 
 
-async def test_adjustment_prompts_when_total_source_cannot_be_located(
-    client,
-    monkeypatch,
-):
-    plan = _controlled_plan("咖啡粉 15 g，水温 92 °C，总时长 150 秒。")
-    plan["summary"] = "总水量 225 g。"
+async def test_stop_condition_and_total_water_update_together(client, monkeypatch):
+    plan = _controlled_plan(
+        "咖啡粉 15 g，总水量 225 g，中途注水至 100 g，"
+        "最后继续注水至 225 g 后停止，水温 92 °C，总时长 150 秒。"
+    )
+    plan["steps"][0]["completion_criteria"] = ["继续注水至 225 g 后停止"]
     session, _ = await setup_coffee(client, monkeypatch, plan=plan)
     recipe = (
         await client.post(
@@ -982,6 +985,10 @@ async def test_adjustment_prompts_when_total_source_cannot_be_located(
         )
     ).json()
     assert recipe["variables"]["water_g"] == 225
+    assert "总水量 225 g" in recipe["steps"][0]["instruction"]
+    assert "中途注水至 100 g" in recipe["steps"][0]["instruction"]
+    assert "继续注水至 225 g 后停止" in recipe["steps"][0]["instruction"]
+    assert "继续注水至 225 g 后停止" in recipe["steps"][0]["target"]
 
     adjusted = await client.post(
         f"/v1/recipes/{recipe['id']}/adjustments",
@@ -992,10 +999,72 @@ async def test_adjustment_prompts_when_total_source_cannot_be_located(
             "reason": "只调整总水量。",
         },
     )
-    assert adjusted.status_code == 422
-    details = adjusted.json()["error"]["details"]
-    assert details["reason"] == "total_source_unconfirmed"
-    assert details["variable"] == "water_g"
-    recipes = (await client.get(f"/v1/sessions/{session['id']}/recipes")).json()
-    assert [item["version"] for item in recipes] == [1]
-    assert (await client.get(f"/v1/recipes/{recipe['id']}")).json()["variables"]["water_g"] == 225
+    assert adjusted.status_code == 201, adjusted.text
+    v2 = adjusted.json()["recipe"]
+    assert v2["variables"]["water_g"] == 240
+    assert v2["variables"]["ratio"] == 16.0
+    water = next(item for item in v2["ingredients"] if item["name"] == "水")
+    assert water["amount"] == 240
+    instruction = v2["steps"][0]["instruction"]
+    assert "总水量 240 g" in instruction
+    assert "中途注水至 100 g" in instruction
+    assert "继续注水至 240 g 后停止" in instruction
+    assert "继续注水至 240 g 后停止" in v2["steps"][0]["target"]
+    assert "225 g" not in instruction
+
+    old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert old["variables"]["water_g"] == 225
+    assert "总水量 225 g" in old["steps"][0]["instruction"]
+    assert "中途注水至 100 g" in old["steps"][0]["instruction"]
+    assert "继续注水至 225 g 后停止" in old["steps"][0]["target"]
+    assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]
+
+
+async def test_creation_prompts_when_total_sources_are_only_in_summary(
+    client,
+    monkeypatch,
+):
+    water_plan = _controlled_plan("咖啡粉 15 g，水温 92 °C，总时长 150 秒。")
+    water_plan["summary"] = "总水量 225 g。"
+    water_session, _ = await setup_coffee(client, monkeypatch, plan=water_plan)
+    water_created = await client.post(
+        f"/v1/sessions/{water_session['id']}/recipes",
+        json={"base_plan_version": 1},
+    )
+    assert water_created.status_code == 422
+    water_error = water_created.json()["error"]
+    assert water_error["details"]["reason"] == "total_source_unconfirmed"
+    assert water_error["details"]["variable"] == "water_g"
+    assert "摘要" in water_error["message"]
+    assert (await client.get(f"/v1/sessions/{water_session['id']}/recipes")).json() == []
+
+    time_plan = _controlled_plan("咖啡粉 15 g，水 225 g，水温 92 °C。")
+    time_plan["summary"] = "总时长 150 秒。"
+    time_session, _ = await setup_coffee(client, monkeypatch, plan=time_plan)
+    time_created = await client.post(
+        f"/v1/sessions/{time_session['id']}/recipes",
+        json={"base_plan_version": 1},
+    )
+    assert time_created.status_code == 422
+    time_error = time_created.json()["error"]
+    assert time_error["details"]["reason"] == "total_source_unconfirmed"
+    assert time_error["details"]["variable"] == "brew_time_s"
+    assert (await client.get(f"/v1/sessions/{time_session['id']}/recipes")).json() == []
+
+
+async def test_legacy_recipe_without_step_source_still_returns_422(client):
+    service = client.app.state.recipe_service
+    steps = [
+        {
+            "id": "rst_1",
+            "order": 1,
+            "instruction": "咖啡粉 15 g，水温 92 °C，总时长 150 秒。",
+            "duration_s": 60,
+            "target": "按步骤完成。",
+        }
+    ]
+    with pytest.raises(ApiError) as error:
+        service._locate_water_spans(steps, 225)
+    assert error.value.status_code == 422
+    assert error.value.details["reason"] == "total_source_unconfirmed"
+    assert error.value.details["variable"] == "water_g"

@@ -351,3 +351,12 @@ API 回归新增 2 项并保留总水量优先、冒号总时长、多段注水/
 3. **旧配方保护**：步骤文本中找不到与当前参数值一致且唯一的来源时返回 422 `INVALID_REQUEST`（`total_source_unconfirmed`，`details.variable`），提示用户确认，失败不写入新版本。
 
 API 回归新增 3 项并保留上轮全部用例。本轮实测：服务端 **125 passed / 0 failed**（配方测试 19 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL；APK **10,822,322 字节**。状态分列不变：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。
+### 16.8 D5 配方创建期来源固化与停止条件同步（2026-11-06）
+
+基线：`b7e923c`。把“调整时定位来源”前移为“创建时校验并固化可用来源”：
+
+1. **创建期来源校验**：创建配方生成步骤后，用同一来源定位器校验 `water_g`、`brew_time_s` 能在 `instruction`/`target` 中定位；若只出现在标题/摘要，创建前返回 422 `INVALID_REQUEST`（`total_source_unconfirmed`，`details.variable`），提示在计划步骤中明确参数，不再创建“事后无法调整”的配方。
+2. **停止条件同步**：调整总水量时，除显式总量与同值普通水声明外，**同值的终值/最终停止条件**（如 `继续注水至 225 g 后停止`）也一并更新；中途不同值的阶段注水（如 `注水至 100 g`）保持原值。`总水量 225 g / 中途 100 g / 最终至 225 g 停止` 改 240 g 后，新版总量、用料与停止条件均为 240 g，中途仍 100 g，旧版 225 g。
+3. **旧数据兜底**：直接对无来源步骤调用定位器仍返回 422 `total_source_unconfirmed`，保留旧配方明确兜底。
+
+API 回归新增 3 项（停止条件同步、摘要来源创建前确认、旧数据兜底）并保留全部既有用例。本轮实测：服务端 **127 passed / 0 failed**（配方测试 21 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed，重跑一次仍成功）；APK **10,822,322 字节**。状态分列不变：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。
