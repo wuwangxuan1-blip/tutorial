@@ -325,3 +325,4 @@ D2 结论：契约固化、完整烹饪文本流程、异常恢复与真机复�
 2. **显式总时长优先与中文分钟步骤改写**：`用时 30 秒。总时长 150 秒`→150 秒；`总时长 2 分 30 秒`→150 秒；调整 150→180 秒后新版参数与步骤说明均为 180 秒（步骤规范化为“总时长 180 秒”），旧版保留“2 分 30 秒”。
 
 本轮实测：服务端 **116 passed / 0 failed**（配方测试 10 项）；Android **55 tests / 0 failures**；`:app:assembleDebug` BUILD SUCCESSFUL；APK **10,822,322 字节**；真实模型 V60 按计划解析总水量 225/ratio 1:15，92→90 链路通过。状态仍分列：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。
+推送核验（2026-11-06）：`git ls-remote origin main` 开工为 `1376a51`，本地领先 3 个提交（`bd1fe0c`、`f32f4e6`、`0e254a2`）；`git push origin main` 正常快进成功（`1376a51..0e254a2`，未强推），远端 `main = 0e254a2`；推送后复跑服务端 **116 passed / 0 failed**、Android **55 tests / 0 failures**、`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL、APK 10,822,322 字节、密钥扫描 298 文件 0 匹配、`git diff --check` 退出 0。未进入 D6。
