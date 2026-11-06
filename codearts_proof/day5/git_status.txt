@@ -1,22 +1,16 @@
-# D5 Git 状态（2026-11-06 配方复审收尾轮，推送已完成）
+# D5 Git 状态（2026-11-06 配方解析优先级修复轮）
 
-- 开工基线（重新核验）：`git ls-remote origin main` = `1376a515ee224e2cf91a104b2a2b81dbf64f24d8`；本地 `main...origin/main [ahead 3]`，落后 0；工作区干净；`git diff --check` 退出 0。
-- 本地领先的三个提交：
-  - 修复提交：`bd1fe0c65d6e291644d1b612c6b2ff035ba2125e`（`fix: distinguish brew total water and prefer explicit total time`）
-  - 复审证据提交：`f32f4e62247e56e585b14f51efcce141d68bd54c`（`docs: add D5 recipe total water and duration evidence`）
-  - 状态记录提交：`0e254a27238b6eae057d46a5b25f2cdaea296e3a`（`docs: record D5 recipe total water status`）
-- 推送：`git push origin main` **成功**，输出 `1376a51..0e254a2  main -> main`（正常快进，未强推，未使用 reset/stash/覆盖）。
-- 推送后核验：`git ls-remote origin main` = `0e254a27238b6eae057d46a5b25f2cdaea296e3a`，与本地 `HEAD` 一致；本地 `main...origin/main` 无领先/落后。
-- 密钥扫描：本轮复跑两次均 **0 匹配、clean=true**；提交前扫描 298 个文本文件，状态记录更新后复扫 299 个（含本轮修改的文档与证据）。见 `secret_scan.json`。
-- 推送后复跑实测：
-  - 服务端：`.venv/Scripts/python.exe -m pytest -o addopts=""` → **116 passed / 0 failed**（23.44s）。
-  - Android：`:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，**55 tests / 0 failures / 0 errors**。
-  - Android：`:app:assembleDebug --rerun-tasks` → BUILD SUCCESSFUL，35 tasks executed。
-  - APK：`android/app/build/outputs/apk/debug/app-debug.apk`，**10,822,322 字节**。
+- 开工核验（实际值）：`git ls-remote origin main` = `0e254a27238b6eae057d46a5b25f2cdaea296e3a`；本地 `HEAD` = `864b211`（上一轮状态记录，仅文档），`main...origin/main [ahead 1]`，落后 0；工作区干净；`git diff --check` 退出 0。
+- 本轮修复提交：`ae8e29b`（`fix: prefer explicit recipe total water and total time`），基于 `0e254a2` 的配方解析实现，未改 Android 代码。
+- 推送：`git push origin main` 连续 3 次失败（第 1 次 `Recv failure: Connection was reset`；第 2、3 次 `Failed to connect to github.com port 443 after ~21s`）；随后 `git ls-remote origin main` 同样 `Connection was reset`，远端本轮未能重新核验。
+  - **未推送成功；未强推；远端最后已知 SHA 为 `0e254a2`。**
+- 密钥扫描：**300 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
+- 本轮实测：服务端 **120 passed / 0 failed**（配方测试 14 项）；Android **55 tests / 0 failures / 0 errors**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**；`git diff --check` 退出 0。
 - 验收状态分列（不得合并）：
-  - 第三方公开授权实拍链路：**通过**（照片/短片 `unclear`；倒咖啡反例 `not_met`；证据帧 9/9 字节一致）。
+  - 第三方公开授权实拍链路：**通过**。
   - 用户自拍环绕验收：**BLOCKED**（无用户自拍环绕素材）。
   - 真机配方 92→90/历史对比：**BLOCKED**（v1 与用户评分已保存；调整/对比未完成）。
   - 真机断网/超时重试：**BLOCKED**（未取得错误→恢复→重试成功证据）。
   - 真机 Canvas easing/拖动：未复测，由 JVM 覆盖。
-- 本轮未新增功能，未调整提示词，未进入 D6。- 本状态记录提交随后推送；推送完成后远端 `main` 应等于该提交，最终 SHA 以推送输出与 `git ls-remote origin main` 为准。
+- 本轮未新增功能，未调整提示词，未进入 D6。
+- 待网络恢复后执行 `git push origin main` 推送 `0e254a2..HEAD`（含 `864b211`、`ae8e29b` 与状态记录提交），并重新核验远端 SHA。
