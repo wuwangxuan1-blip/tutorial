@@ -1,11 +1,12 @@
-# D5 Git 状态（2026-11-06 总水量下限校验轮，推送未完成）
+# D5 Git 状态（2026-11-06 连续调整中途注水保护轮，推送已完成）
 
-- 开工核验：`git ls-remote origin main` 连续 443 连接超时，无法重新核验；远端最后已知 `main = f840d03ba66696ebbc5550e8754fe6372d8ddac6`（上一轮推送后核验值）。本地 `HEAD` = `f840d03`，工作区干净；`git diff --check` 退出 0。
+- 开工核验（实际值）：`git ls-remote origin main` = `f840d03ba66696ebbc5550e8754fe6372d8ddac6`；本地 `HEAD` = `f840d03`，`main...origin/main` 无领先/落后；工作区干净；`git diff --check` 退出 0。
 - 本轮修复提交：`da1029b`（`fix: reject water totals below intermediate pours`），基线 `f840d03`。
-- 推送：`git push origin main` 连续 3 次失败（均为 `Failed to connect to github.com port 443 after ~21s`），按规则停止重试；**未推送成功、未强推**。
-- 本轮实测：服务端 **128 passed / 0 failed**（配方测试 22 项）；Android **55 tests / 0 failures / 0 errors**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**；`git diff --check` 退出 0。
+- 状态记录提交：`43b6e232c809de7c98299348efc9dd1ec52b3c77`。
+- 推送：`git push origin main` 首次连续 3 次 443 超时后按用户“重试”再次执行，返回 `Everything up-to-date`；`git ls-remote origin main` = `43b6e232c809de7c98299348efc9dd1ec52b3c77`，与本地 `HEAD` 一致（`f840d03..43b6e23` 已推送，未强推）。
 - 密钥扫描：**304 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
-- 行为：总水量调整后、写入前校验保留的中途累计注水目标；新总量 90 g 低于中途 `注水至 100 g` 时返回 422 `intermediate_water_exceeds_total`（`details.water_g=90`、`intermediate_targets=[100]`），不创建新版本，旧版与历史保持 v1；改 240 g 成功，中途仍 100 g，最终停止条件与用量均为 240 g。摘要来源创建期 422 回归保留。
+- 本轮实测：服务端 **128 passed / 0 failed**（配方测试 22 项）；Android **55 tests / 0 failures / 0 errors**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed，重跑一次仍成功）；APK **10,822,322 字节**；`git diff --check` 退出 0。
+- 行为：连续调整总水量时保留中途目标与最终目标各自的身份——从 `总水量 225 g，中途注水至 100 g，最终继续注水至 225 g 后停止` 先把总量改 100 g，再改 240 g；最新版中途仍 100 g、最终 240 g，历史版本与用料按各版原值可回查；总量改 90 g 仍返回 422 `intermediate_water_exceeds_total` 且不写入。
 - 验收状态分列（不得合并）：
   - 第三方公开授权实拍链路：**通过**。
   - 用户自拍环绕验收：**BLOCKED**（无用户自拍环绕素材）。
@@ -13,4 +14,4 @@
   - 真机断网/超时重试：**BLOCKED**（未取得错误→恢复→重试成功证据）。
   - 真机 Canvas easing/拖动：未复测，由 JVM 覆盖。
 - 本轮未新增功能，未调整提示词，未进入 D6。
-- 待网络恢复后执行 `git push origin main` 推送 `f840d03..HEAD`（含 `da1029b` 与本状态记录），并重新核验远端 SHA。
+- 最终远端 `main` 与本状态记录提交一致（以 `git ls-remote` 为准）。
