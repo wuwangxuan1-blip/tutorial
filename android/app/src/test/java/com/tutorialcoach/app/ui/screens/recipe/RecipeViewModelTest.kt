@@ -30,6 +30,10 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -140,6 +144,9 @@ class RecipeViewModelTest {
         var lastTasting: TastingRequestDto? = null
         var comparison: DomainRecipeCompare? = null
         var lastDemo = false
+        var confirmationRequired = false
+        var conflictOnConfirmation = false
+        val requests = mutableListOf<AdjustmentRequestDto>()
 
         override suspend fun createRecipe(
             sessionId: String,
@@ -173,7 +180,42 @@ class RecipeViewModelTest {
             request: AdjustmentRequestDto,
         ): Pair<DomainRecipe, DomainAdjustment> {
             lastAdjustment = request
+            requests.add(request)
             if (conflict) throw ApiException("VERSION_CONFLICT", "配方版本已变化。")
+            if (conflictOnConfirmation && request.waterSourceConfirmation != null) {
+                throw ApiException("VERSION_CONFLICT", "配方版本已变化。")
+            }
+            if (confirmationRequired && request.waterSourceConfirmation == null) {
+                throw ApiException(
+                    "INVALID_REQUEST",
+                    "无法确认旧配方的总水量来源。",
+                    details = buildJsonObject {
+                        put("reason", "total_source_unconfirmed")
+                        put("confirmation_required", true)
+                        put("confirm_field", "water_source_confirmation")
+                        putJsonArray("candidates") {
+                            addJsonObject {
+                                put("candidate_id", 0)
+                                put("step_index", 0)
+                                put("field", "instruction")
+                                put("label", "总水量")
+                                put("kind", "explicit")
+                                put("value", 225.0)
+                                put("role_hint", "declaration")
+                            }
+                            addJsonObject {
+                                put("candidate_id", 1)
+                                put("step_index", 0)
+                                put("field", "target")
+                                put("label", "注水至")
+                                put("kind", "terminal")
+                                put("value", 225.0)
+                                put("role_hint", "final_or_mid")
+                            }
+                        }
+                    },
+                )
+            }
             val updated = recipe(2, 94.0)
             recipes.add(updated)
             history.add(
@@ -273,5 +315,78 @@ class RecipeViewModelTest {
         advanceUntilIdle()
         assertTrue(gateway.lastDemo)
         assertEquals(1, viewModel.state.value.recipe?.version)
+    }
+
+    @Test
+    fun waterSourceConfirmationShowsCandidatesAndRetriesWithSameBaseVersion() =
+        runTest(dispatcher) {
+            val gateway = FakeGateway()
+            gateway.recipes = mutableListOf(recipe())
+            gateway.confirmationRequired = true
+            val viewModel = RecipeViewModel(FakeSessions(), gateway)
+            advanceUntilIdle()
+
+            viewModel.adjust("water_g", "240", "调整总水量")
+            advanceUntilIdle()
+
+            val confirmation = viewModel.state.value.confirmation
+            assertNotNull(confirmation)
+            assertEquals(2, confirmation!!.candidates.size)
+            assertTrue(confirmation.candidates.first().displayText().contains("总水量"))
+
+            viewModel.toggleWaterDeclaration(0)
+            viewModel.toggleWaterFinal(1)
+            viewModel.confirmWaterSource()
+            advanceUntilIdle()
+
+            assertEquals(2, viewModel.state.value.recipe?.version)
+            assertEquals(2, gateway.requests.size)
+            val last = gateway.requests.last()
+            assertEquals(1, last.baseVersion)
+            assertEquals("water_g", last.variable)
+            assertEquals("调整总水量", last.reason)
+            assertEquals(listOf(0), last.waterSourceConfirmation?.declaration)
+            assertEquals(listOf(1), last.waterSourceConfirmation?.final)
+        }
+
+    @Test
+    fun cancelWaterSourceConfirmationDoesNotRetry() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        gateway.recipes = mutableListOf(recipe())
+        gateway.confirmationRequired = true
+        val viewModel = RecipeViewModel(FakeSessions(), gateway)
+        advanceUntilIdle()
+
+        viewModel.adjust("water_g", "240", "调整总水量")
+        advanceUntilIdle()
+        assertNotNull(viewModel.state.value.confirmation)
+
+        viewModel.cancelWaterSourceConfirmation()
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.state.value.confirmation)
+        assertEquals(1, gateway.requests.size)
+        assertEquals(1, viewModel.state.value.recipe?.version)
+    }
+
+    @Test
+    fun confirmationRetryVersionConflictSurfacesConflict() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        gateway.recipes = mutableListOf(recipe())
+        gateway.confirmationRequired = true
+        gateway.conflictOnConfirmation = true
+        val viewModel = RecipeViewModel(FakeSessions(), gateway)
+        advanceUntilIdle()
+
+        viewModel.adjust("water_g", "240", "调整总水量")
+        advanceUntilIdle()
+        viewModel.toggleWaterDeclaration(0)
+        viewModel.confirmWaterSource()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.conflict)
+        assertEquals(null, viewModel.state.value.confirmation)
+        assertTrue(viewModel.state.value.error?.contains("已刷新") == true)
+        assertEquals(2, gateway.requests.size)
     }
 }

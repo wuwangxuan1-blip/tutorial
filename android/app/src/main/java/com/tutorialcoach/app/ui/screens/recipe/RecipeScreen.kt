@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
@@ -27,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -53,6 +56,16 @@ fun RecipeScreen(
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     var useDemo by remember { mutableStateOf(false) }
+
+    state.confirmation?.let { confirmation ->
+        WaterSourceConfirmationDialog(
+            confirmation = confirmation,
+            onToggleDeclaration = viewModel::toggleWaterDeclaration,
+            onToggleFinal = viewModel::toggleWaterFinal,
+            onConfirm = viewModel::confirmWaterSource,
+            onCancel = viewModel::cancelWaterSourceConfirmation,
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -312,6 +325,56 @@ private fun AdjustmentCard(
             }
         }
     }
+}
+
+@Composable
+private fun WaterSourceConfirmationDialog(
+    confirmation: WaterSourceConfirmationUi,
+    onToggleDeclaration: (Int) -> Unit,
+    onToggleFinal: (Int) -> Unit,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("确认总水量来源") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("请选择总量声明与最终执行指令。中途注水不会被改动。")
+                confirmation.candidates.forEach { candidate ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = candidate.candidateId in confirmation.declarationIds,
+                            onCheckedChange = { onToggleDeclaration(candidate.candidateId) },
+                        )
+                        Text("总量", style = MaterialTheme.typography.labelSmall)
+                        Checkbox(
+                            checked = candidate.candidateId in confirmation.finalIds,
+                            onCheckedChange = { onToggleFinal(candidate.candidateId) },
+                        )
+                        Text("最终", style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            candidate.displayText(),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("确认并重试") }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) { Text("取消") }
+        },
+    )
 }
 
 @Composable

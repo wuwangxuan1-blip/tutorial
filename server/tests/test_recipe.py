@@ -1465,3 +1465,64 @@ async def test_legacy_ambiguous_source_offers_confirmation(client, monkeypatch):
     assert "总水量 225 g" in old["steps"][0]["instruction"]
     assert "注水至 100 g" in old["steps"][0]["instruction"]
     assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]
+
+async def test_conflicting_total_and_final_stop_is_rejected(client, monkeypatch):
+    plan = _controlled_plan(
+        "咖啡粉 15 g，总水量 225 g，最后注水至 220 g 后停止，"
+        "水温 92 °C，总时长 150 秒。"
+    )
+    session, _ = await setup_coffee(client, monkeypatch, plan=plan)
+    created = await client.post(
+        f"/v1/sessions/{session['id']}/recipes",
+        json={"base_plan_version": 1},
+    )
+    assert created.status_code == 422
+    details = created.json()["error"]["details"]
+    assert details["reason"] == "water_total_conflicts_with_final"
+    assert details["water_g"] == 225
+    assert details["final_targets"] == [220]
+    assert (await client.get(f"/v1/sessions/{session['id']}/recipes")).json() == []
+
+
+async def test_legacy_conflicting_final_stop_rejects_adjustment(
+    client,
+    monkeypatch,
+):
+    plan = _controlled_plan(
+        "咖啡粉 15 g，总水量 225 g，分两次注水至 225 g，等滤杯滴完，"
+        "水温 92 °C，总时长 150 秒。"
+    )
+    session, _ = await setup_coffee(client, monkeypatch, plan=plan)
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    store = client.app.state.recipe_service.store
+    stored = await store.find_recipe(recipe["id"])
+    stored.pop("total_sources", None)
+    stored["steps"][0]["instruction"] = (
+        "咖啡粉 15 g，总水量 225 g，最后注水至 220 g 后停止，"
+        "水温 92 °C，总时长 150 秒。"
+    )
+    await store.save_recipe(stored)
+
+    adjusted = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 240,
+            "reason": "冲突旧配方。",
+        },
+    )
+    assert adjusted.status_code == 422
+    details = adjusted.json()["error"]["details"]
+    assert details["reason"] == "water_total_conflicts_with_final"
+    assert details["water_g"] == 225
+    assert details["final_targets"] == [220]
+    recipes = (await client.get(f"/v1/sessions/{session['id']}/recipes")).json()
+    assert [item["version"] for item in recipes] == [1]
+    old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert old["variables"]["water_g"] == 225

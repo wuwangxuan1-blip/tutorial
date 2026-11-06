@@ -569,6 +569,25 @@ data class AdjustmentRequestDto(
     @SerialName("to_value") val toValue: JsonElement,
     @SerialName("reason") val reason: String,
     @SerialName("tasting_id") val tastingId: String? = null,
+    @SerialName("water_source_confirmation")
+    val waterSourceConfirmation: WaterSourceConfirmationDto? = null,
+)
+
+@Serializable
+data class WaterSourceCandidateDto(
+    @SerialName("candidate_id") val candidateId: Int,
+    @SerialName("step_index") val stepIndex: Int,
+    @SerialName("field") val field: String,
+    @SerialName("label") val label: String,
+    @SerialName("kind") val kind: String,
+    @SerialName("value") val value: Double,
+    @SerialName("role_hint") val roleHint: String = "",
+)
+
+@Serializable
+data class WaterSourceConfirmationDto(
+    @SerialName("declaration") val declaration: List<Int>,
+    @SerialName("final") val final: List<Int> = emptyList(),
 )
 
 @Serializable

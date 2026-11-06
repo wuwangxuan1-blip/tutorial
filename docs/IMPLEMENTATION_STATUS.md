@@ -394,3 +394,11 @@ API 回归新增 3 项（停止条件同步、摘要来源创建前确认、旧�
 2. **旧配方恢复**：缺少 `total_sources` 时，首次调整若能在步骤文本中唯一确认来源，则自动补齐 marks 并写入新版本；同值歧义返回 422 `total_source_unconfirmed`（`confirmation_required=true`、`confirm_field=water_source_confirmation`、`candidates`），客户端用 `water_source_confirmation.declaration/final` 指定候选 ID 后重试；确认后写入新版本，旧版本与历史保持原值。
 
 本轮实测：服务端 **134 passed / 0 failed**（配方测试 28 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**。状态分列不变；未进入 D6。
+### 16.13 D5 总量与最终停止冲突检测 + Android 确认流程（2026-11-06）
+
+基线：`3c86b6e`。两项修复：
+
+1. **冲突检测**：显式总量与明确最终停止条件值不同（如 `总水量 225 g，最后注水至 220 g 后停止`）→ 422 `INVALID_REQUEST`（`water_total_conflicts_with_final`，`details.water_g`、`details.final_targets`）；创建、旧配方恢复、调整三条路径均拦截，不写入冲突版本。中途累计量低于总量的正常用例与 225→100→240 连续调整回归保留。
+2. **Android 确认流程**：收到 `confirmation_required` 时展示候选步骤/字段/文本，用户分别勾选总量声明与最终指令；确认后沿用原调整参数与 `base_version` 重试；取消不发送请求；重试遇 409 时显示版本冲突并刷新。JVM 测试覆盖确认成功、取消、版本冲突。
+
+本轮实测：服务端 **136 passed / 0 failed**（配方测试 30 项）；Android **58 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,838,706 字节**。状态分列不变；未进入 D6。

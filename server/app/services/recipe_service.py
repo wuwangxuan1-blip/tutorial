@@ -409,6 +409,57 @@ class RecipeService:
         head = text[max(0, mention.value_start - 8) : mention.value_start]
         return any(marker in head for marker in ("最后", "最终"))
 
+    def _water_final_conflicts(
+        self,
+        located: list[tuple[int, str, _WaterMention, int, str]],
+        expected: float,
+    ) -> list[float]:
+        return sorted(
+            {
+                item[2].value
+                for item in located
+                if item[2].kind == "terminal"
+                and item[2].value != expected
+                and (
+                    item[1] == "target"
+                    or self._water_stop_marked(item[2], item[4])
+                )
+            }
+        )
+
+    @staticmethod
+    def _water_final_conflict_error(
+        expected: float,
+        conflicts: list[float],
+    ) -> ApiError:
+        targets = "、".join(f"{_format_number(value)} g" for value in conflicts)
+        return ApiError(
+            422,
+            "INVALID_REQUEST",
+            f"计划的总水量 {_format_number(expected)} g 与最终停止条件 {targets} "
+            "冲突；未创建或未调整配方。",
+            details={
+                "reason": "water_total_conflicts_with_final",
+                "water_g": expected,
+                "final_targets": conflicts,
+            },
+        )
+
+    def _assert_water_final_consistency(
+        self,
+        located: list[tuple[int, str, _WaterMention, int, str]],
+        expected: float,
+    ) -> None:
+        explicit = any(
+            item[2].kind == "explicit" and item[2].value == expected
+            for item in located
+        )
+        if not explicit:
+            return
+        conflicts = self._water_final_conflicts(located, expected)
+        if conflicts:
+            raise self._water_final_conflict_error(expected, conflicts)
+
     def _locate_water_mentions(
         self,
         steps: list[dict[str, Any]],
@@ -494,6 +545,7 @@ class RecipeService:
         expected: float,
     ) -> dict[str, Any]:
         located = self._locate_water_mentions(steps)
+        self._assert_water_final_consistency(located, expected)
         explicit = [
             item
             for item in located
@@ -622,6 +674,7 @@ class RecipeService:
         confirmation: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         located = self._locate_water_mentions(steps)
+        self._assert_water_final_consistency(located, expected)
         if confirmation is not None:
             return self._marks_from_confirmation(
                 located,
@@ -713,6 +766,8 @@ class RecipeService:
                     float(water_g),
                 )
             except ApiError as exc:
+                if exc.details.get("reason") == "water_total_conflicts_with_final":
+                    raise
                 raise self._source_unavailable("water_g", "总水量") from exc
         brew_time_s = variables.get("brew_time_s")
         if brew_time_s is not None:
@@ -1080,6 +1135,8 @@ class RecipeService:
                     text = replace(text, pattern, new_text, kind)
                 step[field] = text
         if water_changed:
+            located = self._locate_water_mentions(updated)
+            self._assert_water_final_consistency(located, float(water_old))
             marks = ((total_sources or {}).get("water_g") or {}).get("marks")
             if not marks:
                 raise self._total_source_unconfirmed("water_g")

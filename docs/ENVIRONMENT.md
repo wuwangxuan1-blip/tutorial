@@ -303,3 +303,11 @@
 | Android 测试 | **55 tests / 0 failures**（本轮未改 Android） |
 | APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,822,322 字节（`:app:assembleDebug --rerun-tasks`：BUILD SUCCESSFUL、35 tasks executed） |
 | 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |
+### D5 总量冲突检测与 Android 确认流程实测（2026-11-06）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **136 passed / 0 failed**（配方 30 项：显式总量与最终停止条件冲突 422，创建/调整均不写入；正常中途<总量与连续调整保留） |
+| Android 测试 | **58 tests / 0 failures**（新增确认成功、取消、版本冲突 3 项） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,838,706 字节（`:app:assembleDebug --rerun-tasks`：BUILD SUCCESSFUL、35 tasks executed） |
+| 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |

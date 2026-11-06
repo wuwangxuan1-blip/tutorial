@@ -12,6 +12,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
@@ -30,6 +31,7 @@ class ApiException(
     val retryable: Boolean = false,
     val requestId: String? = null,
     val retryAfterS: Int? = null,
+    val details: JsonObject = JsonObject(emptyMap()),
 ) : Exception(message)
 
 class NetworkException(
@@ -506,6 +508,7 @@ class ApiClient(
                     retryable = detail?.retryable ?: false,
                     requestId = detail?.requestId,
                     retryAfterS = detail?.retryAfterS,
+                    details = detail?.details ?: JsonObject(emptyMap()),
                 )
             }
             try {

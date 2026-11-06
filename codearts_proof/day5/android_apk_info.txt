@@ -1,9 +1,9 @@
 APK 信息（D5）
 路径：android/app/build/outputs/apk/debug/app-debug.apk
-大小：10,822,322 字节（约 10.3 MiB）
+大小：10,838,706 字节（约 10.3 MiB）
 包名：com.tutorialcoach.app
 versionName：0.1.0
 minSdk：26
 targetSdk：35
 构建：BUILD SUCCESSFUL（:app:assembleDebug --rerun-tasks，35 tasks executed）
-说明：D5 最后执行指令身份与旧配方恢复修复（结构判据同步最后注水指令；旧配方首次调整自动补齐 marks 或返回 confirmation 入口）已在当前源码上重建；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；Android 本轮未改代码。
+说明：D5 总量冲突检测与 Android 确认流程修复（显式总量 vs 最终停止条件冲突 422；confirmation_required 候选确认、取消、版本冲突）已在当前源码上重建；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）。
