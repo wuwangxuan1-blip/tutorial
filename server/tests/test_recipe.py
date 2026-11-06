@@ -1200,3 +1200,105 @@ async def test_sequential_water_adjustments_keep_intermediate_target(
     assert v2_get["variables"]["water_g"] == 100
     assert "中途注水至 100 g" in v2_get["steps"][0]["instruction"]
     assert "继续注水至 100 g 后停止" in v2_get["steps"][0]["target"]
+
+async def test_marks_keep_continue_pour_as_intermediate_target(client, monkeypatch):
+    plan = _controlled_plan(
+        "咖啡粉 15 g，总水量 225 g，闷蒸后继续注水至 100 g，等待 10 秒，"
+        "水温 92 °C，总时长 150 秒。"
+    )
+    plan["steps"][0]["completion_criteria"] = ["注水至 225 g 后停止"]
+    session, _ = await setup_coffee(client, monkeypatch, plan=plan)
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    assert recipe["variables"]["water_g"] == 225
+    assert "继续注水至 100 g" in recipe["steps"][0]["instruction"]
+    assert "注水至 225 g 后停止" in recipe["steps"][0]["target"]
+
+    rejected = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 90,
+            "reason": "低于中途注水量。",
+        },
+    )
+    assert rejected.status_code == 422
+    assert (
+        rejected.json()["error"]["details"]["reason"]
+        == "intermediate_water_exceeds_total"
+    )
+
+    first = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 100,
+            "reason": "先降到与中途相同。",
+        },
+    )
+    assert first.status_code == 201, first.text
+    v2 = first.json()["recipe"]
+    assert v2["variables"]["water_g"] == 100
+    v2_instruction = v2["steps"][0]["instruction"]
+    assert "总水量 100 g" in v2_instruction
+    assert "继续注水至 100 g" in v2_instruction
+    assert "等待 10 秒" in v2_instruction
+    assert "注水至 100 g 后停止" in v2["steps"][0]["target"]
+
+    second = await client.post(
+        f"/v1/recipes/{v2['id']}/adjustments",
+        json={
+            "base_version": 2,
+            "variable": "water_g",
+            "to_value": 240,
+            "reason": "再升到 240。",
+        },
+    )
+    assert second.status_code == 201, second.text
+    v3 = second.json()["recipe"]
+    assert v3["variables"]["water_g"] == 240
+    assert v3["variables"]["ratio"] == 16.0
+    water = next(item for item in v3["ingredients"] if item["name"] == "水")
+    assert water["amount"] == 240
+    v3_instruction = v3["steps"][0]["instruction"]
+    assert "总水量 240 g" in v3_instruction
+    assert "继续注水至 100 g" in v3_instruction
+    assert "等待 10 秒" in v3_instruction
+    assert "注水至 240 g 后停止" in v3["steps"][0]["target"]
+
+    history = (await client.get(f"/v1/recipes/{v3['id']}/history")).json()
+    assert [item["version"] for item in history] == [1, 2, 3]
+    v1 = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert v1["variables"]["water_g"] == 225
+    assert "继续注水至 100 g" in v1["steps"][0]["instruction"]
+    assert "注水至 225 g 后停止" in v1["steps"][0]["target"]
+    v2_get = (await client.get(f"/v1/recipes/{v2['id']}")).json()
+    assert v2_get["variables"]["water_g"] == 100
+    assert "继续注水至 100 g" in v2_get["steps"][0]["instruction"]
+    assert "注水至 100 g 后停止" in v2_get["steps"][0]["target"]
+
+
+async def test_adjustment_without_source_marks_requires_confirmation(client):
+    service = client.app.state.recipe_service
+    steps = [
+        {
+            "instruction": "总水量 225 g，闷蒸后继续注水至 100 g。",
+            "target": "注水至 225 g 后停止。",
+        }
+    ]
+    with pytest.raises(ApiError) as error:
+        service._rewrite_steps(
+            steps,
+            {"water_g": 225},
+            {"water_g": 240},
+            None,
+        )
+    assert error.value.status_code == 422
+    assert error.value.details["reason"] == "total_source_unconfirmed"
+    assert error.value.details["variable"] == "water_g"

@@ -6,4 +6,4 @@ versionName：0.1.0
 minSdk：26
 targetSdk：35
 构建：BUILD SUCCESSFUL（:app:assembleDebug --rerun-tasks，35 tasks executed）
-说明：D5 连续调整目标身份保留修复（显式总量来源下只更新最终停止目标，中途 `注水至 X` 即使同值也不改写）已在当前源码上重建；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；Android 本轮未改代码。
+说明：D5 总量来源身份持久化修复（`Recipe.total_sources` 跨版本保留总量声明/最终停止条件；`继续注水至` 不再单独作为最终判据）已在当前源码上重建；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；Android 本轮未改代码。

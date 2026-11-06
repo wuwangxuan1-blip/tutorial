@@ -376,3 +376,13 @@ API 回归新增 3 项（停止条件同步、摘要来源创建前确认、旧�
 - `_locate_water_spans` 在显式总量来源下，只把**最终目标** terminal 纳入更新：标签为 `继续注水至/继续注水到/最终注水/最终水量`，或值后紧跟“后停止/即停止/后结束”；`注水至 X` 等中途累计目标即使与当前总量同值也不改写。
 - 回归：初始 `总水量 225 g，中途注水至 100 g，最后继续注水至 225 g 后停止`；先改 100 g（v2 总量/最终 100、中途 100），再改 240 g（v3 总量/最终 240、中途仍 100）；v1/v2 历史按原值回查；改 90 g 仍 422 `intermediate_water_exceeds_total` 且不写入。
 - 本轮实测：服务端 **129 passed / 0 failed**（配方测试 23 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**。状态分列不变：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。
+### 16.11 D5 总量来源身份持久化（2026-11-06）
+
+基线：`a90c82a`。把“总量声明/最终停止条件”的身份从自由文本猜测改为持久化来源标识：
+
+- `Recipe` 新增可选 `total_sources`；创建时记录 `water_g` 的 marks（`step_index`/`field`/`label`/`kind`/`ordinal`/`role=declaration|final`），跨版本原样保留。
+- `_is_final_water_target` 不再以 `继续注水至` 等标签作为判据，只认值后“后停止/后结束”或前文“最后/最终”；创建时只把被标记的位置记为 `final`。
+- 调整时只按 marks 定位并更新总量声明与最终停止条件；中途 `继续注水至 100 g` 即使与总量同值也保持，“等待 10 秒”不变。无 `total_sources`（旧数据）或身份定位失败 → 422 `total_source_unconfirmed`，不写入。
+- 回归：`总水量 225 g / 闷蒸后继续注水至 100 g，等待 10 秒 / 注水至 225 g 后停止`；改 90 g → 422；先改 100 g 再改 240 g → 最新版总量/最终 240 g、中途仍 100 g、等待仍 10 秒，v1/v2 历史按原值回查；无 marks 的旧配方 → 422。
+
+本轮实测：服务端 **131 passed / 0 failed**（配方测试 25 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**。状态分列不变；未进入 D6。

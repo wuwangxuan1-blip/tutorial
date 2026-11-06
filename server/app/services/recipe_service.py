@@ -188,7 +188,7 @@ class RecipeService:
 
         variables = self._variables_from_plan(plan, use_demo=use_demo)
         steps = self._steps_from_plan(plan)
-        self._ensure_adjustable_sources(steps, variables)
+        total_sources = self._prepare_total_sources(steps, variables)
         recipe_id = new_id("recipe")
         recipe = {
             "id": recipe_id,
@@ -205,6 +205,7 @@ class RecipeService:
             "ingredients": self._ingredients(variables),
             "steps": steps,
             "source_plan_version": plan["version"],
+            "total_sources": total_sources or None,
             "created_at": _now(),
         }
         Recipe.model_validate(recipe)
@@ -402,10 +403,159 @@ class RecipeService:
 
     @staticmethod
     def _is_final_water_target(mention: _WaterMention, text: str) -> bool:
-        if mention.label in {"继续注水至", "继续注水到", "最终注水", "最终水量"}:
-            return True
         tail = text[mention.value_end : mention.value_end + 8]
-        return any(marker in tail for marker in ("后停止", "即停止", "后结束"))
+        if any(marker in tail for marker in ("后停止", "即停止", "后结束")):
+            return True
+        head = text[max(0, mention.value_start - 8) : mention.value_start]
+        return any(marker in head for marker in ("最后", "最终"))
+
+    def _water_source_marks(
+        self,
+        steps: list[dict[str, Any]],
+        expected: float,
+    ) -> dict[str, Any]:
+        located: list[tuple[int, str, _WaterMention, int, str]] = []
+        for index, step in enumerate(steps):
+            for field in ("instruction", "target"):
+                text = str(step.get(field) or "")
+                counters: dict[tuple[str, str], int] = {}
+                for mention in self._water_mentions(text):
+                    key = (mention.label, mention.kind)
+                    ordinal = counters.get(key, 0)
+                    counters[key] = ordinal + 1
+                    located.append((index, field, mention, ordinal, text))
+
+        explicit = [
+            item
+            for item in located
+            if item[2].kind == "explicit" and item[2].value == expected
+        ]
+        terminal = [
+            item
+            for item in located
+            if item[2].kind == "terminal" and item[2].value == expected
+        ]
+        general = [
+            item
+            for item in located
+            if item[2].kind == "other" and item[2].value == expected
+        ]
+        conflicting_final = [
+            item
+            for item in located
+            if item[2].kind == "terminal"
+            and item[2].value != expected
+            and self._is_final_water_target(item[2], item[4])
+        ]
+        if conflicting_final:
+            raise self._source_unavailable("water_g", "总水量")
+
+        if explicit:
+            declarations = explicit + [
+                item
+                for item in general
+                if item[2].label in _WATER_GENERAL_LABELS
+            ]
+        elif terminal:
+            declarations = terminal + [
+                item
+                for item in general
+                if item[2].label in _WATER_GENERAL_LABELS
+            ]
+        elif general:
+            values = {item[2].value for item in general}
+            if len(values) != 1:
+                raise self._source_unavailable("water_g", "总水量")
+            declarations = general
+        else:
+            raise self._source_unavailable("water_g", "总水量")
+
+        finals = [
+            item
+            for item in located
+            if item[2].kind == "terminal"
+            and item[2].value == expected
+            and self._is_final_water_target(item[2], item[4])
+        ]
+
+        marks: list[dict[str, Any]] = []
+        seen: set[tuple[int, str, int, int]] = set()
+        for role, items in (("declaration", declarations), ("final", finals)):
+            for index, field, mention, ordinal, _ in items:
+                key = (index, field, mention.value_start, mention.value_end)
+                if key in seen:
+                    continue
+                seen.add(key)
+                marks.append(
+                    {
+                        "step_index": index,
+                        "field": field,
+                        "label": mention.label,
+                        "kind": mention.kind,
+                        "ordinal": ordinal,
+                        "role": role,
+                    }
+                )
+        return {"marks": marks}
+
+    def _water_spans_from_marks(
+        self,
+        steps: list[dict[str, Any]],
+        marks: list[dict[str, Any]],
+        expected: float,
+    ) -> list[_LocatedSpan]:
+        spans: list[_LocatedSpan] = []
+        seen: set[tuple[int, str, int, int]] = set()
+        for mark in marks:
+            index = int(mark["step_index"])
+            field = str(mark["field"])
+            label = str(mark["label"])
+            kind = str(mark["kind"])
+            ordinal = int(mark.get("ordinal", 0))
+            text = str(steps[index].get(field) or "")
+            candidates = [
+                mention
+                for mention in self._water_mentions(text)
+                if mention.label == label and mention.kind == kind
+            ]
+            if ordinal >= len(candidates):
+                raise self._total_source_unconfirmed("water_g")
+            mention = candidates[ordinal]
+            if mention.value != expected:
+                raise self._total_source_unconfirmed("water_g")
+            key = (index, field, mention.value_start, mention.value_end)
+            if key in seen:
+                continue
+            seen.add(key)
+            spans.append(
+                _LocatedSpan(index, field, mention.value_start, mention.value_end)
+            )
+        if not spans:
+            raise self._total_source_unconfirmed("water_g")
+        return spans
+
+    def _prepare_total_sources(
+        self,
+        steps: list[dict[str, Any]],
+        variables: dict[str, Any],
+    ) -> dict[str, Any]:
+        sources: dict[str, Any] = {}
+        water_g = variables.get("water_g")
+        if water_g is not None:
+            try:
+                sources["water_g"] = self._water_source_marks(
+                    steps,
+                    float(water_g),
+                )
+            except ApiError as exc:
+                raise self._source_unavailable("water_g", "总水量") from exc
+        brew_time_s = variables.get("brew_time_s")
+        if brew_time_s is not None:
+            try:
+                self._locate_time_spans(steps, int(brew_time_s))
+            except ApiError as exc:
+                raise self._source_unavailable("brew_time_s", "总时长") from exc
+        return sources
 
     def _locate_time_spans(
         self,
@@ -675,6 +825,7 @@ class RecipeService:
         steps: list[dict[str, Any]],
         old_variables: dict[str, Any],
         new_variables: dict[str, Any],
+        total_sources: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         operations: list[tuple[re.Pattern[str], str, str]] = []
 
@@ -764,7 +915,14 @@ class RecipeService:
                     text = replace(text, pattern, new_text, kind)
                 step[field] = text
         if water_changed:
-            water_spans = self._locate_water_spans(updated, float(water_old))
+            marks = ((total_sources or {}).get("water_g") or {}).get("marks")
+            if not marks:
+                raise self._total_source_unconfirmed("water_g")
+            water_spans = self._water_spans_from_marks(
+                updated,
+                marks,
+                float(water_old),
+            )
             self._validate_water_floor(
                 float(water_new),
                 self._remaining_intermediate_water_targets(updated, water_spans),
@@ -943,6 +1101,7 @@ class RecipeService:
                 base.get("steps") or [],
                 base_variables,
                 validated_variables,
+                base.get("total_sources"),
             ),
             "created_at": _now(),
         }

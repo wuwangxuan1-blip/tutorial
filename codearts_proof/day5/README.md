@@ -22,7 +22,8 @@
 | `review_fix_round10.md` | D5 创建期来源固化：创建前校验可调整来源、总量与最终停止条件同步、中途注水不变、仅摘要来源 422 |
 | `review_fix_round11.md` | D5 总水量下限校验：新总量低于中途累计注水目标 422 不落库、240 g 成功且中途 100 g 不变 |
 | `review_fix_round12.md` | D5 连续调整目标身份保留：225→100→240 时中途 100 g 不变、最终 240 g；90 g 仍 422 |
-| `server_pytest_summary.txt` | 后端 129 passed 测试摘要 |
+| `review_fix_round13.md` | D5 总量来源身份持久化：`Recipe.total_sources` 跨版本复用、`继续注水至` 不作最终判据、无 marks 422 |
+| `server_pytest_summary.txt` | 后端 131 passed 测试摘要 |
 | `android_test_results.txt` | Android 55 tests / 0 failures 分套件结果（含 easing 与 seek 回归） |
 | `android_apk_info.txt` | APK 路径、大小与构建结果 |
 | `device_verification.md` | 真机运镜、咖啡品尝/调整与断网重试记录、BLOCKED 项 |
@@ -43,4 +44,4 @@
 - D5 配方调整总量来源定位（基线 `ac538ef`）：整份配方只定位一次来源；`注水 225 g` 改 240 g 后参数、用料、步骤一致；步骤 0 `总时长：150 秒` 与步骤 1 `萃取用时 150 秒` 改 180 时只更新总时长；无法定位来源返回 422 `total_source_unconfirmed`。服务端 125 passed、Android 55 tests、APK 10,822,322 字节。详见 `review_fix_round9.md`。
 - D5 创建期来源固化（基线 `b7e923c`）：创建前校验总水量/总时长可在步骤中定位，仅摘要来源直接 422 提示确认；总水量 225 g 与“继续注水至 225 g 后停止”同步改 240 g，中途 100 g 不变；旧版保留原值。服务端 127 passed、Android 55 tests、APK 10,822,322 字节。详见 `review_fix_round10.md`。
 - D5 总水量下限校验（基线 `f840d03`）：中途 `注水至 100 g`、最终 `继续注水至 225 g 后停止` 时，总量改 90 g 返回 422 `intermediate_water_exceeds_total` 且旧版/历史不变；改 240 g 成功，中途仍 100 g、最终 240 g。服务端 128 passed、Android 55 tests、APK 10,822,322 字节。详见 `review_fix_round11.md`。
-- D5 连续调整目标身份保留（基线 `43b6e23`）：先 225→100 再 100→240 时，最新版中途仍 100 g、最终停止条件与用料为 240 g，v1/v2 历史按原值回查；90 g 仍 422 不写入。服务端 129 passed、Android 55 tests、APK 10,822,322 字节。详见 `review_fix_round12.md`。
+- D5 连续调整目标身份保留（基线 `43b6e23`）：先 225→100 再 100→240 时，最新版中途仍 100 g、最终停止条件与用料为 240 g，v1/v2 历史按原值回查；90 g 仍 422 不写入。服务端 129 passed、Android 55 tests、APK 10,822,322 字节。详见 `review_fix_round12.md`。- D5 总量来源身份持久化（基线 `a90c82a`）：`Recipe.total_sources` 跨版本记录总量声明/最终停止条件，`继续注水至` 不再单独作为最终判据；225→100→240 时中途 100 g、等待 10 秒不变，最终 240 g；无 marks 旧配方 422。服务端 131 passed、Android 55 tests、APK 10,822,322 字节。详见 `review_fix_round13.md`。

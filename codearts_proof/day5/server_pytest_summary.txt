@@ -1,9 +1,9 @@
-服务端测试（D5，连续调整中途/最终目标身份保留）
+服务端测试（D5，总量来源身份持久化）
 命令：.venv/Scripts/python.exe -m pytest -o addopts=""
-结果：129 passed，0 failed，0 errors
+结果：131 passed，0 failed，0 errors
 
 本轮相关：
-- test_recipe：23（在 22 项基础上新增：初始中途 100、最终 225，先改 100 再改 240；v3 中途仍 100、最终 240，v1/v2 原值回查；90 g 仍 422 `intermediate_water_exceeds_total` 不写入。修复点为显式总量来源下只更新最终目标 terminal，中途 `注水至 X` 即使同值也不改写）
+- test_recipe：25（在 23 项基础上新增：`Recipe.total_sources` 记录总量声明/最终停止条件身份；`总水量 225 / 闷蒸后继续注水至 100 / 等待 10 秒 / 注水至 225 后停止` 先改 100 再改 240，中途仍 100、等待 10、最终 240；90 g 仍 422；无 marks 的旧配方调整返回 422 `total_source_unconfirmed`。`继续注水至` 不再单独作为最终判据）
 - test_camera：14；test_plan_photography：4；其余 D4/D3 回归全部通过。
 - 「闷蒸注水 30 g，继续注水至 225 g」→ 225 g 回归保留。
 

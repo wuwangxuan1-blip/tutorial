@@ -85,6 +85,7 @@ class Recipe(BaseModel):
     ingredients: list[RecipeIngredient] = Field(min_length=1, max_length=20)
     steps: list[RecipeStep] = Field(min_length=1, max_length=20)
     source_plan_version: int = Field(ge=1)
+    total_sources: dict[str, Any] | None = None
     created_at: str
 
 
