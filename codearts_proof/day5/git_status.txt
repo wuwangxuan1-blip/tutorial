@@ -1,16 +1,16 @@
-# D5 Git 状态（2026-11-06 配方复审再修轮）
+# D5 Git 状态（2026-11-06 配方复审收尾轮）
 
-- 基线：`b47ba94`（D5 上一轮复审修复通过）。
-- 本轮修复提交：`4e08391628851bf5e2638c419349e372363cac76`（`fix: update recipe steps semantically and validate inputs`）
-- 复审证据提交：`f9dddfda0bcfa77608c424aa890d150c1227f7b0`（`docs: add D5 recipe review fix evidence`）
-- 状态记录提交：`cbee2e9653de1ff04171ea519f2e1d05bb1a8b00`（`docs: record D5 recipe review fix status`）
-- 推送：`git push origin main` 成功，`b47ba94..cbee2e9  main -> main`；`git ls-remote origin main` 核验远端为 `cbee2e9`；未强推。
-- 提交前密钥扫描：**297 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
-- 实测：服务端 **114 passed / 0 failed**；Android **55 tests / 0 failures**；`:app:assembleDebug` BUILD SUCCESSFUL；APK **10,822,322 字节**。
+- 基线：`1376a51`（上一轮已验证的本地/远端基线；本轮开始时 `git ls-remote` 即因 GitHub 连接失败无法再次核验）。
+- 本轮修复提交：`bd1fe0c65d6e291644d1b612c6b2ff035ba2125e`（`fix: distinguish brew total water and prefer explicit total time`）
+- 复审证据提交：`f32f4e62247e56e585b14f51efcce141d68bd54c`（`docs: add D5 recipe total water and duration evidence`）
+- 推送：`git push origin main` 连续 3 次失败（首次 `Recv failure: Connection was reset`，随后两次 `Failed to connect to github.com port 443`）；`git ls-remote origin main` 同样失败。
+  - **未推送成功；未强推；远端最后已知 SHA 为 `1376a51`，本轮未核验。**
+- 提交前密钥扫描：**298 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
+- 本轮实测：服务端 **116 passed / 0 failed**（配方测试 10 项）；Android **55 tests / 0 failures**；`:app:assembleDebug` BUILD SUCCESSFUL；APK **10,822,322 字节**。
 - 验收状态分列：
   - 第三方公开授权实拍链路：**通过**（照片/短片 `unclear`；倒咖啡反例 `not_met`；证据帧 9/9 字节一致）；
   - 用户自拍环绕验收：**BLOCKED**（无用户自拍环绕素材）；
   - 真机配方 92→90/历史对比：**BLOCKED**（v1 与用户评分已保存；调整/对比未完成）；
   - 真机断网/超时重试：**BLOCKED**（未取得错误→恢复→重试成功证据）；
   - 真机 Canvas easing/拖动：未复测，由 JVM 覆盖。
-- 说明：本文件随后以独立文档提交记录；若该提交晚于上面 SHA，最终远端以该状态提交为准。
+- 待网络恢复后执行 `git push origin main`，再核验远端 SHA 并回写本文件。
