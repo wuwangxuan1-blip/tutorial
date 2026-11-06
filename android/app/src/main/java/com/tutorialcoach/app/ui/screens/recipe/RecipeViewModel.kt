@@ -44,11 +44,16 @@ data class WaterSourceCandidateUi(
     val label: String,
     val kind: String,
     val value: Double,
+    val text: String,
     val roleHint: String,
 ) {
-    fun displayText(): String = "步骤 ${stepIndex + 1} · " +
-        (if (field == "target") "完成条件" else "执行步骤") +
-        " · $label ${value}g"
+    fun displayText(): String = if (text.isNotBlank()) {
+        "步骤 ${stepIndex + 1} · $text"
+    } else {
+        "步骤 ${stepIndex + 1} · " +
+            (if (field == "target") "完成条件" else "执行步骤") +
+            " · $label ${value}g"
+    }
 }
 
 data class PendingAdjustment(
@@ -62,6 +67,7 @@ data class PendingAdjustment(
 data class WaterSourceConfirmationUi(
     val candidates: List<WaterSourceCandidateUi>,
     val pending: PendingAdjustment,
+    val requiresFinal: Boolean = false,
     val declarationIds: Set<Int> = emptySet(),
     val finalIds: Set<Int> = emptySet(),
 )
@@ -287,6 +293,8 @@ class RecipeViewModel(
             return null
         }
         val array = details["candidates"] as? JsonArray ?: return null
+        val requiresFinal =
+            details["requires_final"]?.jsonPrimitive?.booleanOrNull == true
         val candidates = array.mapNotNull { element ->
             val item = element as? JsonObject ?: return@mapNotNull null
             WaterSourceCandidateUi(
@@ -297,11 +305,16 @@ class RecipeViewModel(
                 label = item["label"]?.jsonPrimitive?.contentOrNull ?: "",
                 kind = item["kind"]?.jsonPrimitive?.contentOrNull ?: "",
                 value = item["value"]?.jsonPrimitive?.doubleOrNull ?: 0.0,
+                text = item["text"]?.jsonPrimitive?.contentOrNull ?: "",
                 roleHint = item["role_hint"]?.jsonPrimitive?.contentOrNull ?: "",
             )
         }
         if (candidates.isEmpty()) return null
-        return WaterSourceConfirmationUi(candidates = candidates, pending = pending)
+        return WaterSourceConfirmationUi(
+            candidates = candidates,
+            pending = pending,
+            requiresFinal = requiresFinal,
+        )
     }
 
     fun toggleWaterDeclaration(candidateId: Int) {
@@ -330,6 +343,10 @@ class RecipeViewModel(
         val confirmation = _state.value.confirmation ?: return
         if (confirmation.declarationIds.isEmpty()) {
             _state.update { it.copy(error = "请选择总量声明来源。") }
+            return
+        }
+        if (confirmation.requiresFinal && confirmation.finalIds.isEmpty()) {
+            _state.update { it.copy(error = "请选择最终执行指令。") }
             return
         }
         val pending = confirmation.pending

@@ -6,4 +6,4 @@ versionName：0.1.0
 minSdk：26
 targetSdk：35
 构建：BUILD SUCCESSFUL（:app:assembleDebug --rerun-tasks，35 tasks executed）
-说明：D5 总量冲突检测与 Android 确认流程修复（显式总量 vs 最终停止条件冲突 422；confirmation_required 候选确认、取消、版本冲突）已在当前源码上重建；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）。
+说明：D5 中途完成条件区分与确认完整性修复（中途 target 不作最终判据；确认遗漏 final/角色/类型非法 422；Android 展示候选原文并提示缺少选择）已在当前源码上重建；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）。

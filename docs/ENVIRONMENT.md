@@ -311,3 +311,11 @@
 | Android 测试 | **58 tests / 0 failures**（新增确认成功、取消、版本冲突 3 项） |
 | APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,838,706 字节（`:app:assembleDebug --rerun-tasks`：BUILD SUCCESSFUL、35 tasks executed） |
 | 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |
+### D5 中途完成条件与确认完整性实测（2026-11-06）
+
+| 项 | 实测 |
+|---|---|
+| 服务端测试 | **137 passed / 0 failed**（配方 31 项：中途 target 不再误判冲突、确认遗漏 final/角色/类型 422 不写入） |
+| Android 测试 | **59 tests / 0 failures**（新增遗漏最终选择 1 项；候选展示原文片段） |
+| APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,838,706 字节（`:app:assembleDebug --rerun-tasks`：BUILD SUCCESSFUL、35 tasks executed） |
+| 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |

@@ -1,10 +1,10 @@
-服务端测试（D5，总量冲突检测与 Android 确认流程）
+服务端测试（D5，中途完成条件与确认完整性）
 命令：.venv/Scripts/python.exe -m pytest -o addopts=""
-结果：136 passed，0 failed，0 errors
+结果：137 passed，0 failed，0 errors
 
 本轮相关：
-- test_recipe：30（在 28 项基础上新增：`总水量 225 g，最后注水至 220 g 后停止` 创建返回 422 `water_total_conflicts_with_final` 且不创建；旧配方同冲突调整返回 422 且不写新版本。保留 225→100→240 连续调整、90 g 拒绝不写入、中途累计量低于总量、结构判据/旧配方恢复）
+- test_recipe：31（在 30 项基础上新增：总水量 225、中途完成条件 `注水至 100 g`、最后 `注水至 225 g 后停止` 可创建，改 240 后中途仍 100；旧配方确认遗漏 final → 422 `invalid_water_source_confirmation`（`missing=["final"]`、`requires_final=true`）；final 角色错误、候选类型错误均 422 且不写入；真正最终条件冲突仍 422。保留 225→100→240、90 g 拒绝、历史回查、旧配方自动恢复/确认）
 - test_camera：14；test_plan_photography：4；其余 D4/D3 回归全部通过。
-- Android：RecipeViewModelTest 新增确认成功、取消、版本冲突 3 项（共 58 tests / 0 failures）。
+- Android：RecipeViewModelTest 新增遗漏最终选择 1 项（共 59 tests / 0 failures），候选展示原文片段。
 
 说明：真实计划/配方链路见 codearts_proof/day5/real_flow.json；口味字段由脚本作为用户输入测试值提交，不是真实用户品尝结论。

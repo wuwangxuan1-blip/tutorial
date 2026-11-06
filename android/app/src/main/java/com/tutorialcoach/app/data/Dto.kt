@@ -581,6 +581,7 @@ data class WaterSourceCandidateDto(
     @SerialName("label") val label: String,
     @SerialName("kind") val kind: String,
     @SerialName("value") val value: Double,
+    @SerialName("text") val text: String = "",
     @SerialName("role_hint") val roleHint: String = "",
 )
 

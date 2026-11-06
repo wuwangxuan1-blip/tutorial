@@ -414,18 +414,28 @@ class RecipeService:
         located: list[tuple[int, str, _WaterMention, int, str]],
         expected: float,
     ) -> list[float]:
-        return sorted(
-            {
-                item[2].value
-                for item in located
-                if item[2].kind == "terminal"
-                and item[2].value != expected
-                and (
-                    item[1] == "target"
-                    or self._water_stop_marked(item[2], item[4])
-                )
-            }
+        terminals = [item for item in located if item[2].kind == "terminal"]
+        if not terminals:
+            return []
+        last_step = max(item[0] for item in terminals)
+        last_expected = any(
+            item[2].value == expected and item[0] == last_step
+            for item in terminals
         )
+        conflicts = {
+            item[2].value
+            for item in terminals
+            if item[2].value != expected
+            and (
+                self._water_stop_marked(item[2], item[4])
+                or (
+                    item[0] == last_step
+                    and item[1] == "target"
+                    and not last_expected
+                )
+            )
+        }
+        return sorted(conflicts)
 
     @staticmethod
     def _water_final_conflict_error(
@@ -586,6 +596,20 @@ class RecipeService:
             raise self._source_unavailable("water_g", "总水量")
         return self._build_water_marks(declarations, finals)
 
+    @staticmethod
+    def _mention_fragment(text: str, mention: _WaterMention) -> str:
+        start = 0
+        for delimiter in ("。", "；", ";"):
+            found = text.rfind(delimiter, 0, mention.value_start)
+            if found >= start:
+                start = found + 1
+        end = len(text)
+        for delimiter in ("。", "；", ";"):
+            found = text.find(delimiter, mention.value_end)
+            if found != -1 and found < end:
+                end = found
+        return text[start:end].strip()[:100]
+
     def _water_candidates(
         self,
         located: list[tuple[int, str, _WaterMention, int, str]],
@@ -598,19 +622,22 @@ class RecipeService:
                 "label": mention.label,
                 "kind": mention.kind,
                 "value": mention.value,
+                "text": self._mention_fragment(text, mention),
                 "role_hint": (
                     "final_or_mid"
                     if mention.kind == "terminal"
                     else "declaration"
                 ),
             }
-            for candidate_id, (index, field, mention, _, _) in enumerate(located)
+            for candidate_id, (index, field, mention, _, text) in enumerate(located)
             if mention.kind != "local"
         ]
 
     def _water_source_conflict(
         self,
         candidates: list[dict[str, Any]],
+        *,
+        requires_final: bool = False,
     ) -> ApiError:
         return ApiError(
             422,
@@ -622,6 +649,30 @@ class RecipeService:
                 "variable": "water_g",
                 "confirmation_required": True,
                 "confirm_field": "water_source_confirmation",
+                "requires_final": requires_final,
+                "candidates": candidates,
+            },
+        )
+
+    def _confirmation_invalid(
+        self,
+        candidates: list[dict[str, Any]],
+        missing: list[str],
+        invalid: list[int],
+        requires_final: bool,
+    ) -> ApiError:
+        return ApiError(
+            422,
+            "INVALID_REQUEST",
+            "总水量来源确认不完整或无效；请重新选择后重试。",
+            details={
+                "reason": "invalid_water_source_confirmation",
+                "variable": "water_g",
+                "confirmation_required": True,
+                "confirm_field": "water_source_confirmation",
+                "requires_final": requires_final,
+                "missing": missing,
+                "invalid": invalid,
                 "candidates": candidates,
             },
         )
@@ -630,27 +681,59 @@ class RecipeService:
         self,
         located: list[tuple[int, str, _WaterMention, int, str]],
         expected: float,
-        confirmation: dict[str, Any],
+        confirmation: Any,
     ) -> dict[str, Any]:
-        declaration_ids = [
-            int(item) for item in (confirmation.get("declaration") or [])
-        ]
-        final_ids = [int(item) for item in (confirmation.get("final") or [])]
+        declaration_ids = list(confirmation.declaration)
+        final_ids = list(confirmation.final)
+        candidates = self._water_candidates(located)
+        finals, ambiguous = self._select_final_terminals(located, expected)
+        requires_final = bool(finals or ambiguous)
         if not declaration_ids:
-            raise self._water_source_conflict(self._water_candidates(located))
+            raise self._confirmation_invalid(
+                candidates,
+                ["declaration"],
+                [],
+                requires_final,
+            )
+        invalid = [
+            candidate_id
+            for candidate_id in declaration_ids + final_ids
+            if candidate_id < 0 or candidate_id >= len(located)
+        ]
+        if invalid:
+            raise self._confirmation_invalid(
+                candidates,
+                [],
+                sorted(set(invalid)),
+                requires_final,
+            )
+        for candidate_id in declaration_ids:
+            mention = located[candidate_id][2]
+            if mention.kind == "local" or mention.value != expected:
+                invalid.append(candidate_id)
+        for candidate_id in final_ids:
+            mention = located[candidate_id][2]
+            if mention.kind != "terminal" or mention.value != expected:
+                invalid.append(candidate_id)
+        if invalid:
+            raise self._confirmation_invalid(
+                candidates,
+                [],
+                sorted(set(invalid)),
+                requires_final,
+            )
+        if requires_final and not final_ids:
+            raise self._confirmation_invalid(
+                candidates,
+                ["final"],
+                [],
+                True,
+            )
         marks: list[dict[str, Any]] = []
         seen: set[tuple[int, str, int, int]] = set()
         for role, ids in (("declaration", declaration_ids), ("final", final_ids)):
             for candidate_id in ids:
-                if candidate_id < 0 or candidate_id >= len(located):
-                    raise self._water_source_conflict(
-                        self._water_candidates(located)
-                    )
                 index, field, mention, ordinal, _ = located[candidate_id]
-                if mention.value != expected:
-                    raise self._water_source_conflict(
-                        self._water_candidates(located)
-                    )
                 key = (index, field, mention.value_start, mention.value_end)
                 if key in seen:
                     continue
@@ -671,10 +754,12 @@ class RecipeService:
         self,
         steps: list[dict[str, Any]],
         expected: float,
-        confirmation: dict[str, Any] | None = None,
+        confirmation: Any | None = None,
     ) -> dict[str, Any]:
         located = self._locate_water_mentions(steps)
         self._assert_water_final_consistency(located, expected)
+        finals, ambiguous = self._select_final_terminals(located, expected)
+        requires_final = bool(finals or ambiguous)
         if confirmation is not None:
             return self._marks_from_confirmation(
                 located,
@@ -710,10 +795,15 @@ class RecipeService:
         elif other and len({item[2].value for item in other}) == 1:
             declarations = other
         else:
-            raise self._water_source_conflict(self._water_candidates(located))
-        finals, ambiguous = self._select_final_terminals(located, expected)
+            raise self._water_source_conflict(
+                self._water_candidates(located),
+                requires_final=requires_final,
+            )
         if ambiguous:
-            raise self._water_source_conflict(self._water_candidates(located))
+            raise self._water_source_conflict(
+                self._water_candidates(located),
+                requires_final=True,
+            )
         return self._build_water_marks(declarations, finals)
 
     def _water_spans_from_marks(

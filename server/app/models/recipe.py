@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -183,6 +183,13 @@ class TastingRequest(BaseModel):
     notes: str = Field(default="", max_length=500)
 
 
+class WaterSourceConfirmation(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    declaration: list[Annotated[int, Field(ge=0)]] = Field(min_length=1)
+    final: list[Annotated[int, Field(ge=0)]] = Field(default_factory=list)
+
+
 class AdjustmentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -190,7 +197,7 @@ class AdjustmentRequest(BaseModel):
     variable: str | None = None
     to_value: Any | None = None
     variables: dict[str, Any] | None = None
-    water_source_confirmation: dict[str, Any] | None = None
+    water_source_confirmation: WaterSourceConfirmation | None = None
     reason: str = Field(min_length=1, max_length=300)
     tasting_id: str | None = None
 

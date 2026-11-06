@@ -402,3 +402,12 @@ API 回归新增 3 项（停止条件同步、摘要来源创建前确认、旧�
 2. **Android 确认流程**：收到 `confirmation_required` 时展示候选步骤/字段/文本，用户分别勾选总量声明与最终指令；确认后沿用原调整参数与 `base_version` 重试；取消不发送请求；重试遇 409 时显示版本冲突并刷新。JVM 测试覆盖确认成功、取消、版本冲突。
 
 本轮实测：服务端 **136 passed / 0 failed**（配方测试 30 项）；Android **58 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,838,706 字节**。状态分列不变；未进入 D6。
+### 16.14 D5 中途完成条件区分与确认完整性校验（2026-11-06）
+
+基线：`3472e54`。三项修复：
+
+1. **中途完成条件 vs 最终停止条件**：中途步骤 `target` 中的 `注水至 100 g` 不再参与总量冲突；只有最后一个执行步骤的最终目标（或带“最后/最终/后停止”标记）才是最终条件。回归：总水量 225、中途完成条件 100、最后 `注水至 225 g 后停止` 可创建；改 240 后中途仍 100、最终 240；真正的最终条件冲突仍 422。
+2. **确认完整性**：服务端在写入前校验所选来源完整：存在最终指令时只选声明、遗漏最终 → 422 `invalid_water_source_confirmation`（`missing=["final"]`、`requires_final=true`），不写入新版本。Android 显示候选原文片段，并在缺少最终选择时提示“请选择最终执行指令”。
+3. **类型化请求**：`water_source_confirmation` 使用严格类型模型（整数、非负、声明至少 1 项）；服务端校验候选 ID 范围、角色（final 必须 terminal 且值匹配总量）。非法类型/范围/角色 → 422 且不写入。
+
+本轮实测：服务端 **137 passed / 0 failed**（配方测试 31 项）；Android **59 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,838,706 字节**。状态分列不变；未进入 D6。

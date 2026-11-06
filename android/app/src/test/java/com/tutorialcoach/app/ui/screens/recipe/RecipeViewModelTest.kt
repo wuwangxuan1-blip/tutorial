@@ -193,6 +193,7 @@ class RecipeViewModelTest {
                         put("reason", "total_source_unconfirmed")
                         put("confirmation_required", true)
                         put("confirm_field", "water_source_confirmation")
+                        put("requires_final", true)
                         putJsonArray("candidates") {
                             addJsonObject {
                                 put("candidate_id", 0)
@@ -201,6 +202,7 @@ class RecipeViewModelTest {
                                 put("label", "总水量")
                                 put("kind", "explicit")
                                 put("value", 225.0)
+                                put("text", "总水量 225 g，分两次注水至 225 g，等滤杯滴完")
                                 put("role_hint", "declaration")
                             }
                             addJsonObject {
@@ -210,6 +212,7 @@ class RecipeViewModelTest {
                                 put("label", "注水至")
                                 put("kind", "terminal")
                                 put("value", 225.0)
+                                put("text", "注水至 225 g 后停止")
                                 put("role_hint", "final_or_mid")
                             }
                         }
@@ -332,7 +335,7 @@ class RecipeViewModelTest {
             val confirmation = viewModel.state.value.confirmation
             assertNotNull(confirmation)
             assertEquals(2, confirmation!!.candidates.size)
-            assertTrue(confirmation.candidates.first().displayText().contains("总水量"))
+            assertTrue(confirmation.candidates.first().displayText().contains("分两次注水至 225 g"))
 
             viewModel.toggleWaterDeclaration(0)
             viewModel.toggleWaterFinal(1)
@@ -348,6 +351,29 @@ class RecipeViewModelTest {
             assertEquals(listOf(0), last.waterSourceConfirmation?.declaration)
             assertEquals(listOf(1), last.waterSourceConfirmation?.final)
         }
+
+    @Test
+    fun confirmationWithoutFinalDoesNotRetry() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        gateway.recipes = mutableListOf(recipe())
+        gateway.confirmationRequired = true
+        val viewModel = RecipeViewModel(FakeSessions(), gateway)
+        advanceUntilIdle()
+
+        viewModel.adjust("water_g", "240", "调整总水量")
+        advanceUntilIdle()
+        val confirmation = viewModel.state.value.confirmation
+        assertNotNull(confirmation)
+        assertTrue(confirmation!!.requiresFinal)
+
+        viewModel.toggleWaterDeclaration(0)
+        viewModel.confirmWaterSource()
+        advanceUntilIdle()
+
+        assertEquals(1, gateway.requests.size)
+        assertTrue(viewModel.state.value.error?.contains("最终执行指令") == true)
+        assertEquals(1, viewModel.state.value.recipe?.version)
+    }
 
     @Test
     fun cancelWaterSourceConfirmationDoesNotRetry() = runTest(dispatcher) {
@@ -381,6 +407,7 @@ class RecipeViewModelTest {
         viewModel.adjust("water_g", "240", "调整总水量")
         advanceUntilIdle()
         viewModel.toggleWaterDeclaration(0)
+        viewModel.toggleWaterFinal(1)
         viewModel.confirmWaterSource()
         advanceUntilIdle()
 

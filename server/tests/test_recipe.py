@@ -1435,6 +1435,60 @@ async def test_legacy_ambiguous_source_offers_confirmation(client, monkeypatch):
         for item in candidates
         if item["kind"] == "terminal" and item["field"] == "target"
     )
+    assert details.get("requires_final") is True
+
+    incomplete = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 240,
+            "reason": "只选声明。",
+            "water_source_confirmation": {
+                "declaration": [declaration_id],
+            },
+        },
+    )
+    assert incomplete.status_code == 422
+    incomplete_details = incomplete.json()["error"]["details"]
+    assert incomplete_details["reason"] == "invalid_water_source_confirmation"
+    assert "final" in incomplete_details["missing"]
+    assert incomplete_details["requires_final"] is True
+    assert [item["version"] for item in (await client.get(f"/v1/sessions/{session['id']}/recipes")).json()] == [1]
+
+    invalid_role = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 240,
+            "reason": "最终指令角色错误。",
+            "water_source_confirmation": {
+                "declaration": [declaration_id],
+                "final": [declaration_id],
+            },
+        },
+    )
+    assert invalid_role.status_code == 422
+    invalid_details = invalid_role.json()["error"]["details"]
+    assert invalid_details["reason"] == "invalid_water_source_confirmation"
+    assert declaration_id in invalid_details["invalid"]
+    assert [item["version"] for item in (await client.get(f"/v1/sessions/{session['id']}/recipes")).json()] == [1]
+
+    bad_type = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 240,
+            "reason": "候选类型错误。",
+            "water_source_confirmation": {
+                "declaration": ["0"],
+            },
+        },
+    )
+    assert bad_type.status_code == 422
+    assert [item["version"] for item in (await client.get(f"/v1/sessions/{session['id']}/recipes")).json()] == [1]
 
     confirmed = await client.post(
         f"/v1/recipes/{recipe['id']}/adjustments",
@@ -1465,6 +1519,48 @@ async def test_legacy_ambiguous_source_offers_confirmation(client, monkeypatch):
     assert "总水量 225 g" in old["steps"][0]["instruction"]
     assert "注水至 100 g" in old["steps"][0]["instruction"]
     assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]
+
+async def test_mid_step_completion_condition_is_not_final_stop(
+    client,
+    monkeypatch,
+):
+    plan = _controlled_plan(
+        "咖啡粉 15 g，总水量 225 g，水温 92 °C，总时长 150 秒。"
+    )
+    plan["steps"][0]["completion_criteria"] = ["注水至 100 g"]
+    plan["steps"][1]["instruction"] = "等待 10 秒。"
+    plan["steps"][1]["completion_criteria"] = ["注水至 225 g 后停止"]
+    session, _ = await setup_coffee(client, monkeypatch, plan=plan)
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    assert recipe["variables"]["water_g"] == 225
+    assert "注水至 100 g" in recipe["steps"][0]["target"]
+    assert "注水至 225 g 后停止" in recipe["steps"][1]["target"]
+
+    adjusted = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 240,
+            "reason": "只调整总水量。",
+        },
+    )
+    assert adjusted.status_code == 201, adjusted.text
+    v2 = adjusted.json()["recipe"]
+    assert v2["variables"]["water_g"] == 240
+    assert "注水至 100 g" in v2["steps"][0]["target"]
+    assert "注水至 240 g 后停止" in v2["steps"][1]["target"]
+    water = next(item for item in v2["ingredients"] if item["name"] == "水")
+    assert water["amount"] == 240
+    old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert old["variables"]["water_g"] == 225
+    assert "注水至 225 g 后停止" in old["steps"][1]["target"]
+
 
 async def test_conflicting_total_and_final_stop_is_rejected(client, monkeypatch):
     plan = _controlled_plan(
