@@ -1068,3 +1068,66 @@ async def test_legacy_recipe_without_step_source_still_returns_422(client):
     assert error.value.status_code == 422
     assert error.value.details["reason"] == "total_source_unconfirmed"
     assert error.value.details["variable"] == "water_g"
+
+async def test_lowering_total_below_intermediate_pour_is_rejected(client, monkeypatch):
+    plan = _controlled_plan(
+        "咖啡粉 15 g，总水量 225 g，中途注水至 100 g，"
+        "最后继续注水至 225 g 后停止，水温 92 °C，总时长 150 秒。"
+    )
+    plan["steps"][0]["completion_criteria"] = ["继续注水至 225 g 后停止"]
+    session, _ = await setup_coffee(client, monkeypatch, plan=plan)
+    recipe = (
+        await client.post(
+            f"/v1/sessions/{session['id']}/recipes",
+            json={"base_plan_version": 1},
+        )
+    ).json()
+    assert recipe["variables"]["water_g"] == 225
+    assert "中途注水至 100 g" in recipe["steps"][0]["instruction"]
+    assert "继续注水至 225 g 后停止" in recipe["steps"][0]["target"]
+
+    rejected = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 90,
+            "reason": "尝试低于中途注水量。",
+        },
+    )
+    assert rejected.status_code == 422
+    details = rejected.json()["error"]["details"]
+    assert details["reason"] == "intermediate_water_exceeds_total"
+    assert details["water_g"] == 90
+    assert details["intermediate_targets"] == [100]
+    recipes = (await client.get(f"/v1/sessions/{session['id']}/recipes")).json()
+    assert [item["version"] for item in recipes] == [1]
+    assert [item["version"] for item in (await client.get(f"/v1/recipes/{recipe['id']}/history")).json()] == [1]
+    old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert old["variables"]["water_g"] == 225
+    assert "中途注水至 100 g" in old["steps"][0]["instruction"]
+    assert "继续注水至 225 g 后停止" in old["steps"][0]["target"]
+
+    allowed = await client.post(
+        f"/v1/recipes/{recipe['id']}/adjustments",
+        json={
+            "base_version": 1,
+            "variable": "water_g",
+            "to_value": 240,
+            "reason": "提高到中途注水量之上。",
+        },
+    )
+    assert allowed.status_code == 201, allowed.text
+    v2 = allowed.json()["recipe"]
+    assert v2["variables"]["water_g"] == 240
+    assert v2["variables"]["ratio"] == 16.0
+    water = next(item for item in v2["ingredients"] if item["name"] == "水")
+    assert water["amount"] == 240
+    instruction = v2["steps"][0]["instruction"]
+    assert "总水量 240 g" in instruction
+    assert "中途注水至 100 g" in instruction
+    assert "继续注水至 240 g 后停止" in instruction
+    assert "继续注水至 240 g 后停止" in v2["steps"][0]["target"]
+    old = (await client.get(f"/v1/recipes/{recipe['id']}")).json()
+    assert old["variables"]["water_g"] == 225
+    assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]

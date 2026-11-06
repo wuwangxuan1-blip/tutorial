@@ -456,6 +456,54 @@ class RecipeService:
             text = str(steps[index].get(field) or "")
             steps[index][field] = self._replace_spans(text, ranges, new_text)
 
+    def _remaining_intermediate_water_targets(
+        self,
+        steps: list[dict[str, Any]],
+        spans: list[_LocatedSpan],
+    ) -> list[float]:
+        replaced = {
+            (span.step_index, span.field, span.start, span.end)
+            for span in spans
+        }
+        targets: list[float] = []
+        for index, step in enumerate(steps):
+            for field in ("instruction", "target"):
+                text = str(step.get(field) or "")
+                for mention in self._water_mentions(text):
+                    if mention.kind == "terminal":
+                        pass
+                    elif mention.kind == "other" and mention.label == "注水":
+                        pass
+                    else:
+                        continue
+                    key = (index, field, mention.value_start, mention.value_end)
+                    if key in replaced:
+                        continue
+                    targets.append(mention.value)
+        return targets
+
+    def _validate_water_floor(
+        self,
+        new_water_g: float,
+        remaining_targets: list[float],
+    ) -> None:
+        too_high = sorted(
+            {value for value in remaining_targets if value > new_water_g}
+        )
+        if not too_high:
+            return
+        raise ApiError(
+            422,
+            "INVALID_REQUEST",
+            f"调整后的总水量 {_format_number(new_water_g)} g "
+            "低于已识别的中途累计注水量，未创建新版本。",
+            details={
+                "reason": "intermediate_water_exceeds_total",
+                "water_g": new_water_g,
+                "intermediate_targets": too_high,
+            },
+        )
+
     @staticmethod
     def _replace_spans(text: str, spans: list[tuple[int, int]], new_text: str) -> str:
         for start, end in sorted(spans, reverse=True):
@@ -707,9 +755,14 @@ class RecipeService:
                     text = replace(text, pattern, new_text, kind)
                 step[field] = text
         if water_changed:
+            water_spans = self._locate_water_spans(updated, float(water_old))
+            self._validate_water_floor(
+                float(water_new),
+                self._remaining_intermediate_water_targets(updated, water_spans),
+            )
             self._apply_located_spans(
                 updated,
-                self._locate_water_spans(updated, float(water_old)),
+                water_spans,
                 _format_number(water_new),
             )
         if time_changed:

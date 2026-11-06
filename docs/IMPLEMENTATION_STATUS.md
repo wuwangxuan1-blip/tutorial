@@ -360,3 +360,12 @@ API 回归新增 3 项并保留上轮全部用例。本轮实测：服务端 **1
 3. **旧数据兜底**：直接对无来源步骤调用定位器仍返回 422 `total_source_unconfirmed`，保留旧配方明确兜底。
 
 API 回归新增 3 项（停止条件同步、摘要来源创建前确认、旧数据兜底）并保留全部既有用例。本轮实测：服务端 **127 passed / 0 failed**（配方测试 21 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed，重跑一次仍成功）；APK **10,822,322 字节**。状态分列不变：第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED；真机 easing/拖动未复测。
+### 16.9 D5 总水量下限校验（2026-11-06）
+
+基线：`f840d03`。总水量调整后、写入新版本前增加中途累计注水目标校验：
+
+- 收集步骤中未被本次更新的中途累计注水目标（`注水至/继续注水至/累计注水/注水` 等，按来源定位 span 排除已更新的总量/最终停止条件）。
+- 若新总水量低于任一保留目标，返回 422 `INVALID_REQUEST`（`intermediate_water_exceeds_total`，`details.water_g`、`details.intermediate_targets`），不创建新版本；旧版本与历史保持原值。
+- 回归：中途 `注水至 100 g`、最终 `继续注水至 225 g 后停止`，总量改 90 g 被拒绝（v1 与历史不变）；改 240 g 成功，中途仍 100 g、最终停止条件为 240 g。摘要来源创建期 422 回归保留。
+
+本轮实测：服务端 **128 passed / 0 failed**（配方测试 22 项）；Android **55 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,822,322 字节**。状态分列不变；未进入 D6。
