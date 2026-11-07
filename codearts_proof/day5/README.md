@@ -63,3 +63,25 @@
 | `device_verification.md` | 见其中「2026-11-07 confirmation_required 真机走查」小节：8 个分项、API 补测 3 条 422、最终数据状态 |
 
 一句话结论：真机 8 个分项 **7 PASS / 1 BLOCKED**（分项 4「缺项提示」的错误文案被 `AlertDialog` 遮挡，属客户端 UI 缺陷）；服务端/Android 测试与密钥扫描均通过；本轮已提交，推送因 443 连接失败记为「已提交未推送」。
+## 2026-11-07 confirmation 修复后真机复验（本轮索引）
+
+基线 `ebcccb1`。修复：同值 `explicit` 总量声明一并更新、写入前整份配方重新定位校验（冲突 422 且旧版保留原值）；Android 错误提示移入 `AlertDialog` 内、改勾选清错误、提交期间禁用交互。
+
+| 文件 | 本轮内容 |
+|---|---|
+| `review_fix_round17.md` | 两项修复语义、5 个改动文件、138/32 + 60/0 + APK 数字、真机 12 分项与四项状态、证据路径 |
+| `device_verification.md` | 追加「2026-11-07 修复后真机复验（8001 独立验收数据）」：12 分项实际观察、C4 响应体未持久化说明、最终数据状态（修复前结论保留） |
+| `server_pytest_summary.txt` | 已按本轮实测覆盖：**138 passed / 0 failed**（18.60 s），配方用例 **32 passed**（5.69 s） |
+| `android_test_results.txt` | 已按本轮实测覆盖：**60 tests / 0 failures / 0 errors**（14 套件，`RecipeViewModelTest` 9），BUILD SUCCESSFUL in 28s |
+| `android_apk_info.txt` | 已按本轮实测覆盖：10,838,706 字节，SHA-256 `f7894375db2f4fb95358c45b24e4f39614784681a28db255d6ece40cdc1e5bf9`，mtime 2026-11-07 12:57:54 |
+| `secret_scan.json` | 提交前实际重跑结果（文件数/匹配数见文件内字段） |
+| `git_status.txt` | 本轮开工/提交/推送与远端实际状态 |
+
+四项验收状态（分列）：
+
+- 真机确认流程（本轮）：**PASS**（12 分项，含弹窗内错误可见、改选清提示、取消不写入、后端拒绝保留选择、409 刷新、201 v2、真机对比）。
+- 用户自拍环绕：**BLOCKED**（仍无用户自拍素材）。
+- 真机配方对比：**本轮 PASS**（真机「对比最近两个版本」渲染 v1→v2：water_g Δ15.0、ratio Δ1.0）。
+- 真机断网重试：**BLOCKED**（本轮未触发）。
+
+未进入 D6。

@@ -1,9 +1,10 @@
-服务端测试（D5 收尾复跑，日期 2026-11-07，HEAD=bb6376c）
+服务端测试（D5 confirmation 修复后复跑，日期 2026-11-07，HEAD=ebcccb1）
 全量命令：cd server && .venv/Scripts/python.exe -m pytest -o addopts="" -q
-全量结果：137 passed，0 failed，0 errors，0 skipped（exit 0，耗时 20.70s）
+全量结果：138 passed，0 failed，0 errors，0 skipped（exit 0，耗时 18.60s）
 
 配方用例命令：cd server && .venv/Scripts/python.exe -m pytest -o addopts="" -q tests/test_recipe.py
-配方用例结果：31 passed，0 failed，0 errors（exit 0，耗时 5.68s）
+配方用例结果：32 passed，0 failed，0 errors（exit 0，耗时 5.69s）
 
-本轮原始日志：work/server_pytest_r16b.log、work/server_pytest_recipe_r16b.log
-说明：以上数字取自本轮实际执行输出（非沿用历史记录）。测试期间 127.0.0.1:8000 上运行中的服务端未被停止或重启，源码与测试文件未做任何修改。
+本轮原始日志：work/d5_fix_pytest_full.log、work/d5_fix_pytest_recipe.log
+汇总文件：work/d5_fix_pytest.txt
+说明：以上数字取自本轮实际执行输出（非沿用历史记录）。测试期间 127.0.0.1:8000/8001 上运行中的服务端未被停止或重启；除已由 Codex 完成的 5 个修复文件外，本轮未修改源码与测试。

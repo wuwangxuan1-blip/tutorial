@@ -436,3 +436,22 @@ API 回归新增 3 项（停止条件同步、摘要来源创建前确认、旧�
 **环境干扰**：步骤 7 期间外部应用 `com.hypergryph.arknights` 抢占前台致进程被杀，force-stop/start 后恢复 `last_session_id`；未清应用数据，非应用缺陷。
 
 **Git**：`git push origin main` 连续 3 次 443 连接失败（exit 128），按规则停止重试，记为「已提交未推送」；未强推、未覆盖远端。状态仍在 D5，不进入 D6。
+### 16.17 D5 confirmation 修复后真机复验（2026-11-07）
+
+基线：`ebcccb1`。本轮修两项确认流程缺陷并复验，未进入 D6（本节编号按本轮任务约定为 16.17，16.16 无独立记录）。
+
+| 问题 | 修复 | 回归 |
+|---|---|---|
+| 用户只确认一处总量声明时，其他同值 `explicit` 声明（总水量/总注水/注水总量/总水/总量/总计/合计/最终注水/最终水量）未更新 | 同值 `explicit` 声明一并更新；写入前对改写后的整份配方重新定位并校验总量唯一、最终停止条件一致 | `test_recipe.py`：step0 `instruction` 与 `target` 均 240 g；中途 100 g 保持；最终 240 g；v1 原值可回查 |
+| 确认弹窗打开时错误文案被 `AlertDialog` 遮挡 | 错误提示渲染在同一 `AlertDialog` 内部；修改任一勾选清除旧错误；提交期间 `loading=true` 禁用勾选/确认/取消；取消/成功清错误 | `RecipeViewModelTest`：弹窗内错误、改选清错误、loading 禁用 |
+
+- 写入前校验：遗漏最终条件造成冲突 → **422**，旧版保持原值、不创建/不调整。
+- 改动文件（5 个）：`server/app/services/recipe_service.py`、`server/tests/test_recipe.py`、`android/.../recipe/RecipeScreen.kt`、`RecipeViewModel.kt`、`android/app/src/test/.../recipe/RecipeViewModelTest.kt`。
+
+**本轮实测**：服务端 **138 passed / 0 failed**（18.60 s；`tests/test_recipe.py` **32 passed**，5.69 s）；Android **60 tests / 0 failures / 0 errors**（14 套件，`RecipeViewModelTest` 9，BUILD SUCCESSFUL in 28s）；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks）；APK **10,838,706 字节**，SHA-256 `f7894375db2f4fb95358c45b24e4f39614784681a28db255d6ece40cdc1e5bf9`，mtime 2026-11-07 12:57:54（晚于最后修改源码）；密钥扫描结果见 `codearts_proof/day5/secret_scan.json`。
+
+**真机复验**（realme GT6 / RMX3800 / `eeffd16b`，8001 独立验收数据，`adb reverse tcp:8000 → tcp:8001`）：12 个分项 **全部 PASS**——启动/旧版参数、触发弹窗、弹窗内缺项提示（保留勾选、无写入）、改选后清提示、后端 422 拒绝时弹窗内错误且保留选择、取消不写入、409 版本冲突并刷新、恢复 v1、完整确认 201 生成 v2、v2 一致性与 v1 原值、真机「对比最近两个版本」渲染 v1→v2、收尾保留 v1+v2。C4 的 422 响应体未单独持久化，依据为 `app.log` 的 422、弹窗文案与目录无新增。
+
+**四项验收状态（分列，不合并）**：真机确认流程（本轮）**PASS**；用户自拍环绕 **BLOCKED**（无用户自拍素材）；真机配方对比 **本轮 PASS**（真机入口渲染 water_g 225→240 Δ15、ratio 15→16 Δ1）；真机断网重试 **BLOCKED**（本轮未触发）。
+
+`server/data/` 与 8000 正式数据服务未改动；8001 验收数据最终保留 v1 `recipe_01M6P5BDZT9557YX026QWNS4R6` + v2 `recipe_01M6T6F479SE3R4QBZB5V27SJG` 与 1 个 adjustment。详见 `codearts_proof/day5/review_fix_round17.md`、`device_verification.md`、`git_status.txt`。未进入 D6。

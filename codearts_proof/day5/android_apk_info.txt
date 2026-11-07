@@ -1,12 +1,14 @@
-APK 信息（D5 收尾复跑，日期 2026-11-07，HEAD=bb6376c）
+APK 信息（D5 confirmation 修复后重建，日期 2026-11-07，HEAD=ebcccb1）
 命令：cd android && ./gradlew.bat :app:assembleDebug --rerun-tasks
-JAVA_HOME：D:\Java\ideaIU-2025.2.win\jbr（JBR 21.0.7+6-1038.58-jcef）
-结果：BUILD SUCCESSFUL（1m 14s，35 actionable tasks: 35 executed）
+JAVA_HOME：D:/Java/ideaIU-2025.2.win/jbr（JBR 21.0.7+6-1038.58-jcef，会话级）
+结果：BUILD SUCCESSFUL in 26s（35 actionable tasks: 35 executed）
 路径：android/app/build/outputs/apk/debug/app-debug.apk
-大小：10,838,706 字节（约 10.3 MiB，stat -c 精确值）
-SHA-256：363f886583541e8d814ce5d83f8eefd2d87b753a2cec67e8cce57480ac877728
-产物时间：2026-11-07 11:51（本轮重新生成）
+大小：10,838,706 字节（约 10.3 MiB）
+SHA-256：f7894375db2f4fb95358c45b24e4f39614784681a28db255d6ece40cdc1e5bf9
+产物时间：2026-11-07 12:57:54
+源码修改时间对比：RecipeScreen.kt 2026-11-07 12:38:22、RecipeViewModel.kt 12:36:40、RecipeViewModelTest.kt 12:34:56；APK 晚于全部修改源码（比 RecipeScreen.kt 晚 19 分 31 秒）
 包名：com.tutorialcoach.app
 versionCode/versionName：1 / 0.1.0
 minSdk/targetSdk/compileSdk：26 / 35 / 35
-原始日志：work/android_build_r16b.log（日志含 stripDebugDebugSymbols 对 libandroidx.graphics.path.so 的提示，属正常打包行为，非构建失败）
+原始日志：work/d5_fix_apk.log；汇总：work/d5_fix_apk.txt
+说明：构建日志中的 "Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so." 为常见无害提示，不影响 BUILD SUCCESSFUL。

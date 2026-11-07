@@ -73,3 +73,58 @@
   - 三例执行后 `versions_after` 仍仅 `v1[225]`（未写入）；随后恢复 v2 成功，`versions_restored = v1[225] + v2[240]`。
 - 说明：早期假设版本的脚本结果 `work/probe_confirm_invalid.json` 中曾出现“declaration 201 / final 409”，原因是脚本把 terminal 当 declaration 的角色假设过严（契约只要求 `final` 必须 terminal 且值匹配总量；terminal 作 declaration 属允许），**不是产品缺陷**；该用例当时多写的一个 v2 已清理，最终状态见上“最终服务端状态”。
 - 说明：任务#2 原文的“验证后清理 v2 复原为仅 v1”服务于真机前置状态；按任务#4 要求，最终状态保留 v1 与真机确认成功的 v2，未额外“修复” v1 的 `total_sources`。
+## 2026-11-07 修复后真机复验（8001 独立验收数据）
+
+本节记录 `ebcccb1` 之后两项修复（同值 explicit 声明同步 + 弹窗内错误展示）的真机复验，**不改写上文修复前结论**：修复前走查为 8 分项 **7 PASS / 1 BLOCKED**（分项 4 错误文案被 `AlertDialog` 遮挡）。
+
+### 环境
+
+- 设备：realme GT6 / RMX3800，adb 序列号 `eeffd16b`。
+- APK：`android/app/build/outputs/apk/debug/app-debug.apk`，10,838,706 字节，mtime 2026-11-07 12:57:54，SHA-256 `f7894375db2f4fb95358c45b24e4f39614784681a28db255d6ece40cdc1e5bf9`；`adb install -r` → `Success`。
+- 数据与服务端：8001 为独立验收数据（`TUTORIAL_DATA_DIR` 指向 `work/d5_accept_20261107`），`adb reverse tcp:8000 → tcp:8001`；`GET /v1/health` 返回 ok。8000 正式数据服务未停止/未重启，`server/data/` 未改动。
+- 基线：仅 v1（225 g、无 `total_sources`）；调整返回 422 `total_source_unconfirmed`、候选 6 条。
+
+### 12 分项实际观察
+
+| # | 分项 | 实际观察 | 结论 |
+|---|---|---|---|
+| 1 | 启动/旧版参数 | force-stop 后启动进入 V60 计划页，滚动到底点「打开咖啡配方」→ 配方页 `v1 · V60 · pour_over · 1 份`，15 g / 225 g / 1:15 / 92 °C / 中细 / 150 秒。 | **PASS** |
+| 2 | 触发弹窗 | `water_g` 改 240、原因 `acceptance` → 「确认总水量来源」弹窗，6 行候选（每行含「总量」「最终」复选框）。 | **PASS** |
+| 3 | 缺项提示（C1/C2） | 只勾 candidate 0「总量」→「确认并重试」：弹窗保持，**弹窗内可见「请选择最终执行指令。」**；candidate 0 勾选保留；API 仍仅 v1、0 adjustments。 | **PASS** |
+| 4 | 修正后清提示（C3） | 勾 candidate 4「最终」→ 弹窗内错误立即消失，两处勾选保留。 | **PASS** |
+| 5 | 后端拒绝（C4） | 仅勾 c0「总量」+ c4「最终」→ 422 `water_total_conflicts_with_final`，弹窗内可见「计划的总水量 240 g 与最终停止条件 225 g 冲突；未创建或未调整配方。」；弹窗保持、c0/c4 勾选保留、无写入。 | **PASS** |
+| 6 | 取消不写入（C5） | 点「取消」→ 弹窗关闭；API 仍仅 v1、无 adjustments。 | **PASS** |
+| 7 | 版本冲突（C6） | 弹窗打开时 API 建 v2（201）→ 设备确认收到 409 `VERSION_CONFLICT`（`details.current_version=2`），弹窗关闭，页面「出错了 / 配方版本已变化，已刷新最新版本；请重新调整。」并刷新到 v2。 | **PASS** |
+| 8 | 恢复 v1 | `os.remove` 仅删白名单两文件 → API 回 `[v1]`；force-stop 重启后显示 v1 225 g。 | **PASS** |
+| 9 | 完整确认（C7） | 勾 c0「总量」+ c4/c5「最终」→ **201** 生成 v2 `recipe_01M6T6F479SE3R4QBZB5V27SJG`、adjustment `adj_01M6T6F479SHW67QA885X75FEW`；弹窗关闭，界面「已创建 v2，只调整了 water_g。」，水 240 g、1:16。 | **PASS** |
+| 10 | 一致性与旧版原值 | v2 water 240 / ratio 16 / ingredients 水 240；step0 instruction 与 target 均「总水量 240 g」（只勾一处声明也同步）；step1 中途「注水至 100 g」保持（未选的「继续注水至 225」也保持原值）；step2 instruction/target 均「最后注水至 240 g 后停止」；`total_sources` 4 条 = 2 explicit declaration + 2 final；v1 仍 version1/225/文本 225/无 `total_sources`；history versions `[1,2]`。 | **PASS** |
+| 11 | 真机配方对比 | 配方页「版本历史」+「对比最近两个版本」入口；点击后 `/compare` 200，**真机渲染**「对比 v1 → v2」+「water_g：225.0 → 240.0（Δ15.0）」+「ratio：15.0 → 16.0（Δ1.0）」+ 三条说明；未用 API compare 冒充。 | **PASS** |
+| 12 | 收尾 | 保留 v1+v2（recipes 2 文件、adjustments 1 文件）；前台 `com.tutorialcoach.app`，未见外部应用抢占。 | **PASS** |
+
+### C4 证据方式说明（不夸大）
+
+- 分项 5 的 **422 响应体未单独持久化**；结论依据为服务端 `app.log` 记录 `adjustments 422`、弹窗内错误文案与验收数据目录无新增。**不表述为“已保存 422 响应体”**。
+- 分项 7 的 409 响应体由同 body 的复现 POST 取得（仍 409、未产生新文件），见 `work/d5_fix_api_s7_409.json`。
+
+### 证据路径（本地 `work/`，不提交）
+
+- 记录：`work/d5_fix_device_evidence.md`
+- API：`work/d5_fix_api_baseline.json`、`d5_fix_api_s3.json`、`d5_fix_api_s5.json`、`d5_fix_api_s6.json`、`d5_fix_api_s7_conflict_post.json`、`d5_fix_api_s7_409.json`、`d5_fix_api_final.json`、`d5_fix_api_postcheck.json`
+- UI dump / 截图：`work/d5fix_s*.xml`、`work/d5fix_s*.png`
+- 服务日志：`work/d5_accept_20261107/logs/app.log`
+
+### 四项验收状态（分列）
+
+| 验收项 | 状态 | 说明 |
+|---|---|---|
+| 真机确认流程（本轮） | **PASS** | 12 分项全部 PASS |
+| 用户自拍环绕 | **BLOCKED** | 仍无用户自拍素材 |
+| 真机配方对比 | **本轮 PASS** | 真机入口渲染 v1→v2 差异（之前轮次为 BLOCKED，本轮已达成） |
+| 真机断网重试 | **BLOCKED** | 本轮未触发 |
+
+### 最终数据状态（8001 验收数据）
+
+- `work/d5_accept_20261107/recipes/sess_01M6P54DER9GF7SNX7ABT8GXBD/`：`recipe_01M6P5BDZT9557YX026QWNS4R6.json`（v1，225 g，无 `total_sources`）、`recipe_01M6T6F479SE3R4QBZB5V27SJG.json`（v2，240 g / 1:16）。
+- `work/d5_accept_20261107/adjustments/recipe_01M6P5BDZT9557YX026QWNS4R6/`：`adj_01M6T6F479SHW67QA885X75FEW.json`。
+- 冲突实验产生的 v2 已按白名单删除；`server/data/` 与 8000 服务未改动。
+- 真机截图未做 AI 视觉复核；结论来自 UI 层级文本、人工截图比对与服务端 API/文件状态。

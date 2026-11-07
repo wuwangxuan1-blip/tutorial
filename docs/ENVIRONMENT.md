@@ -331,3 +331,17 @@
 | 测试与扫描 | 服务端 `.venv/Scripts/python.exe -m pytest -o addopts="" -q`：**137 passed / 0 failed / 0 errors**（20.70s），配方用例 31 passed；Android **59 tests / 0 failures / 0 errors**（14 套件，BUILD SUCCESSFUL）；`scripts/scan_secrets.py`：**309 文件 / 0 匹配 / clean=true / exit 0**。 |
 | 环境干扰 | 走查步骤 7 期间外部应用 `com.hypergryph.arknights` 抢占前台导致进程被杀；force-stop/start 后恢复 `last_session_id`，未清应用数据，属环境干扰而非应用缺陷。 |
 | 结论 | 真机 8 分项 **7 PASS / 1 BLOCKED**；BLOCKED 为分项 4「缺项提示」错误文案被 `AlertDialog` 遮挡（客户端 UI 缺陷，`RecipeScreen.kt:98-105` / `331-379`）。 |
+### D5 confirmation 修复后真机复验实测（2026-11-07）
+
+| 项 | 本轮实测 |
+|---|---|
+| 验收数据隔离 | 8001 端口 = 独立验收数据，`TUTORIAL_DATA_DIR` 指向 `work/d5_accept_20261107`；`adb reverse tcp:8000 tcp:8001` 使设备 `127.0.0.1:8000` 命中验收服务；8000 正式数据服务未停止/未重启，`server/data/` 保持原样（`git status --porcelain server/data` 为空）。 |
+| 健康检查 | `GET http://127.0.0.1:8001/v1/health` → 200 `{"status":"ok","api_version":"v1",...,"model_configured":true}`；`/health` 仍为 404。 |
+| APK | `:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（26s，35 tasks）；`app-debug.apk` **10,838,706 字节**、SHA-256 `f7894375db2f4fb95358c45b24e4f39614784681a28db255d6ece40cdc1e5bf9`、mtime **2026-11-07 12:57:54**（晚于源码 12:38:22）；`adb install -r` → `Success`。 |
+| JAVA_HOME | 仍需会话级 `D:/Java/ideaIU-2025.2.win/jbr`（JBR 21.0.7）；未改系统环境变量；默认 JDK 25 不可用于 Gradle 8.9/AGP。 |
+| 服务端测试 | `.venv/Scripts/python.exe -m pytest -o addopts="" -q` → **138 passed / 0 failed**（18.60s），`tests/test_recipe.py` **32 passed**（5.69s）；服务端未停止。 |
+| Android 测试 | `:app:testDebugUnitTest --rerun-tasks`（先清空 `test-results`）→ BUILD SUCCESSFUL in 28s（22 tasks）；**60 tests / 0 failures / 0 errors**（14 套件，`RecipeViewModelTest` 9）。 |
+| 真机对比入口 | 配方页「版本历史」+「对比最近两个版本」可用：点击后 `/compare` 200，真机渲染「对比 v1 → v2」「water_g：225.0 → 240.0（Δ15.0）」「ratio：15.0 → 16.0（Δ1.0）」。 |
+| 密钥扫描 | `server/.venv/Scripts/python.exe scripts/scan_secrets.py` → 本轮实际重跑，文件数与匹配数见 `codearts_proof/day5/secret_scan.json`。 |
+| 状态 | 真机确认流程 **PASS**（12 分项）；用户自拍环绕 **BLOCKED**；真机配方对比 **本轮 PASS**；真机断网重试 **BLOCKED**。 |
+| adb/MSYS 注意 | git-bash 下调用 `adb`/`curl` 时对 `/data`、`/sdcard`、`/v1/...` 使用 `MSYS_NO_PATHCONV=1`；多设备时显式 `adb -s eeffd16b`。 |

@@ -1,10 +1,10 @@
-Android JVM 测试（D5 收尾复跑，日期 2026-11-07，HEAD=bb6376c）
+Android JVM 测试（D5 confirmation 修复后复跑，日期 2026-11-07，HEAD=ebcccb1）
 命令：cd android && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
-JAVA_HOME：D:\Java\ideaIU-2025.2.win\jbr（OpenJDK/JBR 21.0.7+6-1038.58-jcef）
-说明：机器默认 JAVA_HOME 为 D:\Java\jdk-25.0.2（JDK 25），Gradle 8.9/AGP 组合不使用该 JDK；本轮实际使用上述 JBR 21。
-结果：BUILD SUCCESSFUL（1m 42s，22 actionable tasks: 22 executed）；tests=59，failures=0，errors=0，skipped=0
+JAVA_HOME：D:/Java/ideaIU-2025.2.win/jbr（OpenJDK/JBR 21.0.7+6-1038.58-jcef，会话级，未改系统变量）
+前置：已删除旧的 android/app/build/test-results 目录，统计仅来自本轮结果
+结果：BUILD SUCCESSFUL in 28s（22 actionable tasks: 22 executed）；tests=60，failures=0，errors=0，skipped=0
 
-统计来源：android/app/build/test-results/testDebugUnitTest/*.xml（共 14 个 result XML，测试前已清空旧结果目录）
+统计来源：android/app/build/test-results/testDebugUnitTest/*.xml（共 14 个 result XML）
 分套件（tests）：
 - ContractExamplesTest: 6
 - DtoTest: 5
@@ -18,8 +18,8 @@ JAVA_HOME：D:\Java\ideaIU-2025.2.win\jbr（OpenJDK/JBR 21.0.7+6-1038.58-jcef）
 - TimerEngineTest: 3
 - MediaViewModelTest: 4
 - PlanViewModelTest: 3
-- RecipeViewModelTest: 8
+- RecipeViewModelTest: 9（含本轮确认弹窗内错误/清错误/loading 新增回归）
 - StepViewModelTest: 11
 
-历史复跑摘要：第 15 轮 BUILD SUCCESSFUL 58 tests / 0 failures；第 16 轮（2026-11-06）BUILD SUCCESSFUL 59 tests / 0 failures。本轮 2026-11-07 复跑为 59 tests / 0 failures / 0 errors。
-原始日志：work/android_test_r16b.log
+历史复跑摘要：第 15 轮 58 tests；第 16 轮（2026-11-07 上一轮）59 tests；本轮 60 tests / 0 failures / 0 errors。
+原始日志：work/d5_fix_android_tests.log；汇总：work/d5_fix_android_tests.txt
