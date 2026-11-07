@@ -1,16 +1,19 @@
-# D5 Git 状态（2026-11-07 confirmation_required 真机走查轮，已提交未推送）
+# D5 Git 状态（2026-11-07 confirmation 修复后真机复验轮）
 
-- 开工核验（2026-11-07）：本地 `HEAD` = `bb6376cedeeda41968ba8fce44800562f1bc3455`（第 16 轮状态记录）；`main...origin/main [ahead 1]`；工作区干净；`git diff --check` 退出 0。
-- 开工远端：`git ls-remote origin main` = `b6266c6625c7c01022ed2e81dd2804c03305fd1c`（本地 `bb6376c` 未被远端包含）。
-- 推送尝试：`git push origin main` 连续 3 次失败，错误均为
-  `fatal: unable to access 'https://github.com/wuwangxuan1-blip/tutorial.git/': Failed to connect to github.com port 443 after ~21s: Couldn't connect to server`
-  （exit 128）。按规则停止重试；未强推、未覆盖远端；记为「已提交未推送」。
-- 本轮证据提交 1：`04d9b04da8ceebc354e96af6190ef4ddff08bff3`（`docs: record D5 confirmation_required device walkthrough`），基线 `bb6376c`，8 files changed（+138 / -30）。
-- 状态记录提交 2：本文件（`docs: record D5 walkthrough git status`），位于提交 1 之上。
-- 提交后远端检查：`git ls-remote origin main` → `fatal: unable to access 'https://github.com/wuwangxuan1-blip/tutorial.git/': Recv failure: Connection was reset`（exit 128）；按规则**未执行 `git push`**、未重试。
-- 领先/落后：提交 1 后 `main...origin/main [ahead 2]`；提交 2 后 `[ahead 3]`（最终以文末 `git status -sb` 为准）。
-- 远端实际 SHA：**不可达**（开工核验时为 `b6266c6625c7c01022ed2e81dd2804c03305fd1c`）；本地 `04d9b04` 未被远端包含。
-- 本轮实测：服务端 **137 passed / 0 failed**（20.70 s，配方用例 31 passed）；Android **59 tests / 0 failures / 0 errors**（14 个套件，BUILD SUCCESSFUL）；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,838,706 字节**（SHA-256 `363f886583541e8d814ce5d83f8eefd2d87b753a2cec67e8cce57480ac877728`）；密钥扫描 **309 文件 / 0 匹配 / clean=true / exit 0**。
-- 真机：realme GT6 / RMX3800（`eeffd16b`），8 分项 **7 PASS / 1 BLOCKED**；分项 4「缺项提示」错误文案被 `AlertDialog` 遮挡（`RecipeScreen.kt:98-105` 与 `331-379`；校验 `RecipeViewModel.kt:348-350`）。
-- 最终数据状态：v1 225 g（无 `total_sources`）+ v2 240 g（有 `total_sources`），adjustment `adj_01M6T2Y5M5NXQP4NH7HV360342`；冲突实验版本 `recipe_01M6T2HG72KP47MT1VBDV9QNE8` 已清理。
-- 未新增能力、未改源码/测试/服务端代码；未进入 D6。
+- 开工核验（2026-11-07 13:12）：本地 `HEAD` = `ebcccb13a27c6228d3d24f55ed8835d010c6b29f`；工作区仅 5 个 `M` 源码/测试文件（无未跟踪源码）；`git diff --check` 退出 0（仅 LF/CRLF 提示）。
+- 开工远端复核：`git ls-remote origin main` → `ebcccb13a27c6228d3d24f55ed8835d010c6b29f  refs/heads/main`（exit 0，**本轮实际可达**）。上一轮记录为 443 不可达，本轮实测远端已等于本地 `ebcccb1`，说明上一轮「已提交未推送」的提交实际已在远端；以本轮实测为准。开工 ahead 0 / behind 0。
+- 提交 1（代码+测试）：`35082e8aaf46ac7f4ec7ef6d02c16b15dd4ef65a`（`fix: update all explicit water declarations and show confirmation error in dialog`），基线 `ebcccb1`，**5 files changed（+141 / -28）**。
+- 提交 2（文档+证据）：`6d0b745f22c00c8e12a7d3990b4dcbdda1fc4c66`（`docs: record D5 confirmation fix and device acceptance`），**9 files changed（+199 / -27）**，含新增 `review_fix_round17.md`（`.gitignore` 的 `codearts_proof/` 规则会忽略新文件，故对该单个文件使用 `git add -f`；已跟踪文件不受影响，未使用通配强制添加）。
+- 推送：第 1 次 `git push origin main` 即成功（exit 0）：
+
+  `To https://github.com/wuwangxuan1-blip/tutorial.git`
+  `   ebcccb1..6d0b745  main -> main`
+
+  无失败尝试、无重试、未强推、未覆盖远端。
+- 推送后核对：`git ls-remote origin main` → `6d0b745f22c00c8e12a7d3990b4dcbdda1fc4c66  refs/heads/main`（exit 0）；本地与远端一致，ahead 0 / behind 0。
+- 提交 3（本文件）：`docs: record D5 confirmation fix push status`，位于 `6d0b745` 之上，**仅本地**（按本任务步骤未再次推送）；最终 ahead 1 / behind 0，远端 `main = 6d0b745`。
+- 本轮实测：服务端 **138 passed / 0 failed**（18.60 s；`tests/test_recipe.py` **32 passed**，5.69 s）；Android **60 tests / 0 failures / 0 errors**（14 套件，`RecipeViewModelTest` 9，BUILD SUCCESSFUL in 28s）；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（26s，35 tasks executed）；APK **10,838,706 字节**，SHA-256 `f7894375db2f4fb95358c45b24e4f39614784681a28db255d6ece40cdc1e5bf9`，mtime **2026-11-07 12:57:54**（晚于最后修改源码 12:38:22）；密钥扫描 **310 文件 / 0 匹配 / clean=true / exit 0**。
+- 真机：realme GT6 / RMX3800（`eeffd16b`），8001 独立验收数据（`TUTORIAL_DATA_DIR` = `work/d5_accept_20261107`，`adb reverse tcp:8000 → tcp:8001`），新 APK `install -r` Success；**12 个分项全部 PASS**。
+- 四项验收状态（分列）：真机确认流程 **PASS**；用户自拍环绕 **BLOCKED**（无用户自拍素材）；真机配方对比 **本轮 PASS**（真机入口渲染 water_g 225→240 Δ15、ratio 15→16 Δ1）；真机断网重试 **BLOCKED**（本轮未触发）。
+- 数据边界：`server/data/` 未改动，8000 正式数据服务未停止/未重启；8001 验收数据最终保留 v1 `recipe_01M6P5BDZT9557YX026QWNS4R6`、v2 `recipe_01M6T6F479SE3R4QBZB5V27SJG` 与 adjustment `adj_01M6T6F479SHW67QA885X75FEW`。
+- 本轮只提交 5 个既有修复文件与文档/证据；未新增源码改动，未进入 D6。
