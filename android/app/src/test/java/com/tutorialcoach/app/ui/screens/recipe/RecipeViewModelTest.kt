@@ -146,6 +146,7 @@ class RecipeViewModelTest {
         var lastDemo = false
         var confirmationRequired = false
         var conflictOnConfirmation = false
+        var confirmationFailure: ApiException? = null
         val requests = mutableListOf<AdjustmentRequestDto>()
 
         override suspend fun createRecipe(
@@ -181,6 +182,9 @@ class RecipeViewModelTest {
         ): Pair<DomainRecipe, DomainAdjustment> {
             lastAdjustment = request
             requests.add(request)
+            if (request.waterSourceConfirmation != null) {
+                confirmationFailure?.let { throw it }
+            }
             if (conflict) throw ApiException("VERSION_CONFLICT", "配方版本已变化。")
             if (conflictOnConfirmation && request.waterSourceConfirmation != null) {
                 throw ApiException("VERSION_CONFLICT", "配方版本已变化。")
@@ -373,6 +377,37 @@ class RecipeViewModelTest {
         assertEquals(1, gateway.requests.size)
         assertTrue(viewModel.state.value.error?.contains("最终执行指令") == true)
         assertEquals(1, viewModel.state.value.recipe?.version)
+
+        viewModel.toggleWaterFinal(1)
+        assertEquals(null, viewModel.state.value.error)
+        viewModel.confirmWaterSource()
+        advanceUntilIdle()
+        assertEquals(null, viewModel.state.value.confirmation)
+        assertEquals(2, viewModel.state.value.recipe?.version)
+    }
+
+    @Test
+    fun failedConfirmationKeepsSelectionAndClearsErrorWhenCorrected() = runTest(dispatcher) {
+        val gateway = FakeGateway()
+        gateway.recipes = mutableListOf(recipe())
+        gateway.confirmationRequired = true
+        val viewModel = RecipeViewModel(FakeSessions(), gateway)
+        advanceUntilIdle()
+        viewModel.adjust("water_g", "240", "调整总水量")
+        advanceUntilIdle()
+        viewModel.toggleWaterDeclaration(0)
+        viewModel.toggleWaterFinal(1)
+        gateway.confirmationFailure = ApiException("INVALID_REQUEST", "来源不完整，请重新选择。")
+        viewModel.confirmWaterSource()
+        advanceUntilIdle()
+        assertEquals("来源不完整，请重新选择。", viewModel.state.value.error)
+        assertEquals(setOf(1), viewModel.state.value.confirmation?.finalIds)
+        assertEquals(1, viewModel.state.value.recipe?.version)
+        viewModel.toggleWaterFinal(1)
+        assertEquals(null, viewModel.state.value.error)
+        viewModel.cancelWaterSourceConfirmation()
+        assertEquals(null, viewModel.state.value.error)
+        assertEquals(null, viewModel.state.value.confirmation)
     }
 
     @Test

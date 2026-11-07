@@ -60,6 +60,8 @@ fun RecipeScreen(
     state.confirmation?.let { confirmation ->
         WaterSourceConfirmationDialog(
             confirmation = confirmation,
+            error = state.error,
+            loading = state.loading,
             onToggleDeclaration = viewModel::toggleWaterDeclaration,
             onToggleFinal = viewModel::toggleWaterFinal,
             onConfirm = viewModel::confirmWaterSource,
@@ -330,49 +332,64 @@ private fun AdjustmentCard(
 @Composable
 private fun WaterSourceConfirmationDialog(
     confirmation: WaterSourceConfirmationUi,
+    error: String?,
+    loading: Boolean,
     onToggleDeclaration: (Int) -> Unit,
     onToggleFinal: (Int) -> Unit,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest = onCancel,
+        onDismissRequest = { if (!loading) onCancel() },
         title = { Text("确认总水量来源") },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                error?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
                 Text("请选择总量声明与最终执行指令。中途注水不会被改动。")
-                confirmation.candidates.forEach { candidate ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = candidate.candidateId in confirmation.declarationIds,
-                            onCheckedChange = { onToggleDeclaration(candidate.candidateId) },
-                        )
-                        Text("总量", style = MaterialTheme.typography.labelSmall)
-                        Checkbox(
-                            checked = candidate.candidateId in confirmation.finalIds,
-                            onCheckedChange = { onToggleFinal(candidate.candidateId) },
-                        )
-                        Text("最终", style = MaterialTheme.typography.labelSmall)
-                        Text(
-                            candidate.displayText(),
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    confirmation.candidates.forEach { candidate ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                enabled = !loading,
+                                checked = candidate.candidateId in confirmation.declarationIds,
+                                onCheckedChange = { onToggleDeclaration(candidate.candidateId) },
+                            )
+                            Text("总量", style = MaterialTheme.typography.labelSmall)
+                            Checkbox(
+                                enabled = !loading,
+                                checked = candidate.candidateId in confirmation.finalIds,
+                                onCheckedChange = { onToggleFinal(candidate.candidateId) },
+                            )
+                            Text("最终", style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                candidate.displayText(),
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text("确认并重试") }
+            TextButton(onClick = onConfirm, enabled = !loading) {
+                Text(if (loading) "正在提交…" else "确认并重试")
+            }
         },
         dismissButton = {
-            TextButton(onClick = onCancel) { Text("取消") }
+            TextButton(onClick = onCancel, enabled = !loading) { Text("取消") }
         },
     )
 }

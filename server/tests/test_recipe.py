@@ -1388,6 +1388,52 @@ async def test_legacy_recipe_without_marks_recovers_on_first_adjustment(
     assert [item["version"] for item in (await client.get(f"/v1/recipes/{v2['id']}/history")).json()] == [1, 2]
 
 
+async def test_confirmation_updates_all_explicit_totals_and_rejects_missing_final_reference(
+    client, monkeypatch
+):
+    plan = _controlled_plan(
+        "咖啡粉 15 g，总水量 225 g，水温 92°C，总时长 150 秒。"
+    )
+    plan["steps"][1]["instruction"] = "固定参数：总水量 225 g。"
+    plan["steps"][2]["instruction"] = "最后注水至 225 g 后停止。"
+    plan["steps"][2]["completion_criteria"] = ["最后注水至 225 g 后停止"]
+    session, _ = await setup_coffee(client, monkeypatch, plan=plan)
+    recipe = (await client.post(
+        f"/v1/sessions/{session['id']}/recipes", json={"base_plan_version": 1}
+    )).json()
+    store = client.app.state.store
+    old = await store.find_recipe(recipe["id"])
+    old.pop("total_sources", None)
+    await store.save_recipe(old)
+    located = client.app.state.recipe_service._locate_water_mentions(old["steps"])
+    declarations = [i for i, item in enumerate(located) if item[2].kind == "explicit"]
+    finals = [i for i, item in enumerate(located) if item[2].kind == "terminal"]
+    assert len(declarations) == 2 and len(finals) == 2
+    payload = {
+        "base_version": 1, "variable": "water_g", "to_value": 240,
+        "reason": "确认旧配方来源",
+        "water_source_confirmation": {"declaration": declarations[:1], "final": finals[:1]},
+    }
+    endpoint = f"/v1/recipes/{recipe['id']}/adjustments"
+    rejected = await client.post(endpoint, json=payload)
+    assert rejected.status_code == 422, rejected.text
+    assert await store.find_recipe(recipe["id"]) == old
+    assert len(await store.list_recipes(session["id"])) == 1
+    assert await store.list_adjustments(recipe["id"]) == []
+
+    payload["water_source_confirmation"]["final"] = finals
+    response = await client.post(endpoint, json=payload)
+    assert response.status_code == 201, response.text
+    updated = response.json()["recipe"]
+    assert updated["variables"]["water_g"] == 240
+    assert "总水量 240 g" in updated["steps"][0]["instruction"]
+    assert "总水量 240 g" in updated["steps"][1]["instruction"]
+    assert "注水至 240 g" in updated["steps"][2]["instruction"]
+    assert "注水至 240 g" in updated["steps"][2]["target"]
+    assert await store.find_recipe(recipe["id"]) == old
+    assert [r["version"] for r in await store.list_recipes(session["id"])] == [1, 2]
+
+
 async def test_legacy_ambiguous_source_offers_confirmation(client, monkeypatch):
     plan = _controlled_plan(
         "咖啡粉 15 g，总水量 225 g，分两次注水至 225 g，等滤杯滴完，"

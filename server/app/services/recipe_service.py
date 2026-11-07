@@ -729,6 +729,13 @@ class RecipeService:
                 [],
                 True,
             )
+        # Explicit declarations all name the same recipe total, even when the
+        # user selected only one occurrence in the legacy confirmation dialog.
+        declaration_ids = sorted(set(declaration_ids) | {
+            candidate_id
+            for candidate_id, item in enumerate(located)
+            if item[2].kind == "explicit" and item[2].value == expected
+        })
         marks: list[dict[str, Any]] = []
         seen: set[tuple[int, str, int, int]] = set()
         for role, ids in (("declaration", declaration_ids), ("final", final_ids)):
@@ -1436,6 +1443,12 @@ class RecipeService:
             "total_sources": total_sources,
             "created_at": _now(),
         }
+        if water_changed:
+            located = self._locate_water_mentions(new_recipe["steps"])
+            selected = self._select_water_total([item[2] for item in located])
+            if selected is None or selected[0] != new_water:
+                raise self._total_source_unconfirmed("water_g")
+            self._assert_water_final_consistency(located, float(new_water))
         Recipe.model_validate(new_recipe)
         from_value = base_variables[variable]
         new_value = new_recipe["variables"][variable]

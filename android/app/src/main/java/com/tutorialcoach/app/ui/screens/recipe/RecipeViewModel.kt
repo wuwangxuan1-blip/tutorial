@@ -321,6 +321,7 @@ class RecipeViewModel(
         _state.update { current ->
             val confirmation = current.confirmation ?: return@update current
             current.copy(
+                error = null,
                 confirmation = confirmation.copy(
                     declarationIds = confirmation.declarationIds.toggle(candidateId),
                 ),
@@ -332,6 +333,7 @@ class RecipeViewModel(
         _state.update { current ->
             val confirmation = current.confirmation ?: return@update current
             current.copy(
+                error = null,
                 confirmation = confirmation.copy(
                     finalIds = confirmation.finalIds.toggle(candidateId),
                 ),
@@ -364,7 +366,7 @@ class RecipeViewModel(
     }
 
     fun cancelWaterSourceConfirmation() {
-        _state.update { it.copy(confirmation = null, loading = false) }
+        _state.update { it.copy(confirmation = null, loading = false, error = null) }
     }
 
     private fun Set<Int>.toggle(candidateId: Int): Set<Int> =
