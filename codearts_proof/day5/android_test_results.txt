@@ -1,21 +1,25 @@
-Android JVM 测试（D5）
-命令：gradlew.bat :app:testDebugUnitTest --rerun-tasks --console=plain
-结果：BUILD SUCCESSFUL；59 tests，0 failures，0 errors
+Android JVM 测试（D5 收尾复跑，日期 2026-11-07，HEAD=bb6376c）
+命令：cd android && ./gradlew.bat :app:testDebugUnitTest --rerun-tasks
+JAVA_HOME：D:\Java\ideaIU-2025.2.win\jbr（OpenJDK/JBR 21.0.7+6-1038.58-jcef）
+说明：机器默认 JAVA_HOME 为 D:\Java\jdk-25.0.2（JDK 25），Gradle 8.9/AGP 组合不使用该 JDK；本轮实际使用上述 JBR 21。
+结果：BUILD SUCCESSFUL（1m 42s，22 actionable tasks: 22 executed）；tests=59，failures=0，errors=0，skipped=0
 
-分套件：
+统计来源：android/app/build/test-results/testDebugUnitTest/*.xml（共 14 个 result XML，测试前已清空旧结果目录）
+分套件（tests）：
 - ContractExamplesTest: 6
-- DtoTest: 5（camera move visual_aid 与 recipe DTO 解析）
+- DtoTest: 5
 - RateLimitGateTest: 2
-- CameraEasingTest: 2（linear 与 ease_in_out 同一中间时刻不同；边界 clamp）
-- CameraMoveValidatorTest: 3（合法/非法组合、NaN/越界、变焦与朝向方向）
-- CameraPlaybackStateTest: 1（播放/暂停/重播/结束/拖动 seek）
+- CameraEasingTest: 2
+- CameraMoveValidatorTest: 3
+- CameraPlaybackStateTest: 1
 - ErrorMapperTest: 5
 - MediaLimitsTest: 2
 - PlanValidatorTest: 4
 - TimerEngineTest: 3
 - MediaViewModelTest: 4
 - PlanViewModelTest: 3
-- RecipeViewModelTest: 4（创建→品尝→单变量 v2→对比；409 刷新不覆盖最新版本；非法数值不调用网关；demo 选择透传）
+- RecipeViewModelTest: 8
 - StepViewModelTest: 11
 
-D4 回归保留：证据帧字节与模型输入一致、反馈写入不覆盖并发进度等既有用例全部通过。第 8 轮复跑（D5 配方创建/调整总量一致性）：BUILD SUCCESSFUL；55 tests，0 failures，0 errors；Android 未改代码。第 9 轮复跑（D5 调整总量来源定位）：BUILD SUCCESSFUL；55 tests，0 failures，0 errors；Android 未改代码。第 10 轮复跑（D5 创建期来源固化）：BUILD SUCCESSFUL；55 tests，0 failures，0 errors；Android 未改代码。第 11 轮复跑（D5 总水量下限校验）：BUILD SUCCESSFUL；55 tests，0 failures，0 errors；Android 未改代码。第 12 轮复跑（D5 连续调整目标身份保留）：BUILD SUCCESSFUL；55 tests，0 failures，0 errors；Android 未改代码。第 13 轮复跑（D5 总量来源身份持久化）：BUILD SUCCESSFUL；55 tests，0 failures，0 errors；Android 未改代码。第 14 轮复跑（D5 最后执行指令身份与旧配方恢复）：BUILD SUCCESSFUL；55 tests，0 failures，0 errors；Android 未改代码。第 15 轮复跑（D5 总量冲突检测与 Android 确认流程）：BUILD SUCCESSFUL；58 tests，0 failures，0 errors；新增确认成功、取消、版本冲突 3 项。第 16 轮复跑（D5 中途完成条件与确认完整性）：BUILD SUCCESSFUL；59 tests，0 failures，0 errors；新增遗漏最终选择 1 项，候选展示原文片段。
+历史复跑摘要：第 15 轮 BUILD SUCCESSFUL 58 tests / 0 failures；第 16 轮（2026-11-06）BUILD SUCCESSFUL 59 tests / 0 failures。本轮 2026-11-07 复跑为 59 tests / 0 failures / 0 errors。
+原始日志：work/android_test_r16b.log

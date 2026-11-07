@@ -319,3 +319,15 @@
 | Android 测试 | **59 tests / 0 failures**（新增遗漏最终选择 1 项；候选展示原文片段） |
 | APK | `android/app/build/outputs/apk/debug/app-debug.apk`，10,838,706 字节（`:app:assembleDebug --rerun-tasks`：BUILD SUCCESSFUL、35 tasks executed） |
 | 状态 | 第三方实拍通过；用户自拍环绕 BLOCKED；真机配方对比 BLOCKED；断网重试 BLOCKED |
+### D5 confirmation_required 真机确认流程走查实测（2026-11-07）
+
+| 项 | 实测 |
+|---|---|
+| 服务端 | 8000 端口必须重启到第 16 轮（`bb6376c`）代码；旧进程早于源码修改时会仍按旧校验运行。健康路径为 `GET /v1/health`（`/health` 返回 404），返回 `{"status":"ok","api_version":"v1",...}`。 |
+| 真机 | realme GT6 / RMX3800，`adb devices` 状态 `device`；先 `adb reverse tcp:8000 tcp:8000`，设备内才可访问 `127.0.0.1:8000`；断开 reverse 会直接表现为请求失败。 |
+| APK | 必须用 `:app:assembleDebug --rerun-tasks` 重建；旧 APK 早于源码修改，不能用于新校验走查。产物 `app-debug.apk` 10,838,706 字节、SHA-256 `363f886583541e8d814ce5d83f8eefd2d87b753a2cec67e8cce57480ac877728`，2026-11-07 11:51:21。 |
+| JAVA_HOME | 构建需 `D:\Java\ideaIU-2025.2.win\jbr`（JBR 21）；机器默认 `D:\Java\jdk-25.0.2`（JDK 25）与 Gradle 8.9/AGP 组合不匹配，不能沿用。 |
+| adb/MSYS 注意 | 在 git-bash 下调用 `adb`/`curl` 时注意 MSYS 路径自动转换：含 `/v1/...` 的参数可能被改写为 Windows 路径，必要时设置 `MSYS_NO_PATHCONV=1`；多设备时显式 `adb -s eeffd16b`。 |
+| 测试与扫描 | 服务端 `.venv/Scripts/python.exe -m pytest -o addopts="" -q`：**137 passed / 0 failed / 0 errors**（20.70s），配方用例 31 passed；Android **59 tests / 0 failures / 0 errors**（14 套件，BUILD SUCCESSFUL）；`scripts/scan_secrets.py`：**309 文件 / 0 匹配 / clean=true / exit 0**。 |
+| 环境干扰 | 走查步骤 7 期间外部应用 `com.hypergryph.arknights` 抢占前台导致进程被杀；force-stop/start 后恢复 `last_session_id`，未清应用数据，属环境干扰而非应用缺陷。 |
+| 结论 | 真机 8 分项 **7 PASS / 1 BLOCKED**；BLOCKED 为分项 4「缺项提示」错误文案被 `AlertDialog` 遮挡（客户端 UI 缺陷，`RecipeScreen.kt:98-105` / `331-379`）。 |

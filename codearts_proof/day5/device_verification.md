@@ -26,3 +26,50 @@
 - 运镜 Canvas 为 2D 俯视/取景示意，不代表真实 3D 轨迹、焦距或景深；只渲染结构化 `CameraMoveSpec`。
 - 真机截图未做 AI 视觉检查（当前会话模型不支持图片输入）；结论来自 UI 层级文本与服务端返回值/日志。
 - 真机按钮在滚动容器底部存在点击命中不稳定的现象（播放/暂停、创建新版本均出现过），已通过多次/前后时间轴比对确认播放控制，但配方调整未能完成。
+## 2026-11-07 confirmation_required 真机走查
+
+- 设备：realme GT6 / RMX3800，adb 序列号 `eeffd16b`，`adb devices` 状态 `device`；`adb reverse --list` 含 `tcp:8000 tcp:8000`。
+- 服务端：`GET http://127.0.0.1:8000/v1/health` → 200 `{"status":"ok","api_version":"v1","checks":{"store":true,"ffmpeg":true,"model_configured":true}}`（未停止/重启服务端）。
+- APK：`android/app/build/outputs/apk/debug/app-debug.apk`，10,838,706 字节，2026-11-07 11:51:21（第 16 轮构建）。
+- 场景会话：`sess_01M6P54DER9GF7SNX7ABT8GXBD`，唯一配方 `recipe_01M6P5BDZT9557YX026QWNS4R6`（v1，水 225 g / 粉 15 g / 92 °C / 150 秒，缺 `total_sources`）。
+
+### API 基线复核（真机前置，只读）
+
+- `GET /v1/sessions/<id>/recipes` → 200，仅 1 条：v1、`water_g=225.0`、无 `total_sources` 键；`GET /v1/recipes/<v1id>/history` → 200 `[1]`。
+- `POST /v1/recipes/<v1id>/adjustments` `{"base_version":1,"variable":"water_g","to_value":240,"reason":"probe"}` → **422**，`details.reason=total_source_unconfirmed`、`confirmation_required=true`、`requires_final=true`、`candidates` 数量 **5**。
+- 结论：**PASS**。证据：`work/probe_baseline.json`（脚本 `work/probe_baseline.py`）。
+
+### 分项结论
+
+| # | 分项 | 实际观察 | 结论 | 证据 |
+|---|---|---|---|---|
+| 1 | 安装/启动 | `adb install -r` → `Success`；`am force-stop` + `am start -n com.tutorialcoach.app/.MainActivity` 后进入 V60 计划页（标题 “V60 pour over 15g coffee 225g water 92C 2m30s”、计划版本 v1、5 步）。`adb logcat -d` 8550 行中无 `FATAL EXCEPTION`/应用崩溃，仅 uiautomator 自身 `RuntimeInit` 日志。 | **PASS** | `work/device_confirm_step1_launch.xml`、`work/logcat_step1.txt` |
+| 2 | 进入配方页 | 计划页滚到底 → 点「打开咖啡配方」→ 标题「咖啡配方」；参数区：咖啡粉 15 g、水 225 g、粉水比 1:15、水温 92 °C、研磨中细、总时长 150 秒；版本行 `v1 · V60 · pour_over · 1 份`。 | **PASS** | `work/device_confirm_step2_recipe_page.xml`、`work/device_confirm_step2_scrolled.xml` |
+| 3 | 触发确认弹窗 | 单变量调整区选中 `water_g`，新值输入 240、原因 `final-check`，点「创建新版本（单变量）」→ 出现「确认总水量来源」弹窗。 | **PASS** | `work/device_confirm_step3_dialog.xml`、`work/device_confirm_step7_dialog.xml` |
+| 3b | 候选原文片段 | 弹窗 5 行候选均含原文片段：步骤1「固定演示参数：咖啡粉 15 g，水 225 g，水温 92 °C，总时长 150 秒」；步骤3「目标在约 150 秒时累计注水至 225 g，并在该时间点前后结束注水」；步骤3「全程固定参数：咖啡粉 15 g，水 225 g，水温 92 °C，总时长 150 秒」；步骤3「若流速偏快，可先注水至 210 g 再继续」；步骤5「注水至 225 g，等待滤杯内液体滴完」。 | **PASS** | `work/device_confirm_step3_dialog.xml`、`work/screen_step4_error.png` |
+| 4 | 缺项提示（勾「总量」不勾「最终」） | 仅勾第一行「总量」后点「确认并重试」：弹窗保持打开、未写入（API 仍仅 v1，`server/data/adjustments` 无该配方目录）；但「请选择最终执行指令。」**在弹窗打开期间不可见**（UI dump 与截图均无该文本），关闭弹窗后才在页面顶部 ErrorBanner 显示「出错了 / 请选择最终执行指令。」。原因：`state.error` 的 ErrorBanner 渲染在页面 Column（`RecipeScreen.kt:98-105`），被 `WaterSourceConfirmationDialog` 的 AlertDialog（`RecipeScreen.kt:331-379`，`AlertDialog` 起于 338）覆盖；校验本身在 `RecipeViewModel.kt:348-350` 设置 error 后直接 return（未发请求）。 | **BLOCKED（缺陷）**：逻辑正确，但预期“界面显示错误文案且弹窗仍在”未达成 | `work/device_confirm_step4_total_only.xml`、`work/device_confirm_step4_error2.xml`、`work/screen_step4_error.png`、`work/device_confirm_step5_top.xml` |
+| 5 | 取消不写入 | 点「取消」→ 弹窗关闭；`GET /v1/sessions/<id>/recipes` → 仅 v1（225.0，无 `total_sources`）；`server/data/recipes/sess_.../` 仅 `recipe_01M6P5BDZT9557YX026QWNS4R6.json`；`server/data/adjustments` 无新增。 | **PASS** | `work/device_confirm_step5_after_cancel.xml`、`work/probe_baseline.json` |
+| 6 | 版本冲突 | 弹窗打开状态下用 API 建 v2（`base_version=1`、`declaration=[0,2]`、`final=[4]`）→ **201**，`recipe_01M6T2HG72KP47MT1VBDV9QNE8`（240 g / 1:16）；设备勾选行1「总量」+ 行5「最终」后点「确认并重试」→ 客户端显示「出错了 / 配方版本已变化，已刷新最新版本；请重新调整。」，页面刷新到 `v2 · 水 240 g · 粉水比 1:16`。 | **PASS** | `work/device_confirm_step6_top.xml`、`work/screen_step6_conflict.png`、`work/conflict_v2.json` |
+| 7 | 确认成功（v2） | 用 `os.remove` 删除第 6 步实验 v2 配方与 adjustment（仅这两类文件，v1 未改动）→ API 复核回到仅 v1（history `[1]`）；force-stop 重启 → 配方页显示 v1（225 g / 1:15）；重填 240 + 原因，勾行1「总量」+ 行5「最终」→ 确认成功：界面「已创建 v2，只调整了 water_g。」、`v2 · V60 · pour_over · 1 份`、咖啡粉 15 g / 水 240 g / 粉水比 1:16 / 92 °C / 中细 / 150 秒；API `recipes` = v1(225.0, 1:15, 无 `total_sources`) + v2(240.0, 1:16, 有 `total_sources`)，`history` = `[(1,225,15),(2,240,16)]`。 | **PASS** | `work/device_confirm_step7_result.xml`、`work/screen_step7_success.png`、`work/device_confirm_step7_checked.xml` |
+
+### 最终服务端状态
+
+- v1 `recipe_01M6P5BDZT9557YX026QWNS4R6`：`version=1`、`water_g=225.0`、`ratio=15.0`，**文件内无 `total_sources`**（保持旧配方原状，未被“修复”）。
+- v2 `recipe_01M6T2Y5M56ZFFTECNSNQRCX5V`：`version=2`、`water_g=240.0`、`ratio=16.0`，含 `total_sources`；adjustment `adj_01M6T2Y5M5NXQP4NH7HV360342`。
+- 第 6 步冲突实验版本（`recipe_01M6T2HG72KP47MT1VBDV9QNE8` / `adj_01M6T2HG73CGPP5MSPYXZV5GRW`）已清理，最终状态可解释。
+
+### 环境干扰与未完成项
+
+- 环境干扰（非应用缺陷）：走查步骤 7 期间，外部应用（`com.hypergryph.arknights`）抢占前台导致 tutorialcoach 进程被杀，重新启动后 `restore()` 一度失败显示首页；再次 force-stop/start 后成功恢复 `last_session_id` 并进入计划页。未清空应用数据、未修改客户端代码或测试。
+- 未完成项：分项 4「缺项提示可见性」未达成（错误文案被弹窗遮挡），已按缺陷记录，需客户端调整 Dialog 内错误展示后复测；其余 7 项真机走查完成。
+- 截图未做 AI 视觉复核，结论来自 UI 层级文本、截图人工比对与服务端 API/文件状态。
+### 任务#2（旧配方场景 API 验收）完成度
+
+- 已执行并通过：场景构造复核（仅 v1、`water_g=225.0`、无 `total_sources`）；`confirmation_required` 422（`requires_final=true`、5 个含原文片段候选）；完整确认 **201**（步骤 6 的 `POST /adjustments` 返回 201 并生成 v2 240 g / 1:16；步骤 7 真机同样确认成功）。
+- 补充 API 校验（本轮补跑，脚本 `work/probe_confirm_invalid.py`，结果 `work/probe_confirm_invalid2.json`）：
+  - **缺 final 完整性 422**：`declaration=[0]`、`final=[]` → 422 `invalid_water_source_confirmation`，`missing=["final"]`、`requires_final=true`、`created=null`。
+  - **非法 final 422**：`final=[3]`（210 g，值不等于总量 225 g）→ 422，`invalid=[3]`、`created=null`。
+  - **非法 declaration 422**：`declaration=[3]` → 422，`invalid=[3]`、`created=null`。
+  - 三例执行后 `versions_after` 仍仅 `v1[225]`（未写入）；随后恢复 v2 成功，`versions_restored = v1[225] + v2[240]`。
+- 说明：早期假设版本的脚本结果 `work/probe_confirm_invalid.json` 中曾出现“declaration 201 / final 409”，原因是脚本把 terminal 当 declaration 的角色假设过严（契约只要求 `final` 必须 terminal 且值匹配总量；terminal 作 declaration 属允许），**不是产品缺陷**；该用例当时多写的一个 v2 已清理，最终状态见上“最终服务端状态”。
+- 说明：任务#2 原文的“验证后清理 v2 复原为仅 v1”服务于真机前置状态；按任务#4 要求，最终状态保留 v1 与真机确认成功的 v2，未额外“修复” v1 的 `total_sources`。

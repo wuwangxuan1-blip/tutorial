@@ -1,9 +1,12 @@
-APK 信息（D5）
+APK 信息（D5 收尾复跑，日期 2026-11-07，HEAD=bb6376c）
+命令：cd android && ./gradlew.bat :app:assembleDebug --rerun-tasks
+JAVA_HOME：D:\Java\ideaIU-2025.2.win\jbr（JBR 21.0.7+6-1038.58-jcef）
+结果：BUILD SUCCESSFUL（1m 14s，35 actionable tasks: 35 executed）
 路径：android/app/build/outputs/apk/debug/app-debug.apk
-大小：10,838,706 字节（约 10.3 MiB）
+大小：10,838,706 字节（约 10.3 MiB，stat -c 精确值）
+SHA-256：363f886583541e8d814ce5d83f8eefd2d87b753a2cec67e8cce57480ac877728
+产物时间：2026-11-07 11:51（本轮重新生成）
 包名：com.tutorialcoach.app
-versionName：0.1.0
-minSdk：26
-targetSdk：35
-构建：BUILD SUCCESSFUL（:app:assembleDebug --rerun-tasks，35 tasks executed）
-说明：D5 中途完成条件区分与确认完整性修复（中途 target 不作最终判据；确认遗漏 final/角色/类型非法 422；Android 展示候选原文并提示缺少选择）已在当前源码上重建；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）。
+versionCode/versionName：1 / 0.1.0
+minSdk/targetSdk/compileSdk：26 / 35 / 35
+原始日志：work/android_build_r16b.log（日志含 stripDebugDebugSymbols 对 libandroidx.graphics.path.so 的提示，属正常打包行为，非构建失败）

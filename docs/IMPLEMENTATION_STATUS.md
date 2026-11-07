@@ -411,3 +411,28 @@ API 回归新增 3 项（停止条件同步、摘要来源创建前确认、旧�
 3. **类型化请求**：`water_source_confirmation` 使用严格类型模型（整数、非负、声明至少 1 项）；服务端校验候选 ID 范围、角色（final 必须 terminal 且值匹配总量）。非法类型/范围/角色 → 422 且不写入。
 
 本轮实测：服务端 **137 passed / 0 failed**（配方测试 31 项）；Android **59 tests / 0 failures**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,838,706 字节**。状态分列不变；未进入 D6。
+### 16.15 D5 confirmation_required 真机确认流程走查（2026-11-07）
+
+基线：`bb6376c`。本轮只补文档与证据，未修改源码、测试与服务端代码，未进入 D6。设备 realme GT6 / RMX3800（`eeffd16b`）；APK 10,838,706 字节 / SHA-256 `363f886583541e8d814ce5d83f8eefd2d87b753a2cec67e8cce57480ac877728`（2026-11-07 11:51 重建）；服务端 `GET /v1/health` 200（`/health` 404），`adb reverse tcp:8000` 生效。
+
+**场景构造**：复用旧配方会话 `sess_01M6P54DER9GF7SNX7ABT8GXBD` 的 v1 `recipe_01M6P5BDZT9557YX026QWNS4R6`（水 225 g / 粉 15 g / 92 °C / 150 秒）。该 v1 文件内**无 `total_sources`**，且 225 g 在步骤中以声明、累计注水、最终指令等多处同值出现，构成同值歧义旧配方。对 v1 直接提交 `water_g` 225→240 的调整返回 422 `total_source_unconfirmed`（`confirmation_required=true`、`requires_final=true`、候选 5 条），符合设计。
+
+**API 补测（3 条 422，脚本 `work/probe_confirm_invalid.py`，结果 `work/probe_confirm_invalid2.json`）**：
+
+- 缺 final（`declaration=[0]`、`final=[]`）→ **422** `invalid_water_source_confirmation`，`missing=["final"]`、`requires_final=true`。
+- 非法 final（`final=[3]`，210 g 与总量 225 g 不等）→ **422**，`invalid=[3]`。
+- 非法 declaration（`declaration=[3]`）→ **422**，`invalid=[3]`。
+- 三例 `created` 均为 null，`versions_after` 仍仅 `v1[225]`；随后恢复 v2 成功（`versions_restored = v1[225] + v2[240]`）。
+- 说明：早先脚本版本 `work/probe_confirm_invalid.json` 曾出现 201/409，原因是对角色假设过严（把 terminal 当 declaration 属契约允许，不构成缺陷，且当时多写的一个 v2 已清理），不作为产品缺陷记录。
+
+**真机 8 项**：1 安装/启动 PASS；2 进入配方页 PASS；3 触发确认弹窗 PASS；3b 候选原文片段 PASS（5 行均含原文片段）；4 缺项提示 **BLOCKED（客户端 UI 缺陷）**；5 取消不写入 PASS；6 版本冲突 PASS（设备收到 409、提示已刷新并切到 v2）；7 确认成功 PASS（201 生成 v2 240 g / 1:16，界面“已创建 v2，只调整了 water_g。”，history `[(1,225,15),(2,240,16)]`，v1 原值未改）。结论 **7 PASS / 1 BLOCKED**。
+
+**缺陷（分项 4）**：仅勾「总量」点「确认并重试」时，`RecipeViewModel.kt:348-350` 设置 `error="请选择最终执行指令。"` 后直接 return（未发请求），逻辑正确；但 `RecipeScreen.kt:98-105` 的 `ErrorBanner` 渲染在页面 Column，被叠加的 `WaterSourceConfirmationDialog`（`RecipeScreen.kt:331-379`，`AlertDialog` 起于 338）遮挡，弹窗打开期间该文案不可见，取消弹窗后才在页面顶部显示。需客户端在 Dialog 内展示校验错误后复测。
+
+**最终数据状态**：v1 225 g（无 `total_sources`）+ v2 240 g（有 `total_sources`），adjustment `adj_01M6T2Y5M5NXQP4NH7HV360342`；冲突实验版本 `recipe_01M6T2HG72KP47MT1VBDV9QNE8` 已清理。
+
+**本轮实测**：服务端 **137 passed / 0 failed**（20.70 s；`tests/test_recipe.py` 31 passed）；Android **59 tests / 0 failures / 0 errors**（14 个套件，`:app:testDebugUnitTest --rerun-tasks` BUILD SUCCESSFUL）；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,838,706 字节**；密钥扫描 **309 文件 / 0 匹配 / clean=true / exit 0**。
+
+**环境干扰**：步骤 7 期间外部应用 `com.hypergryph.arknights` 抢占前台致进程被杀，force-stop/start 后恢复 `last_session_id`；未清应用数据，非应用缺陷。
+
+**Git**：`git push origin main` 连续 3 次 443 连接失败（exit 128），按规则停止重试，记为「已提交未推送」；未强推、未覆盖远端。状态仍在 D5，不进入 D6。

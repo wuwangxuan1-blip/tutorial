@@ -52,3 +52,14 @@
 - D5 最后执行指令身份与旧配方恢复（基线 `ad81680`）：`总水量 225 g` + `分两次注水至 225 g，等滤杯滴完` 改 240 g 后参数、用料与最后指令一致；旧配方首次调整自动补齐 marks，同值歧义 422 并可用 `water_source_confirmation` 确认后成功，历史原值保留。服务端 134 passed、Android 55 tests、APK 10,822,322 字节。详见 `review_fix_round14.md`。
 - D5 总量冲突检测与 Android 确认流程（基线 `3c86b6e`）：`总水量 225 g，最后注水至 220 g 后停止` 创建/调整返回 422 `water_total_conflicts_with_final` 且不写入；Android 收到 `confirmation_required` 展示候选并确认/取消/版本冲突重试。服务端 136 passed、Android 58 tests、APK 10,838,706 字节。详见 `review_fix_round15.md`。
 - D5 中途完成条件区分与确认完整性（基线 `3472e54`）：中途 target `注水至 100 g` 不再被当作最终条件，改 240 后中途仍 100；确认遗漏 final/角色/类型非法均 422 且不写入；Android 展示候选原文并提示缺少最终选择。服务端 137 passed、Android 59 tests、APK 10,838,706 字节。详见 `review_fix_round16.md`。
+## 2026-11-07 confirmation_required 真机走查（本轮索引）
+
+| 文件 | 内容 |
+|---|---|
+| `server_pytest_summary.txt` | 本轮复跑：服务端 137 passed / 0 failed（20.70 s），配方用例 31 passed |
+| `android_test_results.txt` | 本轮复跑：Android 59 tests / 0 failures / 0 errors（14 个套件，BUILD SUCCESSFUL） |
+| `android_apk_info.txt` | 本轮重建 APK：10,838,706 字节，SHA-256 `363f886583541e8d814ce5d83f8eefd2d87b753a2cec67e8cce57480ac877728` |
+| `secret_scan.json` | 提交前密钥扫描：309 文件 / 0 匹配 / clean=true / exit 0 |
+| `device_verification.md` | 见其中「2026-11-07 confirmation_required 真机走查」小节：8 个分项、API 补测 3 条 422、最终数据状态 |
+
+一句话结论：真机 8 个分项 **7 PASS / 1 BLOCKED**（分项 4「缺项提示」的错误文案被 `AlertDialog` 遮挡，属客户端 UI 缺陷）；服务端/Android 测试与密钥扫描均通过；本轮已提交，推送因 443 连接失败记为「已提交未推送」。
