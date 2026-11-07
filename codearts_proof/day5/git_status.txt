@@ -1,21 +1,16 @@
-# D5 Git 状态（2026-11-06 中途完成条件区分与确认完整性轮，推送已完成）
+# D5 Git 状态（2026-11-07 confirmation_required 真机走查轮，已提交未推送）
 
-- 开工核验：本地 `HEAD` = `3472e5424f39ce3571afecad0bb967505953a31f`，工作区干净；`main...origin/main` 无领先/落后，远端 `main = 3472e54`。
-- 本轮修复提交：`b6266c6625c7c01022ed2e81dd2804c03305fd1c`（`fix: distinguish mid-step targets and validate source confirmation`），基线 `3472e54`。
-- 推送：`git push origin main` **成功**，输出 `3472e54..b6266c6  main -> main`（正常快进，未强推）。
-- 推送后核验：`git ls-remote origin main` = 本地 `HEAD` = `b6266c6`；工作区干净、无领先/落后。
-- 实现：
-  - 中途步骤 `target` 中的 `注水至 100 g` 不再参与总量冲突；最终条件只认最后一个执行步骤的最终目标（或带“最后/最终/后停止/后结束”标记）。总水量 225、中途完成条件 100、最后 `注水至 225 g 后停止` 可创建，改 240 后中途仍 100、最终 240；真正的最终条件冲突仍 422 `water_total_conflicts_with_final`。
-  - `water_source_confirmation` 改为类型化模型（`declaration` 至少 1 项、`final` 可空，严格整数、非负）；服务端校验候选 ID 范围、角色（final 必须 terminal 且值等于当前总量）与完整性：存在最终指令时只选声明、遗漏最终 → 422 `invalid_water_source_confirmation`（`missing=["final"]`、`requires_final=true`），不写入新版本；非法类型/角色同样 422。
-  - Android 候选展示含 `text` 原文片段；`requires_final=true` 且未选最终时提示“请选择最终执行指令”，不发送重试。
-- 本轮实测：服务端 **137 passed / 0 failed**（配方测试 31 项）；Android **59 tests / 0 failures / 0 errors**；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,838,706 字节**；`git diff --check` 退出 0。
-- 密钥扫描：**309 个文本文件，0 匹配，clean=true**（`secret_scan.json`）。
-- 回归保留：225→100→240 连续调整、90 g 拒绝不写入、历史版本原值回查、旧配方自动恢复/确认、显式总量优先、冒号总时长、静置/闷蒸单步不改。
-- 验收状态分列（不得合并）：
-  - 第三方公开授权实拍链路：**通过**。
-  - 用户自拍环绕验收：**BLOCKED**（无用户自拍环绕素材）。
-  - 真机配方 92→90/历史对比：**BLOCKED**（v1 与用户评分已保存；调整/对比未完成）。
-  - 真机断网/超时重试：**BLOCKED**（未取得错误→恢复→重试成功证据）。
-  - 真机 Canvas easing/拖动：未复测，由 JVM 覆盖。
-- 本轮未新增功能，未调整提示词，未进入 D6。
-- 本状态记录提交随后推送；最终远端 `main` 以推送输出与 `git ls-remote origin main` 为准。
+- 开工核验（2026-11-07）：本地 `HEAD` = `bb6376cedeeda41968ba8fce44800562f1bc3455`（第 16 轮状态记录）；`main...origin/main [ahead 1]`；工作区干净；`git diff --check` 退出 0。
+- 开工远端：`git ls-remote origin main` = `b6266c6625c7c01022ed2e81dd2804c03305fd1c`（本地 `bb6376c` 未被远端包含）。
+- 推送尝试：`git push origin main` 连续 3 次失败，错误均为
+  `fatal: unable to access 'https://github.com/wuwangxuan1-blip/tutorial.git/': Failed to connect to github.com port 443 after ~21s: Couldn't connect to server`
+  （exit 128）。按规则停止重试；未强推、未覆盖远端；记为「已提交未推送」。
+- 本轮证据提交 1：`04d9b04da8ceebc354e96af6190ef4ddff08bff3`（`docs: record D5 confirmation_required device walkthrough`），基线 `bb6376c`，8 files changed（+138 / -30）。
+- 状态记录提交 2：本文件（`docs: record D5 walkthrough git status`），位于提交 1 之上。
+- 提交后远端检查：`git ls-remote origin main` → `fatal: unable to access 'https://github.com/wuwangxuan1-blip/tutorial.git/': Recv failure: Connection was reset`（exit 128）；按规则**未执行 `git push`**、未重试。
+- 领先/落后：提交 1 后 `main...origin/main [ahead 2]`；提交 2 后 `[ahead 3]`（最终以文末 `git status -sb` 为准）。
+- 远端实际 SHA：**不可达**（开工核验时为 `b6266c6625c7c01022ed2e81dd2804c03305fd1c`）；本地 `04d9b04` 未被远端包含。
+- 本轮实测：服务端 **137 passed / 0 failed**（20.70 s，配方用例 31 passed）；Android **59 tests / 0 failures / 0 errors**（14 个套件，BUILD SUCCESSFUL）；`:app:assembleDebug --rerun-tasks` BUILD SUCCESSFUL（35 tasks executed）；APK **10,838,706 字节**（SHA-256 `363f886583541e8d814ce5d83f8eefd2d87b753a2cec67e8cce57480ac877728`）；密钥扫描 **309 文件 / 0 匹配 / clean=true / exit 0**。
+- 真机：realme GT6 / RMX3800（`eeffd16b`），8 分项 **7 PASS / 1 BLOCKED**；分项 4「缺项提示」错误文案被 `AlertDialog` 遮挡（`RecipeScreen.kt:98-105` 与 `331-379`；校验 `RecipeViewModel.kt:348-350`）。
+- 最终数据状态：v1 225 g（无 `total_sources`）+ v2 240 g（有 `total_sources`），adjustment `adj_01M6T2Y5M5NXQP4NH7HV360342`；冲突实验版本 `recipe_01M6T2HG72KP47MT1VBDV9QNE8` 已清理。
+- 未新增能力、未改源码/测试/服务端代码；未进入 D6。
